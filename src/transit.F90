@@ -157,7 +157,12 @@ program transit
 
   call start_stopwatch(time_total, is_reset=.true.)
 
+
+  if (myrank==0) write(*,*) &
+       "Loading left wave function", fn_load_wave_l
   call bp_load_wf(fn_load_wave_l, evec_l, ptnl, fn_ptn_l, mtotl)
+  if (myrank==0) write(*,*) &
+       "Loading right wave function", fn_load_wave_r
   call bp_load_wf(fn_load_wave_r, evec_r, ptnr, fn_ptn_r, mtotr)
 !  call load_wf(evec_l, ptnl, fn_load_wave_l, is_sorted=.true.)
 !  call load_wf(evec_r, ptnr, fn_load_wave_r, is_sorted=.true.)
@@ -434,7 +439,8 @@ contains
     evm = 0.d0
     if (myrank==0) then
        write(*,*)
-       write(*,'(a,2f8.4)') " E1 transition  (e*fm)^2  e1_charge=", e1_charge
+       write(*,'(a,2f8.4,a,2i3)') " E1 transition  (e*fm)^2  e1_charge=", e1_charge, &
+            " parity",ptnl%iprty, ptnr%iprty
        call print_trans(evv, evm, 2)
     end if
 
@@ -621,8 +627,9 @@ contains
     integer, intent(in) :: mple
     integer :: i, j, jl, jr
     real(8) :: x, y
+ 
+    write(*,*) '2xJi      Ei      2xJf     Ef       Ex       Mred.           B(EM )->       B(EM)<-        Mom.'
 
-    write(*,*) '2xJi      Ei      2xJf     Ef       Ex       Mred.    B(EM )->   B(EM)<-   Mom.'
     do i = 1, n_eig_l
        jl = evec_l(i)%jj
        if (jl < 0) cycle
@@ -636,7 +643,7 @@ contains
 
           x = evv(i, j)
           y = evm(i, j)
-          write(*, '(2(i2,"(",i4,")",f9.3), f8.3,5f10.4)') &
+          write(*, '(2(i2,"(",i4,")",f9.3), f8.3,5f15.8)') &
                evec_l(i)%jj, i, evec_l(i)%eval, &
                evec_r(j)%jj, j, evec_r(j)%eval, &
                evec_r(j)%eval - evec_l(i)%eval, &

@@ -1,13 +1,13 @@
 # --- Intel Fortran compiler ---
-FC = ifort
+#FC = ifort
 # CC = icc
-CC = gcc
-MPIFC := mpif90 -DMPI
+#CC = gcc
+#MPIFC := mpif90 -DMPI
 
 # --- GNU Fortran compiler
-# FC = gfortran
-# CC = gcc
-# MPIFC := mpifort -DMPI # for cygwin + openmpi
+FC = gfortran
+CC = gcc
+MPIFC := mpifort -DMPI # for cygwin + openmpi
 
 # --- Fujitsu Fortran compiler ---
 #FC = frtpx

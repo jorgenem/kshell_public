@@ -5,15 +5,16 @@
 # 
 
 import gen_partition
-import sys, os, os.path, shutil
+import sys, os, os.path, shutil, time
 import readline, bisect
-from gen_partition import read_comment_skip, raw_input_save
+# from gen_partition import read_comment_skip, raw_input_save
 
 bindir = os.path.dirname( __file__ )
-is_mpi = False   # single node (w/o MPI)
+# is_mpi = False   # single node (w/o MPI)
 #is_mpi = True   # for FX10 
 #is_mpi = 'coma' # for Tsukuba CCS COMA + sbatch
 #is_mpi = 'k'    # K computer "micro"
+is_mpi = "fram" # Fram cluster @ UiT, Norway
 
 n_nodes = 24  # default number of MPI nodes 
 
@@ -25,7 +26,7 @@ var_dict = {
     "mode_lv_hdd"   : 1, 
     "eff_charge"    : [1.5, 0.5] , 
     "gl"            : [1.0, 0.0], 
-    "gs"            : [3.910, -2.678], # [ 5.585, -3.826]
+    "gs"            : [5.0271, -3.4435], # JEM 20170427 changed to 0.9*g_s,free # [3.910, -2.678], # [ 5.585, -3.826]
     "beta_cm"       : '0.d0',
     }
 
@@ -120,12 +121,12 @@ def check_cm_snt(fn_snt):
     # return whether Lawson is needed or not
     is_cm = False
     fp = open( fn_snt, 'r')
-    np, nn, ncp, ncn  = read_comment_skip(fp)
+    np, nn, ncp, ncn  = gen_partition.read_comment_skip(fp)
     npn = [np, nn]
     for np in range(2):
         p_list, j_list = [], []
         for i in range(npn[np]):
-            arr = read_comment_skip(fp)
+            arr = gen_partition.read_comment_skip(fp)
             p_list.append( 1 - (arr[2] % 2)*2 )
             j_list.append( arr[3] )
         j_list_posi = [ j for p, j in zip(p_list,j_list) if p== 1 ]
@@ -146,6 +147,16 @@ def exec_string(mode, fn_input, fn_log):
         
     if is_mpi == 'coma': 
         return 'mpirun' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+    elif is_mpi == 'abel': 
+        return 'mpirun' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+    elif is_mpi == 'stallo': 
+        return 'mpirun' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+    elif is_mpi == 'fram': 
+        return 'mpirun' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+    elif is_mpi == 'smaug': 
+        return 'mpiexec' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+    elif is_mpi == 'vilje': 
+        return 'mpiexec' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi:
         return 'mpiexec -of ' + fn_log + fn_exe + fn_input + ' \n\n'
     else:
@@ -201,7 +212,7 @@ def main_nuclide(fn_snt):
     print '*************** specify a nuclide ********************'
     print
     
-    nf = raw_input_save(   '\n number of valence protons and neutrons\n'
+    nf = gen_partition.raw_input_save(   '\n number of valence protons and neutrons\n'
                       + '  (ex.  2, 3 <CR>)    <CR> to quit : ')
     nf = nf.replace(',', ' ').split()
     if len(nf)==0: return ("", "", None)
@@ -209,7 +220,7 @@ def main_nuclide(fn_snt):
     nf = [int(nf[0]), int(nf[1])]
 
     fn_base = fn_element(nf, fn_snt)
-    ans = raw_input_save("\n name for script file (default: "+fn_base+" ): ")
+    ans = gen_partition.raw_input_save("\n name for script file (default: "+fn_base+" ): ")
     ans = ans.strip()
     if ans: fn_base = ans
 
@@ -219,7 +230,7 @@ def main_nuclide(fn_snt):
     print "       -5           for lowest five -parity states, "
     print "       0+3, 2+1     for lowest three 0+ states and one 2+ states, "
     print "       1.5-, 3.5+3  for lowest one 3/2- states and three 7/2+ states) :"
-    ans = raw_input_save()
+    ans = gen_partition.raw_input_save()
     ans = ans.replace(',', ' ').split()
     if not ans: ans = ['+10', '-10']
     if len(ans)==1 and ans[0].isdigit(): ans = ['+'+ans[0], '-'+ans[0]]
@@ -252,7 +263,7 @@ def main_nuclide(fn_snt):
         list_param = [ k +" = " for k in var_dict.keys() ]
         readline.set_completer( SimpleCompleter(list_param).complete )
         readline.parse_and_bind("tab: complete")
-        ans = raw_input_save(ask)
+        ans = gen_partition.raw_input_save(ask)
         readline.parse_and_bind("tab: None")
 
         ans = ans.strip()
@@ -306,14 +317,18 @@ def main_nuclide(fn_snt):
         out +=  exec_string('kshell', fn_input, fn_log)
 
     is_transit = False
-    ans = raw_input_save( \
+    ans = gen_partition.raw_input_save( \
+      # JEM 20170922 turned E1 back on
       "\n compute transition probabilities (E2/M1/E1) for \n    " \
+      # JEM 20170711 removed E1 transitions
+      # "\n compute transition probabilities (E2/M1) for \n    " \
                           + fn_base +' ? Y/N (default: N) : ')
     if len(ans) >0:
         if ans[0] == 'Y' or ans[0] == 'y': is_transit = True
         if ans[0] == 'N' or ans[0] == 'n': is_transit = False
     if is_transit: 
-        is_e2m1, is_e1 = True,  True
+        is_e2m1, is_e1 = True,  True # JEM 20170922 turned E1 back on
+        # is_e2m1, is_e1 = True,  False # JEM 20170711 turned off E1
         out += "# --------------- transition probabilities --------------\n\n"
     else: 
         is_e2m1, is_e1 = False, False
@@ -340,7 +355,19 @@ def main_nuclide(fn_snt):
         + "* > " + fn_summary + "\n"
     out += 'rm -f tmp_snapshot_' + fn_base + '* tmp_lv_' + fn_base + '* ' \
         + fn_input + ' \n'
-    out += 'echo "Finish computing '+fn_base+'.    See ' + fn_summary + '"\n'
+
+    # start JEM additions: Compressing text files with run results to tar.gz, copying them to a directory under ~/jobs/ to backup.
+    fn_tarfile = 'logs_'+fn_base+'.tar.gz'
+    out += 'echo "Compressing all text files from run into {0:s} \n"\n'.format(fn_tarfile)
+    out += 'tar czvf {0:s} *.txt *.snt *.ptn *.sh \n'.format(fn_tarfile) 
+
+    backupdir = fn_base+'-'+time.strftime("%Y%m%d")
+    out += 'echo "Copying {0:s} to ~/KSHELL_jobs/{1:s} " \n'.format(fn_tarfile, backupdir)
+    out += 'mkdir -p $HOME/KSHELL_jobs/{0:s} \n'.format(backupdir)
+    out += 'rsync -rR {0:s} $HOME/KSHELL_jobs/{1:s} \n'.format(fn_tarfile, backupdir)
+    # end JEM additions.
+
+    out += 'echo "\nFinish computing '+fn_base+'. See ' + fn_summary + '"\n'
     out += 'echo \n\n'
     
     return fn_base, out, (nf, list_jpn, fn_save_list)
@@ -358,10 +385,10 @@ def main():
     global is_mpi
     if is_mpi: cdef = is_mpi
     if cdef == True: cdef = 'Y'
-    list_param = [ 'coma', 'fx10', 'k-computer', 'yes', 'no' ]
+    list_param = [ 'coma', 'abel', 'stallo', 'fram', 'smaug', 'vilje', 'fx10', 'k-computer', 'yes', 'no' ]
     readline.set_completer( SimpleCompleter(list_param).complete )
     readline.parse_and_bind("tab: complete")
-    ans = raw_input_save( '\n MPI parallel? Y/N (default: '+ cdef +') : ' )
+    ans = gen_partition.raw_input_save( '\n MPI parallel? Y/N (default: '+ cdef +') : ' )
     readline.parse_and_bind("tab: None")
     if len(ans)>0:
         if ans[0] == 'Y' or ans[0] == 'y': 
@@ -373,6 +400,8 @@ def main():
 
     if is_mpi == 'coma': 
         print "  ... generate shell script for MPI run on COMA/Tsukuba with SLURM "
+    elif is_mpi == 'fram': 
+        print "  ... generate shell script for MPI run on Fram@UiT with SLURM "
     elif is_mpi == 'k': 
         print "  ... generate shell script for MPI run on K-computer micro with PJM"
     elif is_mpi: 
@@ -384,7 +413,10 @@ def main():
         + [fn for fn in os.listdir(".") if len(fn)>4 and fn[-4:]==".snt"]
     readline.parse_and_bind("tab: complete")
     readline.set_completer( SimpleCompleter(list_snt).complete )
-    fn_snt = raw_input_save( \
+    if is_mpi != False:
+        n_nodes = int(gen_partition.raw_input_save( \
+        "\n number of computer nodes (not cores) for MPI: "))
+    fn_snt = gen_partition.raw_input_save( \
         "\n model space and interaction file name (.snt) \n" \
             + " (e.g. w or w.snt,  TAB key to complete) : " )
     readline.parse_and_bind("tab: None")
@@ -445,7 +477,7 @@ def main():
 
     def ask(optype):
         ret = False
-        ans = raw_input_save( \
+        ans = gen_partition.raw_input_save( \
             '\n compute ' + optype + '? Y/N (default: No) : ')
         if len(ans) >0:
             if ans[0] == 'Y' or ans[0] == 'y': ret = True
@@ -558,7 +590,21 @@ def main():
                     # cd $SLURM_SUBMIT_DIR
                     # export OMP_NUM_THREADS=16
             
-            print "\n Finish. edit and sbatch ./"+fn_run+"\n"
+            print "\n Finish. edit and sbatch "+fn_run+"\n"
+        elif is_mpi == 'fram': # This option added by JEM. Slightly modified 'abel' option above.
+            outsh = '#!/bin/bash \n' \
+                    + '#SBATCH --job-name=' + fn_run[:-3] + ' \n' \
+                    + '#SBATCH --account=<insert account> \n' \
+                    + '#SBATCH --time=02-00:00:00 \n' \
+                    + '#SBATCH --nodes='+ str(n_nodes) + '\n' \
+                    + '#SBATCH --ntasks-per-node=1 \n' \
+                    + '#SBATCH --cpus-per-task=32 \n' \
+                    + 'module purge  \n' \
+                    + 'module load intel/2017b \n' \
+                    + 'set -o errexit  \n' \
+                    + 'set -o nounset \n' \
+                    + outsh
+
         elif is_mpi == 'k':
             outsh = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=micro"\n' \
