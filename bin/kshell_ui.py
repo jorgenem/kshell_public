@@ -402,6 +402,8 @@ def main():
         print "  ... generate shell script for MPI run on COMA/Tsukuba with SLURM "
     elif is_mpi == 'fram': 
         print "  ... generate shell script for MPI run on Fram@UiT with SLURM "
+    elif is_mpi == 'abel': 
+        print "  ... generate shell script for MPI run on Abel@UiO with SLURM "
     elif is_mpi == 'k': 
         print "  ... generate shell script for MPI run on K-computer micro with PJM"
     elif is_mpi: 
@@ -591,7 +593,7 @@ def main():
                     # export OMP_NUM_THREADS=16
             
             print "\n Finish. edit and sbatch "+fn_run+"\n"
-        elif is_mpi == 'fram': # This option added by JEM. Slightly modified 'abel' option above.
+        elif is_mpi == 'fram': # This option added by JEM. Slightly modified 'coma' option above.
             outsh = '#!/bin/bash \n' \
                     + '#SBATCH --job-name=' + fn_run[:-3] + ' \n' \
                     + '#SBATCH --account=<insert account> \n' \
@@ -604,6 +606,23 @@ def main():
                     + 'set -o errexit  \n' \
                     + 'set -o nounset \n' \
                     + outsh
+
+        elif is_mpi == 'abel': # This option added by JEM. Slightly modified 'coma' option above.
+            outsh = '#!/bin/bash \n' \
+                    + '#SBATCH --job-name=' + fn_run[:-3] + '\n' \
+                    + '#SBATCH --account=uio\n' \
+                    + '#SBATCH --time=02-00:00:00\n' \
+                    + '#SBATCH --mem-per-cpu=3800\n' \
+                    + '#SBATCH -N ' + str(n_nodes) + '\n' \
+                    + '#SBATCH -n ' + str(n_nodes) + '\n' \
+                    + '#SBATCH --cpus-per-task=16\n\n' \
+                    + 'source /cluster/bin/jobsetup \n' \
+                    + 'module purge \n' \
+                    + 'module load intel/2018.1  \n' \
+                    + 'set -o errexit \n' \
+                    + 'export OMP_NUM_THREADS=16\n' \
+                    + 'ulimit -s unlimited\n' \
+                    + outsh 
 
         elif is_mpi == 'k':
             outsh = '#!/bin/sh \n' \
