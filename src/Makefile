@@ -1,8 +1,8 @@
 # --- Intel Fortran compiler ---
 #FC = ifort
-# CC = icc
+#CC = icc
 #CC = gcc
-#MPIFC := mpif90 -DMPI
+#MPIFC := mpiifort -DMPI
 
 # --- GNU Fortran compiler
 FC = gfortran
@@ -31,9 +31,10 @@ all: single mpi
 
 
 ifeq ($(FC), ifort)  
+  FFLAGS =  -O3 -qopenmp -no-ipo
 #  FFLAGS =  -fast  -no-ipo
 #  FFLAGS =  -fast  -openmp -no-ipo -g
-  FFLAGS =  -fast -openmp -no-ipo
+#  FFLAGS =  -fast -qopenmp -no-ipo
 #  FFLAGS =  -fast -no-ipo -p 
 #  FFLAGS =  -fast -openmp -no-ipo -Wl,-stack_size,40000000  # Mac OSX + ifort
 #  FFLAGS =  -fast -openmp -no-ipo -check all -g -traceback
