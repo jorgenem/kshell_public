@@ -356,7 +356,7 @@ def main_nuclide(fn_snt):
     out += 'rm -f tmp_snapshot_' + fn_base + '* tmp_lv_' + fn_base + '* ' \
         + fn_input + ' \n'
 
-    # start JEM additions: Compressing text files with run results to tar.gz, copying them to a directory under ~/jobs/ to backup.
+    # start JEM additions: Compressing text files with run results to tar.gz, copying them to a directory under ~/KSHELL_jobs/ to backup.
     fn_tarfile = 'logs_'+fn_base+'.tar.gz'
     out += 'echo "Compressing all text files from run into {0:s} \n"\n'.format(fn_tarfile)
     out += 'tar czvf {0:s} *.txt *.snt *.ptn *.sh \n'.format(fn_tarfile) 
