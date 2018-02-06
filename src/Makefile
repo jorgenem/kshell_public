@@ -1,6 +1,5 @@
 # --- Intel Fortran compiler ---
 #FC = ifort
-#CC = icc
 #CC = gcc
 #MPIFC := mpiifort -DMPI
 
