@@ -14,7 +14,8 @@ bindir = os.path.dirname( __file__ )
 #is_mpi = True   # for FX10 
 #is_mpi = 'coma' # for Tsukuba CCS COMA + sbatch
 #is_mpi = 'k'    # K computer "micro"
-is_mpi = "fram" # Fram cluster @ UiT, Norway
+# is_mpi = "fram" # Fram cluster @ UiT, Norway
+is_mpi = "abel" # Abel cluster @ UiO, Norway
 
 n_nodes = 24  # default number of MPI nodes 
 
@@ -351,7 +352,8 @@ def main_nuclide(fn_snt):
                                   (m1, np1, ne1, isj1), (m2, np2, ne2, isj2) )
 
     fn_summary = 'summary_' + fn_base + '.txt'
-    out += "nice ./collect_logs.py log_*" + fn_base \
+    # out += "nice ./collect_logs.py log_*" + fn_base \
+    out += "nice python2 collect_logs.py log_*" + fn_base \
         + "* > " + fn_summary + "\n"
     out += 'rm -f tmp_snapshot_' + fn_base + '* tmp_lv_' + fn_base + '* ' \
         + fn_input + ' \n'
