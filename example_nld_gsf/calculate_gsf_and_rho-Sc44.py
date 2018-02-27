@@ -2,7 +2,7 @@ from __future__ import division
 import numpy as np 
 import matplotlib.pyplot as plt 
 import sys
-sys.path.insert(0, '/home/jorgenem/gitrepos/kshell/bin/')
+sys.path.insert(0, '../bin/')
 import shellmodelutilities as smutil
 from matplotlib.colors import LogNorm
 
