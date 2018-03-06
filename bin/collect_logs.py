@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # ./summary_logs.py log_foo.txt log_bar.txt ...
 #
 import sys

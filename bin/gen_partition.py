@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # ./gen_partition.py hoge.snt hoge.ptn
 # generate partition file from snt file
 # usage: gen_partiton.py hoge.snt #proton #neutron parity

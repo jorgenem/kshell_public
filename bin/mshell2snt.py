@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 # ./mshell2snt.py hoge.sps hoge.int output.snt
 # transform  mshell/mshell64 format (p-n formalism) to snt format
 #
