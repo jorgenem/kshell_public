@@ -1,4 +1,4 @@
-This repository contains N. Shimizu's code KSHELL ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from [https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/]
+This repository contains N. Shimizu's code KSHELL ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
@@ -125,7 +125,7 @@ jorgenem@prior:~/gitrepos/kshell-pub/runs/Ne20$
 
 I have added some Python scripts in the bin/ folder, namely `shellmodelutilities.py` and `spin_selection.py`. The latter is a small tool to ease setup of calculations, while the first is a comprehensive library of tools to calculate level density (NLD) and gamma-ray strength function (gSF) from shell model files. 
 
-The folder example_nld_gsf/ contains an example of just that, using the `shellmodelutilities` library. There is also an example summary file on Ne20 with the USDa interaction, to demonstrate the use of the script. The calculated NLD and gSF is not very interesting, however, but I cannot put a large file on Github. If you like, you can download a more interesting calculation summary file from the supplemental material to our PRC on M1 systematics ([arXiv:1807.04036 [nucl-th]](https://arxiv.org/abs/1807.04036)) from this link: [https://doi.org/10.5281/zenodo.1493220]
+The folder example_nld_gsf/ contains an example of just that, using the `shellmodelutilities` library. There is also an example summary file on Ne20 with the USDa interaction, to demonstrate the use of the script. The calculated NLD and gSF is not very interesting, however, but I cannot put a large file on Github. If you like, you can download a more interesting calculation summary file from the supplemental material to our PRC on M1 systematics ([arXiv:1807.04036 [nucl-th]](https://arxiv.org/abs/1807.04036)) from this link: https://doi.org/10.5281/zenodo.1493220
 
 ### Technical notes
 I have modified the `transit.f90` file slightly so it prints transition strengths with more decimal precision, to facilitate the gSF calculations. I have updated `collect_logs.py` accordingly. I have also modified `collect_logs.py` to ensure it does not double-count transitions.
