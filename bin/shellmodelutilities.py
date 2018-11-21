@@ -1,5 +1,5 @@
 
-from __future__ import division
+
 import numpy as np 
 # import matplotlib.pyplot as plt 
 import sys
@@ -149,7 +149,7 @@ def total_level_density(levels, bin_width, Ex_max):
   return rho_total
 
 
-def strength_function_average_updated_definition(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
+def strength_function_average(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
   # 20171009: Updated the way we average over Ex, J, pi to only count pixels with non-zero gSF.
   # 20170815: This function returns the strength function the way we now think is the correct way:
   # By taking only the partial level density corresponding to the specific (Ex, J, pi) pixel in the
@@ -715,7 +715,7 @@ def level_density_matrix(inputfile, bin_width=0.2, Emax=12, Ex_low=5, Ex_high=8)
   bins_Ex_middle = (bins_Ex[0:-1]+bins_Ex[1:])/2
 
   bins_J = np.linspace(0, levels[:,1].max()/2, int(levels[:,1].max()/2)+1)
-  print bins_J
+  print(bins_J)
 
   Egs = levels[0,0]
   rho_total, tmp = np.histogram(levels[:,0]-Egs, bins=bins_Ex)
@@ -737,7 +737,7 @@ def level_density_matrix_parity_decomposed(inputfile, bin_width=0.2, Emax=12, Ex
   bins_Ex_middle = (bins_Ex[0:-1]+bins_Ex[1:])/2
 
   bins_J = np.linspace(0, levels[:,1].max()/2, int(levels[:,1].max()/2)+1)
-  print bins_J
+  print(bins_J)
 
   Egs = levels[0,0]
   # rho_total, tmp = np.histogram(levels[:,0]-Egs, bins=bins_Ex)
@@ -880,7 +880,7 @@ def write_interaction_file_msdict(filename, SPEs, TBMEs, model_space, core, comm
   #  [7,     1,   1,   1,   1],
   #  [8,     0,   4,   9,   1]]  
   model_space_list = []
-  for i in model_space.keys():
+  for i in list(model_space.keys()):
     model_space_list.append([i,model_space[i]["n"],model_space[i]["l"],model_space[i]["j"],model_space[i]["Tz"]])
   model_space = np.array(model_space_list)
 
@@ -939,7 +939,7 @@ def write_interaction_file_msdict(filename, SPEs, TBMEs, model_space, core, comm
   #  [7,     1,   1,   1,   1],
   #  [8,     0,   4,   9,   1]]  
   model_space_list = []
-  for i in model_space.keys():
+  for i in list(model_space.keys()):
     model_space_list.append([i,model_space[i]["n"],model_space[i]["l"],model_space[i]["j"],model_space[i]["Tz"]])
   model_space = np.array(model_space_list)
 

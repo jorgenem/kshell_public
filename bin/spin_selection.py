@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 import sys
 
 def spin_selection_string(Jmin, Jmax, parities, Nlevels):

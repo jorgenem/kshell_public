@@ -10,12 +10,12 @@ import readline, bisect
 # from gen_partition import read_comment_skip, raw_input_save
 
 bindir = os.path.dirname( __file__ )
-# is_mpi = False   # single node (w/o MPI)
+is_mpi = False   # single node (w/o MPI)
 #is_mpi = True   # for FX10 
 #is_mpi = 'coma' # for Tsukuba CCS COMA + sbatch
 #is_mpi = 'k'    # K computer "micro"
 # is_mpi = "fram" # Fram cluster @ UiT, Norway
-is_mpi = "abel" # Abel cluster @ UiO, Norway
+# is_mpi = "abel" # Abel cluster @ UiO, Norway
 
 n_nodes = 24  # default number of MPI nodes 
 
