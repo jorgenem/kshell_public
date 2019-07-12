@@ -769,7 +769,6 @@ def read_interaction_file(filename):
     infile = open(filename, "r")
     while True:
         line = infile.readline()
-        print(line)
         if not line:
             break
         if line[0:13] == "! model space":
