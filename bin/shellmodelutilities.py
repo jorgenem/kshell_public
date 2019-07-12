@@ -95,7 +95,7 @@ def read_calc_tbme(inputfile, tbme_template):
         # Start looping through all eigenstates:
         i = i_start
         while True:
-            if len(lines[i]) >= 30 and lines[i][0:30] == "        N                    <E>        log-file":
+            if len(lines[i]) >= 30 and lines[i][0:30] == "    N          <E>    log-file":
                 # Start reading all calc_tbme for current eigenstate
                 i += 1
                 words = lines[i].split()
@@ -808,7 +808,7 @@ def read_interaction_file(filename):
                         "interaction file. "
                         "Please check that the .snt file contains the correct "
                         "formatting, including the lines "
-                        "!    i    j         <i|H(1b)|j> "
+                        "!  i  j     <i|H(1b)|j>"
                         "and "
                         "! TBME")
 
@@ -839,7 +839,7 @@ def write_interaction_file(filename, SPEs, TBMEs, model_space, core, comments=""
 
     # SPEs as one-dim array
     outfile += "! interaction\n"
-    outfile += "!    i    j         <i|H(1b)|j>\n"
+    outfile += "!  i  j     <i|H(1b)|j>\n"
     outfile += "    {:d}     {:d}\n".format(len(SPEs), 0) # Unsure what the last zero signifies.
     for i in range(len(SPEs)):
         outfile += "{:3d} {:3d} {:16.8f}\n".format(model_space[i,0], model_space[i,0], SPEs[i])
@@ -899,7 +899,7 @@ def write_interaction_file_msdict(filename, SPEs, TBMEs, model_space, core, comm
 
     # SPEs as one-dim array
     outfile += "! interaction\n"
-    outfile += "!    i    j         <i|H(1b)|j>\n"
+    outfile += "!  i  j     <i|H(1b)|j>\n"
     outfile += "    {:d}     {:d}\n".format(len(SPEs), 0) # Unsure what the last zero signifies.
     for i in range(len(SPEs)):
         outfile += "{:3d} {:3d} {:16.8f}\n".format(model_space[i,0], model_space[i,0], SPEs[i])
@@ -958,7 +958,7 @@ def write_interaction_file_msdict(filename, SPEs, TBMEs, model_space, core, comm
 
     # SPEs as one-dim array
     outfile += "! interaction\n"
-    outfile += "!    i    j         <i|H(1b)|j>\n"
+    outfile += "!  i  j     <i|H(1b)|j>\n"
     outfile += "    {:d}     {:d}\n".format(len(SPEs), 0) # Unsure what the last zero signifies.
     for i in range(len(SPEs)):
         outfile += "{:3d} {:3d} {:16.8f}\n".format(model_space[i,0], model_space[i,0], SPEs[i])
