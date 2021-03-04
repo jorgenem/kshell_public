@@ -1,14 +1,11 @@
-
-
+import sys
 import numpy as np 
 # import matplotlib.pyplot as plt 
-import sys
 
 # Scripts to sort levels and transition strengths from KSHELL 
 # into Ex-Eg matrix energy bins, and to make level density and 
 # gamma strength function.
 # Plus other useful functions for shell model stuff.
-
 
 
 def div0( a, b ):
@@ -19,72 +16,126 @@ def div0( a, b ):
     return c
 
 
-def read_energy_levels(inputfile):
-    # Reads levels from a KSHELL summary file, returns Nx3 matrix of 
-    # [Ei, 2*Ji, parity], where E is absolute energy of level and parity 1=+, 0=-
+def read_energy_levels(fname):
+    """
+    Reads levels from a KSHELL summary file, returns Nx3 matrix of 
+    [Ei, 2*Ji, parity], where E is absolute energy of level and parity 1=+, 0=-
+    """
     levels = []
-    with open(inputfile, 'r') as f:
+    with open(fname, 'r') as f:
         lines = f.readlines()
         i_start = -1
+        
         for i in range(len(lines)):
-            if len(lines[i].split())<1: continue
+            if len(lines[i].split()) < 1:
+                continue
+            
             if lines[i].split()[0] == "Energy":
                 i_start = i+4
                 break
+        
         for i in range(i_start, len(lines)):
-            if len(lines[i].split())<1: break
+            if len(lines[i].split()) < 1:
+                break
+            
             words = lines[i].split()
             num_parity = 1 if words[2] == "+" else -1
             levels.append([float(words[5]), float(words[1]), num_parity])
+        
         return np.asarray(levels) 
 
 
-def read_transition_strengths(inputfile, type="M1"):
+def read_transition_strengths(fname, multipole_type="M1"):
+    """
+    Parameters
+    ----------
+    fname : string
+        Filename of KSHELL data file.
+
+    multipole_type : string
+        Choose whether to calculate for 'M1' or 'E2'.
+
+    Returns
+    -------
+    transitions : numpy.ndarray
+        Matrix with format [2Jf, pi, Ef, 2Ji, pi, Ei, Ex, B(.., i->f)].
+    """
     transitions = []
-    with open(inputfile, 'r') as f:
+    
+    with open(fname, 'r') as f:
         lines = f.readlines()
         i_start = -1
         for i in range(len(lines)):
-            if len(lines[i].split())<1: continue
-            if lines[i].split()[0] == "B({:s})".format(type):
-                # print "hello"
-                i_start = i+2
+            """
+            Iterate file until B({multipole_type:s}) is found.
+            """
+            if len(lines[i].split()) < 1:
+                """
+                Skip empty lines.
+                """
+                continue
+            
+            if lines[i].split()[0] == f"B({multipole_type:s})":
+                """
+                Correct multipole header found.  Update start index.
+                """
+                i_start = i + 2
                 break
+
         for i in range(i_start, len(lines)):
-            # print lines[i]
-            if len(lines[i].split())<1: break
+            """
+            Read the multipole transition data.
+            """
+            if len(lines[i].split()) < 1:
+                """
+                Skip empty lines.
+                """
+                break
+
             line = lines[i]
-            # Returns
-            # [2Ji, pi, Ei, 2Jf, pf, Ef, Eg, B(M1,i->f)]    --    beware that the summary file has opposite initial/final convention to this!
-            # JEM: Changed 20170428 from [2Ji, Ei, 2Jf, Ef, Eg, B(M1,i->f)] 
-            # print line[0:3], line[12:22], line[22:25], line[34:43], line[43:51], line[51:67]
-            # print line[25]
             pi_str = line[25:27].strip()
-            # print pi_str
             if pi_str == "+":
                 pi = +1
             elif pi_str == "-":
                 pi = -1
             else:
-                raise Exception("From function read_transition_strengths: Could not assign initial parity. Read value: "+pi_str)
+                msg = "From function read_transition_strengths: Could not"
+                msg += " assign initial parity. Read value: " + pi_str
+                raise Exception(msg)
+            
+
+            # NOTE: pf is calculated but not used.
             pf_str = line[4:5].strip()
             if pf_str == "+":
                 pf = +1
             elif pf_str == "-":
                 pf = -1
             else:
-                raise Exception("From function read_transition_strengths: Could not assign final parity Read value: "+pf_str)
-            transitions.append([float(line[22:25]), pi, float(line[34:43]), float(line[0:3]), pi, float(line[12:22]), float(line[43:51]), float(line[67:83])])
+                msg = "From function read_transition_strengths: Could not"
+                msg += " assign final parity Read value: " + pf_str
+                raise Exception(msg)
+
+            transitions.append([
+                float(line[22:25]), # 2Jf.
+                pi,                 # pf maybe?
+                float(line[34:43]), # Ef.
+                float(line[0:3]),   # 2Ji.
+                pi,                 # Should these two pi's be equal?
+                float(line[12:22]), # Ei.
+                float(line[43:51]), # Ex.
+                float(line[67:83])  # B(..)<-
+            ])
+
         return np.asarray(transitions)
 
 
-def read_calc_tbme(inputfile, tbme_template):
+def read_calc_tbme(fname, tbme_template):
     # Reads tbme expectation values from a KSHELL summary file, returns NxM matrix of 
     # the M SPE+TBMEs for each level N
     # The tbme_template file is used to compare the ordering of <k1k2|V|k3k4;J> because
     # KSHELL can give either ordering of the k1k2, k3k4 pairs.
     calc_tbme = []
-    with open(inputfile, 'r') as f:
+    with open(fname, 'r') as f:
         lines = f.readlines()
         i_start = -1
         for i in range(len(lines)):
@@ -138,7 +189,6 @@ def read_calc_tbme(inputfile, tbme_template):
         return calc_tbme
 
 
-
 def total_level_density(levels, bin_width, Ex_max):
     # 20170816: This function returns the total level density as a function of Ex.
     Nbins = int(np.ceil(Ex_max/bin_width)) # Make sure the number of bins cover the whole Ex region.
@@ -149,29 +199,22 @@ def total_level_density(levels, bin_width, Ex_max):
     return rho_total
 
 
-def strength_function_average(levels, transitions, Jpi_list, bin_width, Ex_min, Ex_max, type="M1"):
-    # 20171009: Updated the way we average over Ex, J, pi to only count pixels with non-zero gSF.
-    # 20170815: This function returns the strength function the way we now think is the correct way:
-    # By taking only the partial level density corresponding to the specific (Ex, J, pi) pixel in the
-    # calculation of the strength function, and then averaging over all three variables to produce
-    # <f(Eg)>.
-    # This code was first developed in the script strength_function_individual_Jpi.py
-    Nbins = int(np.ceil(Ex_max/bin_width)) # Make sure the number of bins cover the whole Ex region.
-    # print "Ex_max =", Ex_max, "Nbins*bin_width =", Nbins*bin_width
-    bin_array = np.linspace(0,bin_width*Nbins,Nbins+1) # Array of lower bin edge energy values
-    bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
-    # Find index of first and last bin (lower bin edge) where we put counts.
-    # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-    i_Exmin = int(np.floor(Ex_min/bin_width)) 
-    i_Exmax = int(np.floor(Ex_max/bin_width))    
-
-    prefactor = {"M1":    11.5473e-9, "E1": 1.047e-6}
-
-    Egs = levels[0,0] # Read out the absolute ground state energy, so we can get relative energies later
-
-    # Allocate matrices to store the summed B(M1) values for each pixel, and the number of transitions counted
-    B_pixel_sum = np.zeros((Nbins,Nbins,len(Jpi_list)))
-    B_pixel_count = np.zeros((Nbins,Nbins,len(Jpi_list)))
+def strength_function_average(
+        levels,
+        transitions,
+        Jpi_list,
+        bin_width,
+        Ex_min,
+        Ex_max,
+        multipole_type = "M1"
+    ):
+    """
+    20171009: Updated the way we average over Ex, J, pi to only count pixels with non-zero gSF.
+    20170815: This function returns the strength function the way we now think is the correct way:
+    By taking only the partial level density corresponding to the specific (Ex, J, pi) pixel in the
+    calculation of the strength function, and then averaging over all three variables to produce
+    <f(Eg)>.
+    This code was first developed in the script strength_function_individual_Jpi.py
 
     # # Update 20170915: Realized a problem with summing vs averaging, adding this list to fix that
     # # Update 20170920: Realized that the fix was wrong, the original was correct.
@@ -179,88 +222,116 @@ def strength_function_average(levels, transitions, Jpi_list, bin_width, Ex_min, 
     # for i_Ex in range(Nbins):
     #     Ex_already_seen.append([])
 
-    # Loop over all transitions and put in the correct pixel:
-    for i_tr in range(len(transitions[:,0])):
-        Ex = transitions[i_tr,2] - Egs
-        # Check if transition is below Ex_max, skip if not
-        if Ex < Ex_min or Ex >= Ex_max:
+    # 20170920: We thought this was more correct, but now think not.
+    # if not Ex in Ex_already_seen[i_Eg]:
+    #     B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1
+    #     Ex_already_seen[i_Eg].append(Ex)
+
+    Parameters
+    ----------
+    levels : numpy.ndarray
+        Nx3 matrix containing [Ei, 2*Ji, parity] in each row.
+
+    transitions : numpy.ndarray
+        Mx8 matrix containing [2Jf, pi, Ef, 2Ji, pi, Ei, Ex, B(.., i->f)]
+        in each row.
+
+    Ex_min : int, float
+        Lower limit for emitted gamma energy [MeV].
+
+    Ex_max : int, float
+        Upper limit for emitted gamma energy [MeV].
+
+    multipole_type : string
+        Choose whether to calculate for 'M1' or 'E2'.
+    """
+    Nbins = int(np.ceil(Ex_max/bin_width)) # Make sure the number of bins cover the whole Ex region.
+    bin_array = np.linspace(0, bin_width*Nbins, Nbins + 1) # Array of lower bin edge energy values
+    bin_array_middle = (bin_array[0: -1] + bin_array[1:])/2 # Array of middle bin values
+    
+    # Find index of first and last bin (lower bin edge) where we put counts.
+    # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
+    i_Ex_min = int(np.floor(Ex_min/bin_width)) 
+    i_Ex_max = int(np.floor(Ex_max/bin_width))    
+
+    prefactor = {"M1": 11.5473e-9, "E1": 1.047e-6}
+
+    Egs = levels[0, 0] # Read out the absolute ground state energy, so we can get relative energies later.
+
+    # Allocate matrices to store the summed B(M1) values for each pixel, and the number of transitions counted
+    B_pixel_sum = np.zeros((Nbins, Nbins, len(Jpi_list)))
+    B_pixel_count = np.zeros((Nbins, Nbins, len(Jpi_list)))
+
+    for i_tr in range(len(transitions[:, 0])):
+        """
+        Iterate over all transitions in the transitions matrix and put
+        in the correct pixel.
+        """
+        Ex = transitions[i_tr, 2] - Egs # Calculate relative energy.
+        if (Ex < Ex_min) or (Ex >= Ex_max):
+            """
+            Check if transition is within min max limits, skip if not.
+            """
             continue
 
         # Get bin index for Eg and Ex (initial). Indices are defined with respect to the lower bin edge.
-        i_Eg = int(np.floor(transitions[i_tr,6]/bin_width))
+        i_Eg = int(np.floor(transitions[i_tr, 6]/bin_width))
         i_Ex = int(np.floor(Ex/bin_width))
 
-        # Read initial spin and parity of level:
-        Ji = int(transitions[i_tr,0])
-        pi = int(transitions[i_tr,1])
-        # print pi
-        # Get index for current [Ji,pi] combination in Jpi_list:
-        # print "Tr =", transitions[i_tr,7]
+        # Read initial spin and parity of level: NOTE: I think the name / index is wrong.
+        Ji = int(transitions[i_tr, 0])
+        pi = int(transitions[i_tr, 1])
         try:
-            i_Jpi = Jpi_list.index([Ji,pi])
+            """
+            Get index for current [Ji, pi] combination in Jpi_list.
+            """
+            i_Jpi = Jpi_list.index([Ji, pi])
         except: 
-            # print "no pass"
             continue
-        # print i_Ex, i_Eg, i_Jpi
 
         # Add B(M1) value and increment count to pixel, respectively
-        B_pixel_sum[i_Ex,i_Eg,i_Jpi] += transitions[i_tr,7]
-
-        # 20170920: We thought this was more correct, but now think not.
-        # if not Ex in Ex_already_seen[i_Eg]:
-        #     B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1
-        #     Ex_already_seen[i_Eg].append(Ex)
-
-        B_pixel_count[i_Ex,i_Eg,i_Jpi] += 1 # Original
-    # print B_pixel_sum[B_pixel_sum>0].size, B_pixel_sum[B_pixel_sum>0]
-    # print B_pixel_count[B_pixel_count>0].size, B_pixel_count[B_pixel_count>0]
+        B_pixel_sum[i_Ex, i_Eg, i_Jpi] += transitions[i_tr, 7]
+        B_pixel_count[i_Ex, i_Eg, i_Jpi] += 1 # Original.
 
 
 
-    # Allocate (Ex,Jpi) matrix to store level density
-    rho_ExJpi = np.zeros((Nbins,len(Jpi_list)))
+    # Allocate (Ex, Jpi) matrix to store level density
+    rho_ExJpi = np.zeros((Nbins, len(Jpi_list)))
     # Count number of levels for each (Ex, J, pi) pixel.
-    for i_l in range(len(levels[:,0])):
+    for i_l in range(len(levels[:, 0])):
         E, J, pi = levels[i_l]
         # Skip if level is outside range:
-        if E-Egs >= Ex_max:
+        if (E - Egs) >= Ex_max:
             continue
-        i_Ex = int(np.floor((E-Egs)/bin_width))
+        i_Ex = int(np.floor((E - Egs)/bin_width))
         try:
-            i_Jpi = Jpi_list.index([J,pi])
+            i_Jpi = Jpi_list.index([J, pi])
         except:
             continue
-        rho_ExJpi[i_Ex,i_Jpi] += 1
+        rho_ExJpi[i_Ex, i_Jpi] += 1
 
-    rho_ExJpi /= bin_width # Normalize to bin width, to get density in MeV^-1
-    # print rho_ExJpi
+    rho_ExJpi /= bin_width # Normalize to bin width, to get density in MeV^-1.
 
 
     # Calculate gamma strength functions for each Ex, J, pi individually, using the partial level density for each J, pi.
-    gSF = np.zeros((Nbins,Nbins,len(Jpi_list)))
-    a = prefactor[type] # mu_N^-2 MeV^-2, conversion constant
+    gSF = np.zeros((Nbins, Nbins, len(Jpi_list)))
+    a = prefactor[multipole_type] # mu_N^-2 MeV^-2, conversion constant
     for i_Jpi in range(len(Jpi_list)):
         for i_Ex in range(Nbins):
-                                         # a *                     <B(M1; Eg, Ex, J, pi)>                                                                             * rho(Ex, J, pi)    
-            # if rho_ExJpi[i_Ex, i_Jpi] > 0:
-            #     print "Ding rho, ", "Ex=", bin_array[i_Ex], "Jpi=", Jpi_list[i_Jpi], rho_ExJpi[i_Ex, i_Jpi]
-            # if B_pixel_sum[i_Ex,:, i_Jpi].any() > 0:
-            #     print "Ding B, ", "Ex=", bin_array[i_Ex], "Jpi=", Jpi_list[i_Jpi], rho_ExJpi[i_Ex, i_Jpi], B_pixel_sum[i_Ex,:, i_Jpi].nonzero()
-            gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * rho_ExJpi[i_Ex, i_Jpi]
-            # print gSF[i_Ex,gSF[i_Ex,:,i_Jpi]>0,i_Jpi]
-            # # DEBUG:
-            # for i_Eg in range(i_Ex):
-            #     if gSF[i_Ex,i_Eg,i_Jpi] > 0:
-            #         print "Ding, ", i_Ex, i_Eg, i_Jpi, gSF[i_Ex,:,i_Jpi]
-            # TODO if the below smoothing is used: Check the form of the level density. When I tried sigma=3 it looked like the gSF dropped a bit, indicating that the level density was lowered. Maybe smoothe it some other way, such as drawing straight lines?
-            # gSF[i_Ex,:,i_Jpi] = a * div0(B_pixel_sum[i_Ex,:,i_Jpi], B_pixel_count[i_Ex,:,i_Jpi]) * smoothe(rho_ExJpi[:, i_Jpi], sigma=1)[i_Ex] # Smoothing the initial level density by a gaussian convolution
+            gSF[i_Ex, :, i_Jpi] = a*rho_ExJpi[i_Ex, i_Jpi]*div0(
+                B_pixel_sum[i_Ex, :, i_Jpi],
+                B_pixel_count[i_Ex, :, i_Jpi]
+            )
 
     # Return the average gSF(Eg) over all (Ex,J,pi)
 
-    # return gSF[i_Exmin:i_Exmax+1,:,:].mean(axis=(0,2))
+    # return gSF[i_Ex_min:i_Ex_max+1,:,:].mean(axis=(0,2))
     # Update 20171009: Took proper care to only average over the non-zero f(Eg,Ex,J,pi) pixels:
-    gSF_currentExrange = gSF[i_Exmin:i_Exmax+1,:,:]
-    gSF_ExJpiavg = div0(gSF_currentExrange.sum(axis=(0,2)), (gSF_currentExrange!=0).sum(axis=(0,2)))
+    gSF_currentExrange = gSF[i_Ex_min:i_Ex_max + 1, :, :]
+    gSF_ExJpiavg = div0(
+        gSF_currentExrange.sum(axis = (0, 2)),
+        (gSF_currentExrange != 0).sum(axis = (0, 2))
+    )
     return gSF_ExJpiavg
 
 
@@ -279,8 +350,8 @@ def strength_function_average(levels, transitions, Jpi_list, bin_width, Ex_min, 
 #     bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
 #     # Find index of first and last bin (lower bin edge) where we put counts.
 #     # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-#     i_Exmin = int(np.floor(Ex_min/bin_width)) 
-#     i_Exmax = int(np.floor(Ex_max/bin_width))    
+#     i_Ex_min = int(np.floor(Ex_min/bin_width)) 
+#     i_Ex_max = int(np.floor(Ex_max/bin_width))    
 
 #     prefactor = {"M1":    11.5473e-9, "E1": 1.047e-6}
 
@@ -374,9 +445,9 @@ def strength_function_average(levels, transitions, Jpi_list, bin_width, Ex_min, 
 
 #     # Return the average gSF(Eg) over all (Ex,J,pi)
 
-#     # return gSF[i_Exmin:i_Exmax+1,:,:].mean(axis=(0,2))
+#     # return gSF[i_Ex_min:i_Ex_max+1,:,:].mean(axis=(0,2))
 #     # Update 20171009: Took proper care to only average over the non-zero f(Eg,Ex,J,pi) pixels:
-#     gSF_currentExrange = gSF[i_Exmin:i_Exmax+1,:,:]
+#     gSF_currentExrange = gSF[i_Ex_min:i_Ex_max+1,:,:]
 #     gSF_ExJpiavg = div0(gSF_currentExrange.sum(axis=(0,2)), (gSF_currentExrange!=0).sum(axis=(0,2)))
 #     return gSF_ExJpiavg
 
@@ -399,8 +470,8 @@ def strength_function_average_updated_definition_brute_avg(levels, transitions, 
     bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
     # Find index of first and last bin (lower bin edge) where we put counts.
     # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-    i_Exmin = int(np.floor(Ex_min/bin_width)) 
-    i_Exmax = int(np.floor(Ex_max/bin_width))    
+    i_Ex_min = int(np.floor(Ex_min/bin_width)) 
+    i_Ex_max = int(np.floor(Ex_max/bin_width))    
 
     prefactor = {"M1":    11.5473e-9, "E1": 1.047e-6}
 
@@ -482,7 +553,7 @@ def strength_function_average_updated_definition_brute_avg(levels, transitions, 
     for i_Eg in range(Nbins):
         sum = 0
         counter = 0
-        for i_Ex in range(i_Exmin, i_Exmax+1):
+        for i_Ex in range(i_Ex_min, i_Ex_max+1):
             for i_Jpi in range(len(Jpi_list)):
                 if gSF[i_Ex, i_Eg, i_Jpi] > 0:
                     sum += gSF[i_Ex, i_Eg, i_Jpi]
@@ -509,8 +580,8 @@ def strength_function_average_updated_definition_naive_avg(levels, transitions, 
     bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
     # Find index of first and last bin (lower bin edge) where we put counts.
     # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-    i_Exmin = int(np.floor(Ex_min/bin_width)) 
-    i_Exmax = int(np.floor(Ex_max/bin_width))    
+    i_Ex_min = int(np.floor(Ex_min/bin_width)) 
+    i_Ex_max = int(np.floor(Ex_max/bin_width))    
 
     prefactor = {"M1":    11.5473e-9, "E1": 1.047e-6}
 
@@ -588,7 +659,7 @@ def strength_function_average_updated_definition_naive_avg(levels, transitions, 
 
     # Return the average gSF(Eg) over all (Ex,J,pi)
 
-    return gSF[i_Exmin:i_Exmax+1,:,:].mean(axis=(0,2))
+    return gSF[i_Ex_min:i_Ex_max+1,:,:].mean(axis=(0,2))
 
 
 
@@ -628,8 +699,8 @@ def strength_function_average_updated_definition_Jpiaveraging(levels, transition
     bin_array_middle = (bin_array[0:-1]+bin_array[1:])/2 # Array of middle bin values
     # Find index of first and last bin (lower bin edge) where we put counts.
     # It's important to not include the other Ex bins in the averaging later, because they contain zeros which will pull the average down.
-    i_Exmin = int(np.floor(Ex_min/bin_width)) 
-    i_Exmax = int(np.floor(Ex_max/bin_width))    
+    i_Ex_min = int(np.floor(Ex_min/bin_width)) 
+    i_Ex_max = int(np.floor(Ex_max/bin_width))    
 
     Egs = levels[0,0] # Read out the absolute ground state energy, so we can get relative energies later
 
@@ -690,7 +761,7 @@ def strength_function_average_updated_definition_Jpiaveraging(levels, transition
         gSF[i_Ex,:] = a * div0(B_pixel_sum[i_Ex,:], B_pixel_count[i_Ex,:]) * rho_ExJpiavg[i_Ex]
 
     # Return the average gSF(Eg) over all Ex
-    return gSF[i_Exmin:i_Exmax+1,:].mean(axis=0)
+    return gSF[i_Ex_min:i_Ex_max+1,:].mean(axis=0)
 
 
 
@@ -704,9 +775,9 @@ def strength_function_average_updated_definition_Jpiaveraging(levels, transition
 
 
 
-def level_density_matrix(inputfile, bin_width=0.2, Emax=12, Ex_low=5, Ex_high=8):
+def level_density_matrix(fname, bin_width=0.2, Emax=12, Ex_low=5, Ex_high=8):
     
-    levels = read_energy_levels(inputfile)
+    levels = read_energy_levels(fname)
 
     # Set bin width and range
     Nbins = int(Emax/bin_width)
@@ -726,9 +797,9 @@ def level_density_matrix(inputfile, bin_width=0.2, Emax=12, Ex_low=5, Ex_high=8)
 
 
 
-def level_density_matrix_parity_decomposed(inputfile, bin_width=0.2, Emax=12, Ex_low=5, Ex_high=8):
+def level_density_matrix_parity_decomposed(fname, bin_width=0.2, Emax=12, Ex_low=5, Ex_high=8):
     
-    levels = read_energy_levels(inputfile)
+    levels = read_energy_levels(fname)
 
     # Set bin width and range
     Nbins = int(Emax/bin_width)
@@ -982,18 +1053,18 @@ def write_interaction_file_msdict(filename, SPEs, TBMEs, model_space, core, comm
 
 
 
-def spider(inputfiles, names, type="M1", threshold=0.1, spinwindow=[], Eg_low=0, Eg_high=1e9, Ex_low=0, Ex_high=1e9, scale=2):
+def spider(fnames, names, type="M1", threshold=0.1, spinwindow=[], Eg_low=0, Eg_high=1e9, Ex_low=0, Ex_high=1e9, scale=2):
 
-    Nsp = np.ceil(np.sqrt(len(inputfiles))).astype(int)
+    Nsp = np.ceil(np.sqrt(len(fnames))).astype(int)
     f, ax_list = plt.subplots(Nsp,Nsp,squeeze=False,sharex='col', sharey='row')
 
-    for i in range(len(inputfiles)):
-        inputfile = inputfiles[i]
+    for i in range(len(fnames)):
+        fname = fnames[i]
         name = names[i]
         ax = ax_list[i%Nsp][int((i-i%Nsp)/Nsp)]
 
 
-        levels = read_energy_levels(inputfile)
+        levels = read_energy_levels(fname)
         Egs = levels[0,0]
 
         Ex_high = min(Ex_high, levels[:,0].max()-Egs)
@@ -1023,7 +1094,7 @@ def spider(inputfiles, names, type="M1", threshold=0.1, spinwindow=[], Eg_low=0,
     
     
     
-        transitions = read_transition_strengths(inputfile, type=type)
+        transitions = read_transition_strengths(fname, type=type)
         for iEx in range(len(transitions[:,0])):
             J2i = int(transitions[iEx,0])
             pari = int(transitions[iEx,1])
