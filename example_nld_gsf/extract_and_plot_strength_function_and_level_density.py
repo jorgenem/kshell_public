@@ -18,23 +18,23 @@ Ex_min = 10 # Lower limit for emitted gamma energy [MeV].
 Ex_max = 15 # Upper limit for emitted gamma energy [MeV].
 Nbins = int(np.ceil(E_max/bin_width))
 E_max_adjusted = bin_width*Nbins
-bins = np.linspace(0,E_max_adjusted,Nbins+1)
+bins = np.linspace(0, E_max_adjusted, Nbins+1)
 bins_middle = (bins[0: -1] + bins[1:])/2
 
 
-# Set name to be used for saving figures
+# Set name to be used for saving figures.
 save_name = "Ne20"
 
-# Define list of calculation input files and corresponding label names
-inputfiles = ["summary_Ne20_usda.txt"]
+# Define list of calculation input files and corresponding label names.
+fnames = ["summary_Ne20_usda.txt"]
 names = [r"$\mathrm{Ne20}$"]
 
 
 # Set a spin window by defining list of allowed initial [spins, parities]. 
 Jpi_list = [
     # All calculated spins, even A:
-    [0,+1],[2,+1],[4,+1],[6,+1],[8,+1],[10,+1],[12,+1],[14,+1],[16,+1],[18,+1],[20,+1],
-    [0,-1],[2,-1],[4,-1],[6,-1],[8,-1],[10,-1],[12,-1],[14,-1],[16,-1],[18,-1],[20,-1],
+    [0, +1], [2, +1], [4, +1], [6, +1], [8, +1], [10, +1], [12, +1], [14, +1], [16, +1], [18, +1], [20, +1],
+    [0, -1], [2, -1], [4, -1], [6, -1], [8, -1], [10, -1], [12, -1], [14, -1], [16, -1], [18, -1], [20, -1],
     # All calculated spins, odd A:
     # [1,+1],[3,+1],[5,+1],[7,+1],[9,+1],[11,+1],[13,+1],[15,+1],[17,+1],[19,+1],[21,+1],
     #  [1,-1],[3,-1],[5,-1],[7,-1],[9,-1],[11,-1],[13,-1],[15,-1],[17,-1],[19,-1],[21,-1],
@@ -47,20 +47,24 @@ f_rho, ax_rho = plt.subplots(1, 1)
 f_gsf, ax_gsf = plt.subplots(1, 1)
 
 print("Entering main loop to plot KSHELL calculations")
-# Extract statistical quantities from calculation files
-for radiation_type in ["M1"]:#,"E1"]: # Loop over M1 and E1 if you have calculated both
-    for i in range(len(inputfiles)):
-        inputfile = inputfiles[i]
+for radiation_type in ["M1"]:#,"E1"]:
+    """
+    Loop over M1 and E1 if you have calculated both.
+    """
+    for i in range(len(fnames)):
+        """
+        Loop over KSHELL data files.
+        """
+        fname = fnames[i]
         name = names[i]
         print(f"{name = }")
 
         # Read energy levels
-        levels = smutil.read_energy_levels(inputfile)
-        Egs = levels[0,0] # Read out the absolute ground state energy, so we can get relative energies later
+        levels = smutil.read_energy_levels(fname)
+        Egs = levels[0, 0] # Read out the absolute ground state energy, so we can get relative energies later
 
-        # Read transition strengths
         transitions = smutil.read_transition_strengths(
-            inputfile,
+            fname,
             multipole_type = radiation_type
         )
         rho = smutil.total_level_density(
