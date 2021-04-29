@@ -15,7 +15,7 @@ ifneq ($(findstring ifort, $(FC)), )
 endif
 
 ifneq ($(findstring gfortran, $(FC)), )
-  FFLAGS =  -O3 -fopenmp
+  FFLAGS =  -O3 -fopenmp -fallow-argument-mismatch
 #  FFLAGS =  -O3 -fopenmp -static
 #  FFLAGS =  -O3 -fopenmp -Wl,--stack,40000000 -DSPARC  # for cygwin + openMP
   LIBS = -llapack -lblas -lm 
