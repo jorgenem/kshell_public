@@ -155,9 +155,8 @@ def main(fn_list):
         read_file_ene(fn)
 
     keys = e_data.keys()
-    if len(keys)>0:
-        keys.sort()
-        
+    if len(keys) > 0:
+        keys = sorted(keys)
         njp = {}
         for e in keys:
             fn, mtot, prty, n_eig, tt = e_data[e]
