@@ -1,24 +1,35 @@
-This repository contains N. Shimizu's code KSHELL ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
+This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
+
+### Prerequisites
+```Python 2.7``` (kshell_ui.py works only with version 2.x)
+```gfortran 10.2.0``` (tested with this version, might work with other versions)
+```openblas```
+```lapack```
 
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
 ```
-cd <kshell directory>/src
-make single
+cd <kshell install directory>/src
+make
 ```
 
 Given that you have all the prerequisite software installed (notably gfortran, lapack and blas), it should compile. If successful, it ends with the message
 
 ```
-cp kshell transit count_dim ../bin/
+cp kshell.exe transit.exe count_dim.exe ../bin/
 ```
 
 ### Running a calculation
 
-To run a calculation, create an empty directory somewhere on your computer. Let's say you name it Ne20_usda. Navigate into that directory, and from there execute the following command (note that kshell_ui.py is called as an executable):
+To run a calculation, create an empty directory somewhere on your computer. Let's say you name it Ne20_usda. Navigate into that directory, and from there execute the following command:
 ```
-<kshell directory>/bin/kshell_ui.py 
+<kshell install directory>/bin/kshell_ui.py 
 ```
+Here, kshell_ui.py is called as an executable, but it can be called as a regular Python script:
+```
+python2 <kshell install directory>/bin/kshell_ui.py 
+```
+This is useful since ```kshell_ui.py``` only supports ```Python 2.7```, and most newer installations of macOS and Linux come with ```Python 3.x```.
 
 Follow the instructions on the screen to set up your calculation. If you want to try Ne20 with USDa, and calculate 10 energy levels and transitions between them, you could do
 
@@ -121,13 +132,13 @@ jorgenem@prior:~/gitrepos/kshell-pub/runs/Ne20$
 
 
 
-### Additions by me
+### Additions by jorgenem
 
 I have added some Python scripts in the bin/ folder, namely `shellmodelutilities.py` and `spin_selection.py`. The latter is a small tool to ease setup of calculations, while the first is a comprehensive library of tools to calculate level density (NLD) and gamma-ray strength function (gSF) from shell model files. 
 
 The folder example_nld_gsf/ contains an example of just that, using the `shellmodelutilities` library. There is also an example summary file on Ne20 with the USDa interaction, to demonstrate the use of the script. The calculated NLD and gSF is not very interesting, however, but I cannot put a large file on Github. If you like, you can download a more interesting calculation summary file from the supplemental material to our PRC on M1 systematics ([arXiv:1807.04036 [nucl-th]](https://arxiv.org/abs/1807.04036)) from this link: https://doi.org/10.5281/zenodo.1493220
 
-### Technical notes
+### Technical notes (NB: THESE CHANGES WERE OVERWRITTEN IN THE VERSION 2 UPDATE OF KSHELL (2021-04-29))
 * I have modified the `transit.f90` file slightly so it prints transition strengths with more decimal precision, to facilitate the gSF calculations. I have updated `collect_logs.py` accordingly. 
 * I have modified `collect_logs.py` to ensure it does not double-count transitions. 
 * I have added some lines to kshell_ui.py so that it does an automatic backup of all the text files from the run into a folder called `KSHELL_runs` under the home path. This is mainly useful when running on a supercomputer, where the calculation is typically run on a scratch disk where files are deleted after some weeks.
