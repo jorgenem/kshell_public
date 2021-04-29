@@ -98,7 +98,7 @@ class ModelSpace:
         if is_hw_exct:
             self.minhw += sum(lowest_pn)
             self.maxhw += sum(lowest_pn)
-            print "lowest hw, maxhw ", self.minhw, self.maxhw
+            print("lowest hw, maxhw ", self.minhw, self.maxhw)
         self.maxhw_pn = ( min(self.maxhw - lowest_pn[1], highest_pn[0]) , 
                           min(self.maxhw - lowest_pn[0], highest_pn[1]) )
         self.minhw_pn = ( max(self.minhw - highest_pn[1], lowest_pn[0]) , 
@@ -263,10 +263,10 @@ class ModelSpace:
             for (i,j), e in zip(ptn_list, elist):
                 nocc = self.ptn_pn[0][i] + self.ptn_pn[1][j]
                 if e > self.monopole_e_thd:
-                    print 'SKIP partition', nocc, ' : %10.5f' % e
+                    print('SKIP partition', nocc, ' : %10.5f' % e)
                 else:
                     self.ptn_list.append( (i,j) )
-                    print 'PASS partition', nocc, ' : %10.5f' % e
+                    print('PASS partition', nocc, ' : %10.5f' % e)
             return
                 
         
@@ -414,13 +414,13 @@ def main(fn_snt, fn_ptn, nf, nparity):
     if nparity == 1:
         if not (1 in prty_list[0] and 1 in prty_list[1] ) \
                 and not (-1 in prty_list[0] and -1 in prty_list[1] ):
-            print "No states in  positive parity"
+            print("No states in  positive parity")
             return
             # sys.exit()
     elif nparity == -1:
         if not (1 in prty_list[0] and -1 in prty_list[1] ) \
                 and not (-1 in prty_list[0] and 1 in prty_list[1] ):
-            print "No states in negative parity"
+            print("No states in negative parity")
             return
             # sys.exit()
     else:
@@ -428,11 +428,11 @@ def main(fn_snt, fn_ptn, nf, nparity):
 
     fpout = open(fn_ptn, 'w')
 
-    print " truncation scheme ?\n" \
+    print(" truncation scheme ?\n" \
         + "      0 : No truncation (default) \n" \
         + "      1 : particle-hole truncation for orbit(s) \n" \
         + "      2 : hw truncation \n" \
-        + "      3 : Both (1) and (2) \n" 
+        + "      3 : Both (1) and (2) \n")
 
     ans = raw_input_save()
     ans = ans.rstrip()
@@ -454,13 +454,13 @@ def main(fn_snt, fn_ptn, nf, nparity):
                     +" ,   max hw = "+str(ans[1])+"\n")
 
     if tmod == 1 or tmod == 3:
-        print "   #    n,  l,  j, tz,    spe "
+        print("   #    n,  l,  j, tz,    spe ")
         for i in range(len(norb)):
             n, l, j, tz = norb[i], lorb[i], jorb[i], itorb[i],
-            print " %3d  %3d %3d %3d %3d %9.3f     %s" \
-                % ( i+1, n, l, j, tz, spe[i], orb2char(n, l, j, tz) )
-        print ' specify # of orbit(s) and min., max. occupation numbers ' \
-            + 'for restriction'
+            print(" %3d  %3d %3d %3d %3d %9.3f     %s" \
+                % ( i+1, n, l, j, tz, spe[i], orb2char(n, l, j, tz) ))
+        print(' specify # of orbit(s) and min., max. occupation numbers ' \
+            + 'for restriction')
         orb_list, t_list = [], []
         while True:
             ans = raw_input_save(
@@ -519,8 +519,8 @@ def main(fn_snt, fn_ptn, nf, nparity):
 
     sys.stdout.write( " done.\n" )
     if class_ms.is_monopole_trunc:
-        print '\nminimum energy for partition %10.5f, threashold %10.5f\n'\
-            % (class_ms.min_eocc, class_ms.monopole_e_thd)
+        print('\nminimum energy for partition %10.5f, threashold %10.5f\n'\
+            % (class_ms.min_eocc, class_ms.monopole_e_thd))
 
     fpout.close()
 
@@ -536,8 +536,8 @@ def main(fn_snt, fn_ptn, nf, nparity):
 if __name__ == "__main__":
 
     if len(sys.argv)<3: 
-        print 'usage: gen_partiton.py hoge.snt ' \
-            + 'output.ptn #proton #neutron parity'
+        print('usage: gen_partiton.py hoge.snt ' \
+            + 'output.ptn #proton #neutron parity')
         sys.exit(1)
 
     import os.path
@@ -546,9 +546,9 @@ if __name__ == "__main__":
     fn_snt, fn_out = sys.argv[1], sys.argv[2]
     nf = (int(sys.argv[3]), int(sys.argv[4]))
     nparity = 1
-    if len(sys.argv)>5: 
-        if   sys.argv[5]=="+": nparity =  1
-        elif sys.argv[5]=="-": nparity = -1
+    if len(sys.argv) > 5: 
+        if   sys.argv[5] == "+": nparity =  1
+        elif sys.argv[5] == "-": nparity = -1
         else: nparity = int(sys.argv[5])
 
     if not nparity in (1, -1): raise "parity error"

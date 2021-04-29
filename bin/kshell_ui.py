@@ -11,7 +11,7 @@ from gen_partition import raw_input_save
 
 
 bindir = os.path.dirname( __file__ )
-is_mpi = False         # single node (w/o MPI)
+# is_mpi = False         # single node (w/o MPI)
 #is_mpi = True         # FX10 
 #is_mpi = 'fx10'       # FX10 
 #is_mpi = 'coma'       # Tsukuba CCS COMA + sbatch
@@ -22,7 +22,7 @@ is_mpi = False         # single node (w/o MPI)
 #is_mpi = 'cx400'      # CX400 at Nagoya Univ.
 #is_mpi = 'ofp'        # Oakforest-PACS at Tokyo and Tsukuba  
 #is_mpi = 'ofp-flat'   # Oakforest-PACS at Tokyo and Tsukuba , flat mode
-#is_mpi = "fram" # Fram cluster @ UiT, Norway
+is_mpi = "fram" # Fram cluster @ UiT, Norway
 
 n_nodes = 24  # default number of MPI nodes 
 # n_nodes = 768
@@ -142,14 +142,14 @@ def element2nf(ele):
     import re
     isdigit = re.search(r'\d+', ele)
     if not isdigit:
-        print '\n *** Invalid: unknown element ***', ele
+        print('\n *** Invalid: unknown element ***', ele)
         return False
     mass = int( isdigit.group() )
     asc = ele[:isdigit.start()] + ele[isdigit.end():]
     asc = asc.lower()
     asc = asc[0].upper() + asc[1:]
     if not asc in element: 
-        print '*** Invalid: unknown element ***', asc
+        print('*** Invalid: unknown element ***', asc)
         return False
     z = element.index(asc)
     corep, coren = snt_prm['ncore']
@@ -159,12 +159,12 @@ def element2nf(ele):
     if coren > 0: nf2 =   mass - z  - coren
     else:         nf2 = -(mass - z) - coren
         
-    print '\n number of valence particles ', nf1, nf2
+    print('\n number of valence particles ', nf1, nf2)
     
     if nf1 < 0 or nf2 < 0 or \
        nf1 > snt_prm['nfmax'][0] or \
        nf2 > snt_prm['nfmax'][1]:
-        print '*** ERROR: nuclide out of model space ***'
+        print('*** ERROR: nuclide out of model space ***')
         return False
     return (nf1, nf2)
     
@@ -200,14 +200,14 @@ def read_snt(fn_snt):
     nfmax = [0, 0]
     for i in range(np+nn):
         arr = read_comment_skip(fp)
-        if i+1 != int(arr[0]): 
-            print 'snt index error', i,arr[0]
+        if i + 1 != int(arr[0]): 
+            print ('snt index error', i, arr[0])
             raise 
         norb.append( int(arr[1]) )
         lorb.append( int(arr[2]) )
         jorb.append( int(arr[3]) )
         torb.append( int(arr[4]) )
-        nfmax[(int(arr[4])+1)/2] += int(arr[3]) + 1
+        nfmax[(int(arr[4]) + 1)//2] += int(arr[3]) + 1
     fp.close()
     snt_prm['ncore'] = (ncp, ncn)
     snt_prm['n_jorb'] = (np, nn)
@@ -224,7 +224,7 @@ def check_cm_snt(fn_snt):
     # return whether Lawson term is required or not
     is_cm = False
     nc = snt_prm['ncore']
-    if nc[0]<0 or nc[1]<0: return
+    if nc[0] < 0 or nc[1] < 0: return
     npn = snt_prm['n_jorb']
     for np in range(2):
         p_list, j_list = [], []
@@ -305,10 +305,10 @@ def output_transit(fn_base, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
 
 
 def main_nuclide(fn_snt):
-    print
-    print 
-    print '*************** specify a nuclide ********************'
-    print
+    print()
+    print()
+    print('*************** specify a nuclide ********************')
+    print()
     
     while True:
         nf = raw_input_save( \
@@ -335,30 +335,34 @@ def main_nuclide(fn_snt):
     list_fn_base.append( fn_base )
 
 
-    print "\n J, parity, number of lowest states  "
-    print "  (ex. 10           for 10 +parity, 10 -parity states w/o J-proj. (default)"
-    print "       -5           for lowest five -parity states, "
-    print "       0+3, 2+1     for lowest three 0+ states and one 2+ states, "
-    print "       1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :"
+    print("\n J, parity, number of lowest states  ")
+    print("  (ex. 10           for 10 +parity, 10 -parity states w/o J-proj. (default)")
+    print("       -5           for lowest five -parity states, ")
+    print("       0+3, 2+1     for lowest three 0+ states and one 2+ states, ")
+    print("       1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :")
+
     ans = raw_input_save()
     ans = ans.replace(',', ' ').split()
     if not ans: ans = ['+10', '-10']
-    if len(ans)==1 and ans[0].isdigit(): ans = ['+'+ans[0], '-'+ans[0]]
+    if len(ans) == 1 and ans[0].isdigit(): ans = ['+' + ans[0], '-' + ans[0]]
     list_jpn = [ split_jpn(a, nf) for a in ans ]
-    for j,p,n,isp in list_jpn:
-        if (j+sum(nf))%2 != 0: print "Remove states J,prty,Num=",j,p,n,isp
-    list_jpn = [ a for a in list_jpn if (a[0]+sum(nf))%2==0 ]
+    
+    for j, p, n, isp in list_jpn:
+        if (j + sum(nf))%2 != 0:
+            print("Remove states J, prty, Num = ", j, p, n, isp)
+    
+    list_jpn = [ a for a in list_jpn if (a[0] + sum(nf))%2 == 0 ]
 
     list_prty = list( set( jpn[1] for jpn in list_jpn ) )
-    fn_ptn_list = {-1:fn_base+"_n.ptn", 1:fn_base+"_p.ptn"}
+    fn_ptn_list = {-1:fn_base + "_n.ptn", 1:fn_base + "_p.ptn"}
     #    fn_input = fn_base + ".input"
     trc_list_prty = {-1:None, 1:None}
     for prty in list_prty:
         fn_ptn = fn_ptn_list[prty]
-        if prty==1: 
-            print '\n truncation for "+" parity state in ', fn_ptn
+        if prty == 1: 
+            print('\n truncation for "+" parity state in ', fn_ptn)
         else:          
-            print '\n truncation for "-" parity state in ', fn_ptn
+            print('\n truncation for "-" parity state in ', fn_ptn)
 
         trc_list_prty[prty] = gen_partition.main(fn_snt, fn_ptn, nf, prty)
 
@@ -369,10 +373,14 @@ def main_nuclide(fn_snt):
       
     
     while True:
-        print "\n --- input parameter --- "
-        print print_var_dict( 
-            var_dict, skip=('fn_int', 'fn_save_wave', 'n_eigen', 
-                            'fn_ptn', 'is_double_j', 'mtot' ))
+        print("\n --- input parameter --- ")
+        print(print_var_dict(
+            var_dict,
+            skip = (
+                'fn_int', 'fn_save_wave', 'n_eigen', 'fn_ptn', 'is_double_j',
+                'mtot'
+            )
+        ))
 
         ask = "modify parameter? \n" \
             + " (e.g.  maxiter = 300 for parameter change\n" \
@@ -403,13 +411,13 @@ def main_nuclide(fn_snt):
         elif ans[:2] == 'sq':
             arr = ans.split()
             if len(arr)<=1 or not arr[1].replace(".","",1).isdigit(): 
-                print "ILLEGAL INPUT"
+                print("ILLEGAL INPUT")
                 continue
             x = float(arr[1])
-            print "quenching of spin g-factor ", x
+            print("quenching of spin g-factor ", x)
             var_dict[ 'gs' ] = [ 5.585*x, -3.826*x]   
         else: 
-            print "ILLEGAL INPUT"
+            print("ILLEGAL INPUT")
 
 
 # ---------------------------------------------
@@ -535,42 +543,47 @@ def ask_yn(optype):
 
 
 def main():
-
-    print "\n" \
+    print( "\n" \
         + "----------------------------- \n" \
         + "  KSHELL user interface \n" \
         + "     to generate job script. \n" \
-        + "-----------------------------\n "
+        + "-----------------------------\n ")
 
     cdef = 'N'
     global is_mpi
     if is_mpi: cdef = is_mpi
     if cdef == True: cdef = 'Y'
-    list_param = [ 'coma', 'fx10', 'k', 'k-micro', 
-                   'k-small', 'k-large', 'cx400',
-                   'ofp', 'ofp-flat', 'oakforest-pacs', 'fram',
-                   'yes', 'no', 'Y', 'N', 'y', 'n', 'Yes', 'No', '' ]
+    list_param = [  # Valid MPI parameters.
+        'coma', 'fx10', 'k', 'k-micro', 'k-small', 'k-large', 'cx400',
+        'ofp', 'ofp-flat', 'oakforest-pacs', 'yes', 'no', 'Y', 'N', 'y',
+        'n', 'Yes', 'No', ''
+    ]
+    list_param += ['fram']  # Added by jonkd.
     readline.set_completer( SimpleCompleter(list_param).complete )
     readline.parse_and_bind("tab: complete")
     while True:
+        """
+        Fetch MPI input from user. Valid inputs are 'Y/N/preset', and
+        'Y/N/preset, number of nodes'.
+        """
         ans = raw_input_save( 
-            '\n MPI parallel? Y/N (default: ' 
-            + cdef +',  TAB to complete) : ' )
-        arr = ans.replace(',', ' ').split()
-        if len(arr)==0: arr = [ cdef, ]
+            '\n MPI parallel? Y/N/preset, n nodes (default: ' + cdef + ',  TAB to complete) : '
+        )
+        arr = ans.replace(',', ' ').split() # Example input: y, 10.
+        if len(arr) == 0: arr = [ cdef, ]
         if arr[0] in list_param:
-            if len(arr)==1 or arr[1].isdigit(): break
-        print "\n *** Invalid input ***"
+            if (len(arr) == 1) or (arr[1].isdigit()): break
+        print("\n *** Invalid input ***")
 
     global n_nodes
-    if len(arr)>=2: n_nodes = int(arr[1])
+    if len(arr) >= 2: n_nodes = int(arr[1])
     ans = arr[0]
     
     readline.parse_and_bind("tab: None")
 
-    if ans[0] == 'Y' or ans[0] == 'y': 
+    if (ans[0] == 'Y') or (ans[0] == 'y'): 
         is_mpi = True
-    elif ans[0] == 'N' or ans[0] == 'n': 
+    elif (ans[0] == 'N') or (ans[0] == 'n'): 
         is_mpi = False
     else: 
         is_mpi = ans
@@ -579,47 +592,61 @@ def main():
 
     txt = '  ... generate shell script for MPI run on '
     if is_mpi == 'coma': 
-        print txt + 'COMA/Tsukuba with SLURM'
+        print(txt + 'COMA/Tsukuba with SLURM')
     elif is_mpi == 'k' or is_mpi == 'k-micro': 
-        print txt + 'on K-computer micro with PJM'
+        print(txt + 'on K-computer micro with PJM')
     elif is_mpi == 'k-small': 
-        print txt + 'on K-computer small with PJM and staging'
+        print(txt + 'on K-computer small with PJM and staging')
     elif is_mpi == 'k-large': 
-        print txt + 'on K-computer large with PJM and staging'
+        print(txt + 'on K-computer large with PJM and staging')
     elif is_mpi == 'ofp':
-        print txt + 'on oakforest-pacs'
+        print(txt + 'on oakforest-pacs')
     elif is_mpi == 'ofp-flat':
-        print txt + 'on oakforest-pacs flat mode'
+        print(txt + 'on oakforest-pacs flat mode')
     elif is_mpi == 'fram': 
-         print txt + "on Fram@UiT with SLURM "
+         print(txt + "on Fram@UiT with SLURM ")
     elif is_mpi: 
-        print txt + 'K-computer/FX10 with PJM. '
+        print(txt + 'K-computer/FX10 with PJM. ')
     else: 
-        print '  ... generate shell script for a single node.'
+        print('  ... generate shell script for a single node.')
 
-    list_snt = os.listdir( bindir+"/../snt/" ) \
+    list_snt = os.listdir( bindir + "/../snt/" ) \
         + [ fn for fn in os.listdir(".") 
-            if len(fn)>4 and fn[-4:]==".snt" ]
+            if (len(fn) > 4) and (fn[-4:] == ".snt") ]
+    
     readline.parse_and_bind("tab: complete")
     readline.set_completer( SimpleCompleter(list_snt).complete )
+    
     while True:
+        """
+        Fetch model space (.snt) input from user.
+        """
         fn_snt = raw_input_save( \
             "\n model space and interaction file name (.snt) \n" \
             + " (e.g. w or w.snt,  TAB to complete) : " )
         fn_snt = fn_snt.rstrip()
-        if fn_snt[-4:]!='.snt': fn_snt = fn_snt + '.snt'
+        
+        if fn_snt[-4:] != '.snt': fn_snt = fn_snt + '.snt'
         if os.path.isfile( fn_snt ):
+            """
+            Check if model space is defined.
+            """
             break
-        elif os.path.isfile( bindir+"/../snt/"+fn_snt ):
-            shutil.copy( bindir+"/../snt/"+fn_snt, ".")
+        elif os.path.isfile( bindir + "/../snt/" + fn_snt ):
+            """
+            Check if model space is defined.
+            """
+            shutil.copy( bindir + "/../snt/" + fn_snt, ".")
             break
-        print "\n *** Invalid: .snt file NOT found  ***"
+        
+        print("\n *** Invalid: .snt file NOT found  ***")
+        
     readline.parse_and_bind("tab: None")
     fn_stgin.append(fn_snt)
     read_snt(fn_snt)
 
-    var_dict[ 'fn_int' ] =  '"'+fn_snt+'"'
-    if var_dict[ 'beta_cm' ] == 0.0 and check_cm_snt(fn_snt): 
+    var_dict[ 'fn_int' ] =  '"' + fn_snt + '"'
+    if (var_dict[ 'beta_cm' ] == 0.0) and check_cm_snt(fn_snt): 
         var_dict[ 'beta_cm' ] = 10.0
     if is_mpi: var_dict['mode_lv_hdd'] = 0
     if snt_prm['ncore'] == (8,8): var_dict['hw_type'] = 2
@@ -647,7 +674,7 @@ def main():
         fn_run += fn_base
 
     if not fn_run: 
-        print "\n*** NO input ***\n"
+        print("\n*** NO input ***\n")
         return
 
     gt_pair = [ ( (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1),  
@@ -704,13 +731,13 @@ def main():
         for fn in fns:
             binfn = bindir+'/'+fn
             if not os.path.exists( binfn ):
-                print "\n*** WARNING: NOT found "+bindir+'/'+fn, " ***"
+                print("\n*** WARNING: NOT found "+bindir+'/'+fn, " ***")
             else:
                 try:
                     shutil.copy( binfn, '.' )
                 except IOError:
-                    print "\n*** WARNING: copy " + binfn \
-                        + " to current dir. failed ***"
+                    print( "\n*** WARNING: copy " + binfn \
+                        + " to current dir. failed ***")
     # header
     if is_mpi:
         check_copy('kshell.exe', 'transit.exe', 'collect_logs.py') 
@@ -731,7 +758,7 @@ def main():
                     # cd $SLURM_SUBMIT_DIR
                     # export OMP_NUM_THREADS=16
             
-            print "\n Finish. edit and sbatch ./"+fn_run+"\n"
+            print("\n Finish. edit and sbatch ./"+fn_run+"\n")
         elif is_mpi == 'k' or is_mpi == 'k-micro': 
             outsh = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=micro"\n' \
@@ -811,7 +838,7 @@ export I_MPI_HYDRA_HOST_FILE=${PJM_O_NODEINF}
 export FORT90L=-Wl,-Lu
 '''  + outsh 
                     # + 'cd ' + os.getcwd() +'\n\n' \
-            print "\n Finish. edit and pjsub ./"+fn_run+"\n"
+            print("\n Finish. edit and pjsub ./"+fn_run+"\n")
         elif is_mpi == 'fram': # This option added by JEM.
              outsh = '#!/bin/bash \n' \
                      + '#SBATCH --job-name=' + fn_run[:-3] + ' \n' \
@@ -832,7 +859,7 @@ export FORT90L=-Wl,-Lu
                     + '# #PJM -L "elapse=24:00:00"\n\n' \
                     + outsh 
                     # + 'cd ' + os.getcwd() +'\n\n' \
-            print "\n Finish. edit and pjsub ./"+fn_run+"\n"
+            print("\n Finish. edit and pjsub ./"+fn_run+"\n")
     else:
         check_copy('kshell.exe', 'transit.exe', 'collect_logs.py') 
         outsh = '#!/bin/sh \n' \
@@ -840,14 +867,14 @@ export FORT90L=-Wl,-Lu
                 + 'export GFORTRAN_UNBUFFERED_PRECONNECTED=y\n' \
                 + '# ulimit -s unlimited\n\n' \
                 + outsh 
-        print "\n Finish. Run ./"+fn_run+"\n"
+        print("\n Finish. Run ./"+fn_run+"\n")
 
 
     fp_run = open( fn_run, 'w' )
     fp_run.write(outsh)
     fp_run.close()
 
-    if not is_mpi: os.chmod( fn_run, 0755 )
+    if not is_mpi: os.chmod(fn_run, 0o755)
 
     fp = open('save_input_ui.txt', 'w')
     fp.write( gen_partition.output_ans )
