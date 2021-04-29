@@ -143,17 +143,43 @@ def element2nf(ele):
         return False
     return (nf1, nf2)
     
-def print_var_dict( var_dict, skip=() ):
+def print_var_dict(var_dict, skip=()):
+    """
+    Convert the dictionary containing simulation parameters ('var_dict')
+    into a single string.
+
+    Parameters
+    ----------
+    var_dict : dictionary
+        The dictionary containing simulation parameters. Defined at the
+        beginning of this file and possibly modified in the interactive
+        user interface.
+
+    skip : tuple, list
+        A list or tuple of keys to skip.
+
+    Returns
+    -------
+    ret : string
+        A string representation of the entire dictionary without the
+        keys defined in 'skip'.
+    """
     ret = ""
     keys = var_dict.keys()
-    keys.sort()
-    for key in keys:
+
+    for key in sorted(keys):
         if key in skip: continue
         v = var_dict[key]
         if isinstance(v, list): 
+            """
+            Example: {..., "eff_charge": [1.5, 0.5], ...}
+            """
             vv = ""
-            for i in v: vv += str(i)+", "
+            for i in v: vv += str(i) + ", "
         elif isinstance(v, int) or isinstance(v, float):
+            """
+            Example: {..., "n_restart_vec": 10, ...}
+            """
             vv = str(v)
         else: vv = v
         ret += "  " + key + " = " + vv + "\n"
@@ -478,8 +504,8 @@ def main_nuclide(fn_snt):
             var_dict[ 'is_double_j' ] = '.false.'
         var_dict[ 'fn_ptn' ] = '"' + fn_ptn_list[nparity] + '"'
 
-        if trc_list_prty[nparity] is not None \
-           and not var_dict.has_key('orbs_ratio') : 
+        # if (trc_list_prty[nparity] is not None) and (not var_dict.has_key('orbs_ratio')):
+        if (trc_list_prty[nparity] is not None) and (not 'orbs_ratio' in var_dict.keys()):
             var_dict[ 'orbs_ratio' ] = trc_list_prty[nparity]
 
         fn_save_wave = fn_base + jchar + str(mtot) \
@@ -502,7 +528,8 @@ def main_nuclide(fn_snt):
         
         fn_input = fn_base + '_' + str(mtot) + '.input'
 
-        if var_dict.has_key('no_save'):
+        # if var_dict.has_key('no_save'):
+        if 'no_save' in var_dict.keys():
             del var_dict[ 'fn_save_wave' ]
 
         out += 'echo "start running ' + fn_log + ' ..."\n' 
