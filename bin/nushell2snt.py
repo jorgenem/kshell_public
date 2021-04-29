@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python 
 # 
 #  ./nushell2snt.py foo.sp bar.int foobar.snt
 #   stardard output snt file for kshell

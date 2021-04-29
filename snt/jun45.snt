@@ -1,6 +1,12 @@
 ! JUN45 for f5pg9 shell
 ! M. Honma, T. Otsuka, T. Mizusaki, and M. H.-Jensen
 !  Phys. Rev. C 80, 064323 (2009) 
+!
+! default input parameters 
+!namelist eff_charge = 1.5, 1.1
+!namelist gl         = 1.0, 0.0 
+!namelist gs         = 3.910, -2.678 
+!namelist orbs_ratio = 4, 8
 ! 
 ! model space
    4   4    28  28

@@ -2,6 +2,10 @@
 ! M. Honma, T. Otsuka, B. A. Brown, and T. Mizusaki, 
 !   Eur. Phys. J. A 25, Suppl. 1, 499 (2005). 
 !
+! default input parameters 
+!namelist eff_charge = 1.5, 0.5
+!namelist orbs_ratio = 2, 3, 4, 6, 7, 8
+!
 ! model space
    4   4    20  20
    1       0   3   7  -1    !  1 = p 0f_7/2

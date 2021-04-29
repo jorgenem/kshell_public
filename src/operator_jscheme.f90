@@ -231,7 +231,7 @@ contains
          backspace(lunint)
          read(lunint, *) n, method2, im0, pwr
          dep = (dble(mass)/dble(im0))**pwr
-         if (myrank==0) write(*,'(1a, 1i4, 1a, 1f7.3)') &
+         if (myrank==0) write(*,'(1a, 1i4, 1a, 1f12.8)') &
               & 'TBME mass dependence (mass/', im0, ')^', pwr
       else if (method2 == 10) then 
          backspace(lunint)
@@ -252,10 +252,16 @@ contains
 
 
   subroutine non_diag_ob_2_tbme(oj)
-    type(opr_j), intent(inout) :: oj
     ! one-body nondiagonal matrix elements to two-body int.
+    type(opr_j), intent(inout) :: oj
     integer :: jj, ipn, iprty, n, ij12, ij34, k1, k2, k3, k4
-    real(8) :: v, x
+    real(8) :: v, x, t(n_jorb_pn, n_jorb_pn)
+
+    if (oj%irank/=0 .or. oj%nbody/=2) stop 'not in non_diag_ob_2_tbme'
+    t(:,:) = oj%p1%v(:,:)
+    forall(k1 = 1 : n_jorb_pn) t(k1, k1) = 0.d0
+    if (maxval(abs(t)) < 1.d-8) return
+
     do jj = 0, jcouplemax
        do ipn = 1, 3
           do iprty = 1, 2
@@ -268,19 +274,27 @@ contains
                    k3 = jcouple(jj,iprty,ipn)%idx(1,ij34)
                    k4 = jcouple(jj,iprty,ipn)%idx(2,ij34)
                    v = 0.d0
-                   x = 1.d0 / dble(mass-1)
+                   x = 1.d0 / dble(n_ferm_pn - 1)
                    if (k1==k2) x = x / sqrt(2.d0)
                    if (k3==k4) x = x / sqrt(2.d0)
-                   if (k1/=k3 .and. k2==k4) v = v + x * oj%p1%v(k1,k3) / sqrt(jorb(k1)+1.d0)
-                   if (k1==k3 .and. k2/=k4) v = v + x * oj%p1%v(k2,k4) / sqrt(jorb(k2)+1.d0)
+                   if (k1/=k3 .and. k2==k4) &
+                        v = v + x * oj%p1%v(k1,k3) / sqrt(jorb(k1)+1.d0)
+                   if (k1==k3 .and. k2/=k4) &
+                        v = v + x * oj%p1%v(k2,k4) / sqrt(jorb(k2)+1.d0)
                    if (mod(jorb(k3)+jorb(k4)-2*jj, 4)==0) x = -x
-                   if (k1/=k4 .and. k2==k3) v = v + x * oj%p1%v(k1,k4) / sqrt(jorb(k1)+1.d0)
-                   if (k1==k4 .and. k2/=k3) v = v + x * oj%p1%v(k2,k3) / sqrt(jorb(k2)+1.d0)
-!                   if (abs(v)>1.d-8) write(*,*)"non-diag. 1-body to TBME",k1,k2,k3,k4,jj, &
-!                        oj%p2(jj,iprty,ipn)%v(ij12,ij34)," + ",v," = ", oj%p2(jj,iprty,ipn)%v(ij12,ij34)+v
-                   oj%p2(jj,iprty,ipn)%v(ij12,ij34) = oj%p2(jj,iprty,ipn)%v(ij12,ij34) + v
+                   if (k1/=k4 .and. k2==k3) &
+                        v = v + x * oj%p1%v(k1,k4) / sqrt(jorb(k1)+1.d0)
+                   if (k1==k4 .and. k2/=k3) &
+                        v = v + x * oj%p1%v(k2,k3) / sqrt(jorb(k2)+1.d0)
+                   ! if (abs(v)>1.d-8) write(*,*) "non-diag. 1-body to TBME", &
+                   !    k1,k2,k3,k4,jj, &
+                   !    oj%p2(jj,iprty,ipn)%v(ij12,ij34)," + ", &
+                   !    v," = ", oj%p2(jj,iprty,ipn)%v(ij12,ij34)+v
+                   oj%p2(jj,iprty,ipn)%v(ij12,ij34) &
+                        = oj%p2(jj,iprty,ipn)%v(ij12,ij34) + v
                    if (ij12/=ij34) &
-                        oj%p2(jj,iprty,ipn)%v(ij34,ij12) = oj%p2(jj,iprty,ipn)%v(ij34,ij12) + v
+                        oj%p2(jj,iprty,ipn)%v(ij34,ij12) &
+                        = oj%p2(jj,iprty,ipn)%v(ij34,ij12) + v
                 end do
              end do
           end do
@@ -294,19 +308,29 @@ contains
     !
     ! set oj by one-body function func_1, two-body function func_2
     ! input:
-    !  func_1(n1,l1,j1,t1, n2,l2,j2,t2) = <nlj_1|| op^irank ||nlj_2>  reduced mat.
+    !  func_1(n1,l1,j1,t1, n2,l2,j2,t2) = <nlj_1|| op^irank ||nlj_2> 
+    !                                       reduced matrix element
     !  func_2(n1,l1,j1,t1, n2,l2,j2,t2, n3,l3,j3,t3, n4,l4,j4,t4, JJ)
     !     = <nlj_1 nlj_2| op^irank | nlj_3 nlj_4>_JJ   TBME
     !
     !  nbody =  0   copy
     !           1   one-body int. cp+ cp,   cn+ cn
     !           2   two-body int. c+c+cc
+    !           5   two-body transition density (init_tbtd_op, container)
+    !          10   one-body transition density (init_obtd_beta, container)
+    !          11   two-body transition density for cp+ cn type
+    !          12   two-body transition density for cn+ cp type
     !          -1   cp+     for s-factor
     !          -2   cn+     for s-factor
-    !          -10  cp+ cn  for Gamow-Teller, Fermi transition
-    !          -11  cn+ cp  for Gamow-Teller, Fermi transition
-    !          -12  cp+ cp+ cn cn  for zero-neutrino double-beta decay
-    !          -13  cn+ cn+ cp cp  for zero-neutrino double-beta decay
+    !          -3   cp+ cp+ for 2p s-factor 
+    !          -4   cn+ cn+ for 2n s-factor 
+    !          -5   cp+ cn+ reserved, NOT yet available
+    !          -6   cp      not available 
+    !          -7   cn      not available 
+    !          -10  cp+ cn  for beta decay
+    !          -11  cn+ cp  for beta decay (only in set_ob_channel)
+    !          -12  cp+ cp+ cn cn  for 0v-bb decay
+    !          -13  cn+ cn+ cp cp  for 0v-bb decay (not yet used)
     !
     real(8), external :: func_1
     real(8), external, optional :: func_2
@@ -379,7 +403,7 @@ contains
                n = jcouple(jcpl, iprty, ipn  )%n
                m = jcouple(jcpl, iprty, 3-ipn)%n
                allocate( oj%p2(jcpl, iprty, ipn)%v(n, m) )
-               oj%p2(jcpl, iprty, ipn)%v(:,:) = 0.0d0
+               oj%p2(jcpl, iprty, ipn)%v(:,:) = 0.d0
             end do
          end do
       end do
@@ -548,7 +572,8 @@ contains
                 n = jc_p%n
                 allocate(jc_p%idx(2,n))
                 if (ipn == 1 .or. ipn == 2) then
-                   allocate(jc_p%idxrev(kini(ipn):kfin(ipn),kini(ipn):kfin(ipn)))
+                   allocate(jc_p%idxrev( kini(ipn):kfin(ipn), &
+                        &                kini(ipn):kfin(ipn) ))
                 else if (ipn == 3) then
                    allocate(jc_p%idxrev(kini(1):kfin(1),kini(2):kfin(2)))
                 end if
@@ -629,15 +654,19 @@ contains
     oj%nbody = nbody
     oj%ipr1_type = ipr1_type
        
-    allocate(oj%p1%v(n_jorb_pn, n_jorb_pn))
+    if (.not. allocated(oj%p1%v)) &
+         allocate(oj%p1%v(n_jorb_pn, n_jorb_pn))
     oj%p1%v(:,:) = 0.0d0
+
     if (nbody == 2) then
-       allocate(oj%p2(0:jcouplemax,2,3))
+       if (.not. allocated(oj%p2)) &
+            allocate(oj%p2(0:jcouplemax,2,3))
        do ipn = 1, 3
           do iprty = 1, 2
              do jcpl = 0, jcouplemax
                 n = jcouple(jcpl,iprty,ipn)%n
-                allocate(oj%p2(jcpl,iprty,ipn)%v(n,n))
+                if (.not. allocated(oj%p2(jcpl,iprty,ipn)%v)) &
+                     allocate(oj%p2(jcpl,iprty,ipn)%v(n,n))
                 oj%p2(jcpl,iprty,ipn)%v(:,:) = 0.0d0
              end do
           end do

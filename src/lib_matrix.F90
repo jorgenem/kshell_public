@@ -1,18 +1,13 @@
-#define dagger(AMAT) ( dconjg(transpose(AMAT)) )
-
-#define matmul3(AMAT, BMAT, CMAT) ( matmul(matmul((AMAT), (BMAT)), (CMAT)) )
-
 module lib_matrix
   !
-  ! matrix operation library depend on lapack.f
-  !  zgefa, zgedi, zgesv, zlarnv, dsyev dlarnv in lapack library
+  ! wrapper for LAPACK/BLAS library
   !
   implicit none
   private 
-  public :: double_diag, gram_schmidt, determinant, inverse, inv_det, random_mat, &
-       diagonalize, trace, gen_eye, exp_mat, gaussian_random_mat, set_seed, &
-       matmul_zgemm, matmul_dgemm, random_uniform, uniform_random_mat, &
-       diagonalize_sym_tridiag
+  public :: set_rank_seed, gram_schmidt, determinant, random_mat, &
+       diagonalize, trace, gen_eye,  gaussian_random_mat, set_seed, &
+       random_uniform, uniform_random_mat, &
+       diagonalize_sym_tridiag, inverse, matmul_dgemm_acc
   
 
   real(8), parameter :: eps=1.d-10
@@ -20,11 +15,11 @@ module lib_matrix
   real(8), parameter :: pi = 3.141592653589793d0
   
 
-  integer, dimension(4), save :: iseed=(/3229, 2707, 1879, 3251/)
-  ! external :: zgetri, zgetrf, zgesv, zlarnv, dsyev, dlarnv ! in linpack.f
+  integer, save :: iseed(4) = (/3229, 2707, 1879, 3251/)
+!  integer, save :: iseed(4) = (/2133, 1723, 1879, 3251/)
 
   interface diagonalize
-     module procedure diagonalize_complex8, diagonalize_double
+     module procedure diagonalize_double
   end interface diagonalize
 
   interface gaussian_random_mat
@@ -50,78 +45,55 @@ module lib_matrix
      end subroutine zgetri
   end interface     
 
+  interface inverse
+     module procedure dinverse
+     module procedure zinverse
+  end interface inverse
+
+
 contains 
 
-  subroutine set_seed(irseed)
+  subroutine set_seed(irseed, is_clock)
     ! set seed for random numbers
-    integer, intent(in) :: irseed(4)
-    if (minval(irseed) <0 .or. maxval(irseed)>4095) stop "set_seed range error"
-    if (minval(mod(irseed, 2))==0) stop "set_seed even error"
-    iseed(:) = irseed(:)
+    integer, intent(in), optional :: irseed(4)
+    logical, intent(in), optional :: is_clock
+    real(8) :: r(4), t
+    integer(8) :: clock
+    logical :: is
+
+    if (present(irseed)) iseed(:) = irseed(:)
+    ! is = .true. 
+    is = .false.
+    if (present(is_clock)) is = is_clock
+
+    if (is) then
+       call system_clock(count=clock)
+       ! write(*,*)'clock',clock
+       ! iseed between 0 and 4095,  iseed(4) odd
+       iseed(1) = modulo(iseed(1) + clock/2048/4096/4096, 4096) 
+       iseed(2) = modulo(iseed(2) + clock/2048/4096, 4096)
+       iseed(3) = modulo(iseed(3) + clock/2048, 4096)
+       iseed(4) = modulo(iseed(4) + clock, 2048)*2+1
+    end if
+
+    if (any(iseed>4096) .or. any(iseed<0)) stop "error set_seed"
   end subroutine set_seed
 
+
+  subroutine set_rank_seed(rank)
+    integer, intent(in) :: rank
+    ! set seed for each MPI process
+    ! seed(4)  must be between 0 and 4095 , iseed(4) must be odd
+    if (rank==0) write(*,'(a,4i6)') 'random seed is ', iseed
+    iseed(1) = modulo(iseed(1) + rank*7, 4096)
+    iseed(2) = modulo(iseed(2) + rank*5, 4096) 
+    iseed(3) = modulo(iseed(3) + rank,   4096) 
+    iseed(4) = iseed(4) 
+    ! write(*,'(a,5i6)') 'MPI random seed is ',rank, iseed
+  end subroutine set_rank_seed
+
+
   
-  subroutine double_diag(norm, hmat, eval, evec)
-    ! diagonalization of norm matrix and hamiltonian matrix
-    ! in non-orthogonalized basis    
-    complex(8), intent(in) :: norm(:,:), hmat(:,:)
-    real(8), intent(out) :: eval(:)
-    complex(8), intent(out) :: evec(:,:)
-    complex(8) :: nvec(size(norm,1),size(norm,2)), &
-         hort(size(norm,1),size(norm,2)), &
-         hvec(size(norm,1),size(norm,2))
-    real(8) :: nval(size(norm,1))
-    integer :: i,j,k
-    !
-    call diagonalize(norm, nval, nvec)
-    where (nval>eps)
-       nval = 1.d0/dsqrt(nval)
-    elsewhere 
-       nval = cz
-    end where
-
-    hort = matmul3( dagger(nvec), hmat, nvec ) ! stack overflow possibility
-
-    forall (i=1:size(hort,1), j=1:size(hort,2)) 
-       hort(i,j) = nval(i)*hort(i,j)*nval(j)
-    end forall
-    call diagonalize(hort, eval, hvec)
-    evec = cz
-    do i=1, size(nvec,1)
-       do k=1, size(hvec,2)
-          do j=1, size(nvec,2) 
-             evec(i,k) = evec(i,k) + nvec(i,j)*nval(j)*hvec(j,k)
-          end do
-       end do
-    end do
-  end subroutine double_diag
-    
-  
-
-  subroutine diagonalize_complex8( a, e, u )
-    !
-    ! diagonalize hermitian matrix a  only upper triangular components are used
-    ! output e ... eigenvalues   
-    !        u ... eigenvectors
-    ! Note: "-heap-arrays 1000000"  compiler option (ifort) is useful 
-    !          to avoid stack overflow in case of large dimension
-    !
-    complex(8), intent(in) :: a(:,:)
-    complex(8), intent(out) :: u(size(a,1),size(a,1))
-    real(8), intent(out) :: e(:)
-    integer :: info, n, lwork
-    real(8) :: rwork((3*size(a,1)-2))
-    ! complex(8) :: work((size(a,1)+1)*size(a,1))
-    complex(8),allocatable :: work(:)
-    allocate( work((size(a,1)+1)*size(a,1)) )
-
-    if (size(a,1)==0) return
-    u = a
-    n = size(u,1)
-    lwork = size(work)
-    call zheev('V', 'U', n, u, n, e, work, lwork, rwork, info)
-    if ( info /= 0) stop 'diagonalize error in diagonalize_complex8'
-  end subroutine diagonalize_complex8
 
 
   subroutine diagonalize_double( a, e, u, n_eig )
@@ -251,36 +223,6 @@ contains
   end function determinant
 
 
-  pure function inverse(a) result (b)
-    ! inverse complex matrix 
-    complex(8), intent(in) :: a(:,:)
-    complex(8) :: b(size(a,1),size(a,1))
-    complex(8) :: work(size(a,1)*size(a,1))
-    integer :: ipvt(size(a,1)), info
-    b = a 
-    call zgetrf(size(b,1), size(b,2), b, size(b,1), ipvt, info)
-    call zgetri(size(b,1), b, size(b,1), ipvt, work, &
-         size(b,1)*size(b,1), info)
-  end function inverse
-
-
-  subroutine inv_det(a, r)
-    ! inverse and determinant of complex matrix a
-    !  input a .... destructive, return inverse mat.
-    complex(8), intent(inout) :: a(:,:)
-    complex(8), intent(out) :: r
-    integer :: ipvt(size(a,1))
-    complex(8) :: work(size(a,1)*size(a,1))
-    integer :: info, i
-    call zgetrf(size(a,1), size(a,2), a, size(a,1), ipvt, info)
-    r = (1.0d0, 0.d0)
-    do i = 1, size(a,1)
-       r = r * a(i,i)
-       if (ipvt(i) .ne. i) r = -r
-    end do
-    call zgetri(size(a,1), a, size(a,1), ipvt, work, &
-         size(a,1)*size(a,1), info)
-  end subroutine inv_det
 
 
   function random_mat(n,m) result (r)
@@ -356,95 +298,12 @@ contains
   end function gen_eye
 
 
-  function exp_mat (A, order) result (R)
-    !
-    ! Compute the matrix exponential using Pade approximation
-    !   R=exp_mat(A)    default order = 7    Ref. scipy linalg.expm
-    !
-    complex(8), intent(in) :: A(:,:)
-    integer, optional, intent(in) :: order
-    complex(8), allocatable :: R(:,:)
-    integer    :: i, j, k, ord, n
-    real(8)    :: norm, vnorm(size(A,1)), val, c
-    complex(8) :: Ac(size(A,1),size(A,1)), X(size(A,1),size(A,1)),&
-         & D(size(A,1),size(A,1)),&
-         & eye(size(A,1),size(A,1)), cX(size(A,1),size(A,1))
-    integer :: ipiv(size(A,1)), info
-    !
-    n = size(A, 1)
-    allocate( R(n,n) )
-    eye = cz
-    forall (i=1:n) eye(i,i)=(1.d0, 0.d0)
-    ord = 7 
-    if (present(order)) ord = order
-    forall (i=1:n) vnorm(i) = sum(abs(A(i,:)))
-    norm = maxval(vnorm)
-    if (norm==0.) then 
-       R=eye
-       return
-    end if
-    val = log(norm)/log(2.d0)
-    j = max(0,floor(val)+1)
-    Ac = A / (2.d0**j)
-    
-    ! Pade Approximation for exp(Ac)
-    X = Ac
-    c = 1.0/2.d0
-    R = eye + c*Ac
-    D = eye - c*Ac
-    do k = 2, ord
-       c = c * (ord-k+1) / (k*(2*ord-k+1))
-       X = matmul(Ac,X)
-       cX = c*X
-       R = R + cX
-       if (mod(k,2)==0) then
-          D = D + cX
-       else
-          D = D - cX
-       end if
-    end do
-    call zgesv(size(D,1), size(D,1), D, size(D,1), &
-         ipiv, R, size(D,1), info)
-    do k = 1, j
-       R = matmul(R,R)
-    end do
-  end function exp_mat
-
-  function matmul_zgemm(a, b) result (c)
-    ! c = a * b
-    complex(8), intent(in) :: a(:,:), b(:,:)
-    complex(8) :: c(size(a,1),size(b,2))
-    call zgemm('n', 'n', size(c,1), size(c,2), size(a,2), &
-         & (1.d0, 0.d0), a, size(a,1), b, size(b,1), cz, c, size(c,1))
-  end function matmul_zgemm
-
-
-  subroutine matmul_dgemm(a, b, c, transa, transb)
-    ! c = a * b
-    ! a and c, b and c should be differnt from each other
-    real(8), intent(in) :: a(:,:), b(:,:)
-    real(8), intent(out) :: c(:,:)
-    character(*), intent(in), optional :: transa, transb 
-    character(1) :: ta, tb 
-    integer :: k
-    ta = 'n'
-    tb = 'n'
-    if (present(transa)) ta = transa
-    if (present(transb)) tb = transb
-    if (ta=='n') then
-       k = size(a,2) 
-    else 
-       k = size(a,1)
-    end if
-    call dgemm(ta, tb, size(c,1), size(c,2), k, &
-         & 1.d0, a, size(a,1), b, size(b,1), 0.d0, c, size(c,1))
-  end subroutine matmul_dgemm
-
   function random_uniform() result (r)
     ! random number in uniform dist. (0:1)
     real(8) :: r
     call dlarnv(1, iseed, 1, r )
   end function random_uniform
+
 
   subroutine uniform_random_mat(n, r)
     ! random matrix in uniform dist. (0:1)
@@ -453,50 +312,53 @@ contains
     call dlarnv(1, iseed, n, r)
   end subroutine uniform_random_mat
 
+
+
+  function zinverse(a) result (b)
+    ! inverse complex matrix 
+    complex(8), intent(in) :: a(:,:)
+    complex(8) :: b(size(a,1),size(a,1))
+    complex(8) :: work(size(a,1)*size(a,1))
+    integer :: ipvt(size(a,1)), info
+    b = a 
+    call zgetrf(size(b,1), size(b,2), b, size(b,1), ipvt, info)
+    call zgetri(size(b,1), b, size(b,1), ipvt, work, size(b,1)*size(b,1), info)
+  end function zinverse
+
+  function dinverse(a) result (b)
+    ! inverse real matrix 
+    real(8), intent(in) :: a(:,:)
+    real(8) :: b(size(a,1),size(a,1))
+    real(8) :: work(size(a,1)*size(a,1))
+    integer :: ipvt(size(a,1)), info
+    b = a 
+    call dgetrf(size(b,1), size(b,2), b, size(b,1), ipvt, info)
+    call dgetri(size(b,1), b, size(b,1), ipvt, work, size(b,1)*size(b,1), info)
+  end function dinverse
+
+
+  subroutine matmul_dgemm_acc(a, b, c, transa, transb)
+    ! c = c + a * b in real(8)
+    real(8), intent(in) :: a(:,:), b(:,:)
+    real(8), intent(inout) :: c(:,:)
+    character(*), intent(in), optional :: transa, transb 
+    character(1) :: ta, tb 
+    integer :: k
+    ta = 'n'
+    tb = 'n'
+    if (present(transa)) ta = transa
+    if (present(transb)) tb = transb
+    if (ta=='n' .or. ta=='N') then
+       k = size(a,2) 
+    else 
+       k = size(a,1)
+    end if
+    call dgemm(ta, tb, size(c,1), size(c,2), k, &
+         & 1.d0, a, size(a,1), b, size(b,1), 1.d0, c, size(c,1))
+  end subroutine matmul_dgemm_acc
+
+
 end module lib_matrix
 
-
-
-#ifdef TEST
-program test_lib_matrix
-  use lib_matrix
-  implicit none
-  integer :: i,j
-  integer, parameter :: n=3
-  complex(8) :: a(n,n), u(n,n)
-  real(8) :: e(n)
-
-  a(:,1) = (/ (-3.,-5.), (3.,3.), (3.,2.)/)
-  a(:,2) = (/ (-3.,5.), (9.,5.), (8.,5.)/)
-  a(:,3) = (/ (-10.,5.), (1.,5.), (7.,1.)/)
-  do i = 1, n
-     write(*,*) "original",i,a(i,:)
-  end do
-  write(*,*) "determinant", determinant(a)
-  a = inverse(a)
-  write(*,*) 'inverse',a
-
-
-  call gram_schmidt(a)
-  do i = 1, n
-     do j = 1,n
-        write(*,*) "gram_schmidt check",i,j,dot_product(a(:,i),a(:,j))
-     end do
-  end do
-  !write(*,*) 'gram',matmul(dagger(a),a)
-  write(*,*) 'random mat', random_mat(2,3)
-
-  write(*,*) "exp(a)",exp_mat(a)
-
-  a = a + dagger(a)
-  call diagonalize( a, e, u )
-
-  write(*,*) "eigen", e
-  a = matmul3( dagger(u), a, u)
-  write(*,*) "diagonalized",a
-  
-  
-end program test_lib_matrix
-#endif
 
 

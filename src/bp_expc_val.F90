@@ -1,6 +1,6 @@
 module bp_expc_val
   ! expectation value  routines
-  ! in bridge_partions mainly for transit and TBME calc.
+  ! in bridge_partions mainly for transit 
   !$ use omp_lib
 #ifdef MPI
   use mpi 
@@ -9,14 +9,14 @@ module bp_expc_val
        mpi_kwf, mpi_kdim
   use model_space
   use partition, only: init_partition, type_ptn_pn, type_mbit, bin_srch_nocc
-  use wavefunction, only: type_vec_p, dot_product_global, wf_alloc_vec, &
-       wf_alloc_vecs
+  use wavefunction, only: type_vec_p, dot_product_global, wf_alloc_vec
   use operator_mscheme, only: opr_m, v_2b, opr_m_p, idx_nocc2b
   use class_stopwatch
   use bridge_partitions
   implicit none
 
-  public :: bp_ex_vals, init_bp_operator_tbme, bp_ex_vals_pn, bp_ex_vals_ij
+  public :: bp_ex_vals, bp_ex_vals_pn, bp_ex_vals_ij
+  public :: bp_ex_val_tbtd
 
 contains
 
@@ -34,10 +34,13 @@ contains
     type(type_vec_p) :: vt
     real(8) :: evt(size(ops))
     integer :: i, ml, idl, mr, myrank_right, iop, idr
+    integer :: ntask, nntask, itask, npdim(4)
+    integer :: iv_shift, jv_shift
+
 
     do i = 1, size(ops)
        if (.not. allocated(ops(i)%mlmr)) &
-            stop "ERROR: call init_bp_operator"
+            stop "ERROR: call init_bp_operator in bp_ex_vals"
        if (ops(i)%nbody /= 2) stop "ERROR not implement bp_ex_vals"
     end do
     if (present(vr)) then
@@ -47,27 +50,51 @@ contains
        vt%p = vl%p
     end if
     ev = 0.d0
+
+
+    nntask = 0
+    do ml = 0, nprocs_reduce - 1
+       if (nntask < self%ml(ml)%ntask) nntask = self%ml(ml)%ntask
+    end do
+
     
     call shift_mpi_init(vl, vt, .false., is_bcast=.true.)
 
-    do ml = 0, nprocs_reduce-1
-       !$omp parallel do private(idl, mr, myrank_right, iop, i, idr) &
+    do iv_shift = 0, nprocs_shift-1, nv_shift
+       jv_shift = min(iv_shift+nv_shift, nprocs_shift) - 1
+
+       !$omp parallel do private(ntask, ml, idl, mr, myrank_right, iop, &
+       !$omp                     i, idr, itask, npdim) &
        !$omp schedule(dynamic) reduction(+: ev)
-       do idl = self%idl_se(1,ml), self%idl_se(2,ml)
-          do mr = 0, nprocs_shift-1
+       do ntask = 0, nntask*nprocs_reduce-1
+          ml = mod(ntask, nprocs_reduce)
+
+          itask = ntask / nprocs_reduce + 1
+          if (itask > self%ml(ml)%ntask) cycle
+          idl = self%ml(ml)%idl_itask(itask)
+          npdim = self%ml(ml)%dim_itask(:, itask)
+          ! do mr = 0, nprocs_shift-1
+          do mr = iv_shift, jv_shift
              myrank_right = modulo(myrank-mr, nprocs_shift)
              do iop = 1, size(ops)
                 do i = 1, ops(iop)%mlmr(ml,myrank_right)%idl(idl)%n
                    idr = ops(iop)%mlmr(ml,myrank_right)%idl(idl)%id(i)
                    call ptn_ex_val_twobody(self%ptnl, & 
-                        ops(iop), idl, idr, vecl_shift(ml)%p, vec_recv(mr)%p, &
-                        ev(iop) )
+                        ops(iop), idl, idr, vec_reduce(ml)%p, &
+                        vec_shift(mr-iv_shift)%p, &
+                        ev(iop), npdim )
                 end do
              end do
           end do
        end do
-    end do
+
+       call shift_mpi_middle(jv_shift, .false.)
+
+    end do /* iv_shift */
+
+
     call shift_mpi_finalize()
+
 
 #ifdef MPI
     evt = ev
@@ -79,7 +106,7 @@ contains
 
 
 
-  subroutine ptn_ex_val_twobody(ptn, op, idl, idr, vl, vr, ev)
+  subroutine ptn_ex_val_twobody(ptn, op, idl, idr, vl, vr, ev, npdim)
     ! see wf_operate_twobody in bridge_partitions.F90
     type(type_ptn_pn), intent(in) :: ptn
     type(opr_m), intent(in) :: op
@@ -87,6 +114,7 @@ contains
     real(kwf), intent(in), target :: vl(:)
     real(kwf), intent(in), target :: vr(:)
     real(8), intent(inout) :: ev
+    integer, intent(in) :: npdim(4)
     integer :: idlp, idln, idrp, idrn, mmlp, mmln, mmrp, mmrn
     integer :: ph_n, ph_p, norb_ph_p(4), norb_ph_n(4)
     integer :: n1, n2, n3, n4, ni, nj, n
@@ -165,7 +193,7 @@ contains
              call op_nnint( n1, n2, n3, n4 )
           end do
        else if (ph_p==0 .and. ph_n==0) then
-          call operate_partition_onebody_diag( &
+          call operate_partition_onebody_diag_npdim( &
                ptn%pn(1)%id(idlp)%mz(mmlp), &
                ptn%pn(2)%id(idln)%mz(mmln), &
                ptn%pn(1)%id(idrp)%mz(mmrp), &
@@ -173,7 +201,7 @@ contains
                ptn%pn(1)%nocc(:, idlp), &
                ptn%pn(2)%nocc(:, idln), &
                op%spe(1)%v, op%spe(2)%v, &
-               vtl, vtr, ev)
+               vtl, vtr, ev, npdim)
           do ni = 1, n_jorb(1)
              do nj = ni, n_jorb(1)
                 call op_ppint(ni, nj, ni, nj)
@@ -217,7 +245,7 @@ contains
            idx_nocc2b(1, n1, n3)%md(mdp)%idx, &
            idx_nocc2b(2, n2, n4)%md(mdn)%idx, &
            op%nocc2b(3, n1, n2, n3, n4)%m(mdp)%v, &
-           vtl, vtr, ev)
+           vtl, vtr, ev, npdim)
     end subroutine op_pnint
     
     subroutine op_ppint(n1, n2, n3, n4)
@@ -242,7 +270,7 @@ contains
               idx_nocc2b(1, n1, n2)%mp(mm)%idx, &
               idx_nocc2b(1, n3, n4)%mp(mm)%idx, &
               op%nocc2b(1, n1, n2, n3, n4)%m(mm)%v, &
-              vtl, vtr, ev)
+              vtl, vtr, ev, npdim)
       end do
     end subroutine op_ppint
 
@@ -268,7 +296,7 @@ contains
               idx_nocc2b(2, n1, n2)%mp(mm)%idx, &
               idx_nocc2b(2, n3, n4)%mp(mm)%idx, &
               op%nocc2b(2, n1, n2, n3, n4)%m(mm)%v, &
-              vtl, vtr, ev)
+              vtl, vtr, ev, npdim)
       end do
     end subroutine op_nnint
 
@@ -276,23 +304,26 @@ contains
 
 
   subroutine operate_partition_pnint( &
-       ptnlp, ptnln, ptnrp, ptnrn, idx1, idx2, opv, lwf, rwf, ev)
+       ptnlp, ptnln, ptnrp, ptnrn, idx1, idx2, opv, lwf, rwf, ev, npdim)
     !
     ! operate proton-neutron two-body operator with selected partition
     !
     type(type_mbit), intent(in) :: ptnlp, ptnln, ptnrp, ptnrn
     real(8), intent(in), target :: opv(:,:)
     integer, intent(in) :: idx1(:,:), idx2(:,:)
-    real(kwf), intent(inout) :: lwf( ptnlp%n, ptnln%n )
+    real(kwf), intent(in) :: lwf( ptnlp%n, ptnln%n )
     real(kwf), intent(in) :: rwf( ptnrp%n, ptnrn%n )
     real(8), intent(inout) :: ev
+    integer, intent(in) :: npdim(4)
     integer :: nt, n_dimp(2), n_dimn(2)
     
     nt = 1
     !$ nt = omp_get_thread_num() + 1
 
-    call pnint_onebody_jump((/ 1, ptnlp%n /), idx1, ptnlp, ptnrp, n_dimp, p_ik(:,:,:,nt))
-    call pnint_onebody_jump((/ 1, ptnln%n /), idx2, ptnln, ptnrn, n_dimn, n_jl(:,:,:,nt))
+    call pnint_onebody_jump( npdim(1:2), &
+         idx1, ptnlp, ptnrp, n_dimp, p_ik(:,:,:,nt) )
+    call pnint_onebody_jump( npdim(3:4), &
+         idx2, ptnln, ptnrn, n_dimn, n_jl(:,:,:,nt) )
 
     call sum_loop_plus ( n_dimp(1), p_ik(:,:,1,nt), n_dimn(1), n_jl(:,:,1,nt) )
     call sum_loop_minus( n_dimp(2), p_ik(:,:,2,nt), n_dimn(1), n_jl(:,:,1,nt) )
@@ -328,7 +359,7 @@ contains
 
 
   subroutine operate_partition_ppint( &
-       ptnlp, ptnln, ptnrp, ptnrn, idx1, idx2, opv, lwf, rwf, ev)
+       ptnlp, ptnln, ptnrp, ptnrn, idx1, idx2, opv, lwf, rwf, ev, npdim)
     !
     ! operate proton-proton two-body operator with selected partition
     !
@@ -338,11 +369,12 @@ contains
     real(kwf), intent(in) :: lwf( ptnlp%n, ptnln%n )
     real(kwf), intent(in) :: rwf( ptnrp%n, ptnrn%n )
     real(8), intent(inout) :: ev
+    integer, intent(in) :: npdim(4)
     integer :: i, j, n, io, jo, ko, lo, ijo, klo, sij, in
     integer(kmbit) :: mb, mi, mj
     real(8) :: x
 
-    do i = 1, ptnlp%n
+    do i = npdim(1), npdim(2)
        mi = ptnlp%mbit(i)
        do ijo = 1, size(idx1, 2)
           io = idx1(1, ijo)
@@ -361,7 +393,8 @@ contains
              mb = ibset(mb, lo)
              call bin_srch_mbit(mb, ptnrp, j, iwho=23)
              x = sij * nsign(mb, ko, lo) * opv(ijo,klo) 
-             do in = 1, ptnln%n
+             ! do in = 1, ptnln%n
+             do in = npdim(3), npdim(4)
                 ev = ev + lwf(i, in) * x * rwf(j, in)
              end do
           end do
@@ -373,7 +406,7 @@ contains
 
 
   subroutine operate_partition_nnint( &
-       ptnlp, ptnln, ptnrp, ptnrn, idx1, idx2, opv, lwf, rwf, ev)
+       ptnlp, ptnln, ptnrp, ptnrn, idx1, idx2, opv, lwf, rwf, ev, npdim)
     !
     ! operate neutron-neutron two-body operator with selected partition
     !
@@ -383,11 +416,12 @@ contains
     real(kwf), intent(in) :: lwf( ptnlp%n, ptnln%n )
     real(kwf), intent(in) :: rwf( ptnrp%n, ptnrn%n )
     real(8), intent(inout) :: ev
+    integer, intent(in) :: npdim(4)
     integer :: i, j, n, io, jo, ko, lo, ijo, klo, sij, ip
     integer(kmbit) :: mb, mi, mj
     real(8) :: x
 
-    do i = 1, ptnln%n
+    do i = npdim(3), npdim(4)
        mi = ptnln%mbit(i)
        do ijo = 1, size(idx1, 2)
           io = idx1(1, ijo)
@@ -406,7 +440,7 @@ contains
              mb = ibset(mb, lo)
              call bin_srch_mbit(mb, ptnrn, j, iwho=24)
              x = sij * nsign(mb, ko, lo) *  opv(ijo,klo)
-             do ip = 1, ptnlp%n
+             do ip = npdim(1), npdim(2)
                 ev = ev + lwf(ip, i) * x * rwf(ip, j)
              end do
           end do
@@ -416,9 +450,9 @@ contains
   end subroutine operate_partition_nnint
 
 
-  subroutine operate_partition_onebody_diag( &
+  subroutine operate_partition_onebody_diag_npdim( &
        ptnlp, ptnln, ptnrp, ptnrn, &
-       nocc1, nocc2, opv1, opv2, lwf, rwf, ev)
+       nocc1, nocc2, opv1, opv2, lwf, rwf, ev, npdim)
     !
     ! operate diagonal one-body interaction in two-body operator
     !
@@ -428,174 +462,20 @@ contains
     real(kwf), intent(inout) :: lwf( ptnlp%n, ptnln%n )
     real(kwf), intent(in) :: rwf( ptnrp%n, ptnrn%n )
     real(8), intent(inout) :: ev
+    integer, intent(in) :: npdim(4)
     integer :: i, j
     real(8) :: x
+    
     x = sum(opv1*nocc1) + sum(opv2*nocc2) 
-    do j = 1, ptnln%n
-       do i = 1, ptnlp%n
+    do j = npdim(3), npdim(4)
+       do i = npdim(1), npdim(2)
           ev = ev + lwf(i, j) * rwf(i, j) * x
        end do
     end do
-  end subroutine operate_partition_onebody_diag
+  end subroutine operate_partition_onebody_diag_npdim
 
 
 
-
-
-  subroutine init_bp_operator_tbme(self, op, k1, k2, k3, k4)
-    type(type_bridge_partitions), intent(in) :: self
-    type(opr_m), intent(inout) :: op
-    integer, intent(in):: k1, k2, k3, k4
-    integer :: idl, ml, mr, mm, n_idcnct(0:nprocs-1), &
-         idcnct(maxval(self%ptnr%rank2ntask), 0:nprocs-1)
-    type(type_ptn_pn), pointer :: pl, pr
-    integer :: pnMl(3), pnMr(3), n_occd(2), nocl(maxval(n_jorb), 2)
-
-    pl => self%ptnl
-    pr => self%ptnr
-    if (op%nbody == 2 .and. (.not. associated(pl, pr))) stop "not implemented"
-    !
-    if ( allocated(op%mlmr) ) call finalize_bp_operator(self, op)
-
-    allocate( op%mlmr(0:nprocs_reduce-1, 0:nprocs_shift-1) )
-    do ml = 0, nprocs_reduce-1
-       do mr = 0, nprocs_shift-1
-          allocate( op%mlmr(ml,mr)%idl(self%idl_se(1,ml):self%idl_se(2,ml)))
-       end do
-    end do
-
-    do ml = 0, nprocs_reduce-1
-       do idl = self%idl_se(1,ml), self%idl_se(2,ml)
-          call ptn_connect_twobody(idl, n_idcnct, idcnct)
-          do mr = 0, nprocs_shift - 1
-             mm = mr + myrank_reduce*nprocs_shift
-             op%mlmr(ml,mr)%idl(idl)%n = n_idcnct(mm)
-             allocate( op%mlmr(ml,mr)%idl(idl)%id( n_idcnct(mm) ) )
-             op%mlmr(ml,mr)%idl(idl)%id(:) = idcnct(:n_idcnct(mm), mm)
-          end do
-       end do
-    end do
-  contains
-
-    subroutine ptn_connect_twobody(idl, n_idcnct, idcnct)
-      integer, intent(in) :: idl
-      integer, intent(out) :: idcnct(maxval(pr%rank2ntask), 0:nprocs-1), &
-           n_idcnct(0:nprocs-1)
-      integer :: n1, n2, n3, n4, ipn
-
-      n_idcnct(:) = 0
-      nocl(:,:) = 0
-      pnMl = pl%pidpnM_pid(:,idl)
-      do ipn = 1, 2
-         nocl(:n_jorb(ipn), ipn) = pl%pn(ipn)%nocc(:, pnMl(ipn))
-      end do
-
-      if      (k1 <= n_jorb(1) .and. k2 <= n_jorb(1)) then 
-         ipn = 1
-      else if (k1 >  n_jorb(1) .and. k2 >  n_jorb(1)) then 
-         ipn = 2
-      else if (k1 <= n_jorb(1) .and. k2 >  n_jorb(1)) then 
-         ipn = 3
-      else 
-         stop "ERROR operator_tbme 1"
-      end if
-
-      n1 = k1
-      if (ipn==2) n1 = k1 - n_jorb(1)
-      n2 = k2
-      if (ipn==2 .or. ipn==3) n2 = k2 - n_jorb(1)
-      n3 = k3
-      if (ipn==2) n3 = k3 - n_jorb(1)
-      n4 = k4
-      if (ipn==2 .or. ipn==3) n4 = k4 - n_jorb(1)
-
-      if (ipn==1 .or. ipn==2) then
-         call pp_nn_int(ipn, n1, n2, n3, n4, idcnct, n_idcnct)
-         if (n1/=n3 .or. n2/=n4) call pp_nn_int(ipn, n3, n4, n1, n2, idcnct, n_idcnct)
-      else
-         call pn_int(n1, n2, n3, n4, idcnct, n_idcnct)
-         if (n1/=n3 .or. n2/=n4) call pn_int(n3, n4, n1, n2, idcnct, n_idcnct)
-      end if
-
-    end subroutine ptn_connect_twobody
-
-
-    subroutine pp_nn_int(ipn, n1, n2, n3, n4, idcnct, n_idcnct)
-      ! pp-int. and nn-int. 2p2h, Mp conserved
-      integer, intent(in) :: ipn, n1, n2, n3, n4
-      integer, intent(inout) :: idcnct(maxval(pr%rank2ntask), 0:nprocs-1), &
-           n_idcnct(0:nprocs-1)
-      integer :: pnMr(3), mi, mj, max_mp, min_mp, mm, mr, idr, idrs, &
-           nocr(maxval(n_jorb), 2)
-      nocr = nocl
-      if (nocr(n1, ipn) == 0) return
-      nocr(n1, ipn) = nocr(n1, ipn) - 1
-      if (nocr(n2, ipn) == 0) return
-      nocr(n2, ipn) = nocr(n2, ipn) - 1
-      if (nocr(n3, ipn) == jorbn(n3, ipn) + 1) return
-      nocr(n3, ipn) = nocr(n3, ipn) + 1
-      if (nocr(n4, ipn) == jorbn(n4, ipn) + 1) return
-      nocr(n4, ipn) = nocr(n4, ipn) + 1
-      if (.not. allocated( op%nocc2b(ipn,n1,n2,n3,n4)%m ) ) return
-      pnMr = pnMl
-      call bin_srch_nocc(nocr(:n_jorb(ipn), ipn), &
-           pr%pn(ipn)%nocc, pnMr(ipn))
-      if (pnMr(ipn)==0) return
-      call bin_srch_nocc(pnMr, pr%pidpnM_pid_srt, idrs)
-      if (idrs==0) return
-      idr = pr%pid_srt2dpl(idrs)
-      mr  = pr%pid2rank(idr)
-      n_idcnct(mr) = n_idcnct(mr) + 1
-      idcnct(n_idcnct(mr), mr) = idr
-    end subroutine pp_nn_int
-
-    subroutine pn_int(n1, n2, n3, n4, idcnct, n_idcnct)
-      integer, intent(in) :: n1, n2, n3, n4
-      integer, intent(inout) :: idcnct(maxval(pr%rank2ntask), 0:nprocs-1), &
-           n_idcnct(0:nprocs-1)
-      integer :: pnMr(3), mi, mj, max_mp, min_mp, mm, mr, idr, idrs, &
-           nocr(maxval(n_jorb), 2)
-      ! pn-int 2p2h
-      nocr = nocl 
-      if (nocr(n1, 1) == 0) return
-      nocr(n1, 1) = nocr(n1, 1) - 1
-      if (nocr(n2, 2) == 0) return
-      nocr(n2, 2) = nocr(n2, 2) - 1
-      if (nocr(n3, 1) == jorbn(n3, 1)+1) return
-      nocr(n3, 1) = nocr(n3, 1) + 1
-      if (nocr(n4, 2) == jorbn(n4, 2)+1) return
-      nocr(n4, 2) = nocr(n4, 2) + 1
-      if (.not. allocated( op%nocc2b(3,n1,n2,n3,n4)%m ) ) return
-      pnMr = pnMl
-      call bin_srch_nocc(nocr(:n_jorb(1), 1), &
-           pr%pn(1)%nocc, pnMr(1))
-      if (pnMr(1)==0) return
-      call bin_srch_nocc(nocr(:n_jorb(2), 2), &
-           pr%pn(2)%nocc, pnMr(2))
-      if (pnMr(2)==0) return
-      mi = pr%pn(1)%id(pnMr(1))%max_m
-      mj = pr%pn(2)%id(pnMr(2))%max_m
-      min_mp = max(-mi, pr%mtotal - mj)
-      max_mp = min( mi, pr%mtotal + mj)
-      if (min_mp>max_mp) return
-      pnMr(3) = min_mp
-      call bin_srch_nocc(pnMr, pr%pidpnM_pid_srt, idrs)
-      if (idrs==0) return
-      do mm = min_mp, max_mp, 2
-         idr = pr%pid_srt2dpl(idrs)
-         idrs = idrs + 1
-         mr = pr%pid2rank(idr)
-         if ( abs(pnMl(3)-mm)/2 &
-              > ubound(op%nocc2b(3,n1,n2,n3,n4)%m, 1) ) cycle
-         if (.not. allocated( &
-              op%nocc2b(3,n1,n2,n3,n4)%m( &
-              (pnMl(3)-mm)/2 )%v ) ) cycle
-         n_idcnct(mr) = n_idcnct(mr) + 1
-         idcnct(n_idcnct(mr), mr) = idr
-      end do
-    end subroutine pn_int
-
-  end subroutine init_bp_operator_tbme
 
 
   subroutine bp_ex_vals_pn(self, vl, ops, ev, vr)
@@ -605,13 +485,11 @@ contains
     !           = <vl | op(i)_pn | vr>  if present(vr)
     !
     type(type_bridge_partitions), intent(inout) :: self
-!    type(type_vec_p), intent(in) :: vl
     type(type_vec_p), intent(inout) :: vl
     type(opr_m_p), intent(in) :: ops(:)
     real(8), intent(out) :: ev(2, size(ops))
     type(type_vec_p), intent(inout), optional :: vr
     integer :: iop
-    real(8) :: evout(2, size(ops))
     type(type_vec_p) :: vt
     real(8) :: ev_p(n_jorb(1), n_jorb(1), size(ops)), &
          ev_n(n_jorb(2), n_jorb(2), size(ops))
@@ -644,10 +522,10 @@ contains
          ev_n(n_jorb(2), n_jorb(2), size(ops))
     type(type_vec_p), intent(inout), optional :: vr
     integer :: idl, idr, i, ml, mr, myrank_right, iop
-    real(8) :: evout(2, size(ops))
     type(type_vec_p) :: vt
     real(8) :: ev_pt(n_jorb(1), n_jorb(1), size(ops)), &
          ev_nt(n_jorb(2), n_jorb(2), size(ops))
+    integer :: iv_shift, jv_shift
 
     do i = 1, size(ops)
        if (.not. allocated(ops(i)%p%mlmr)) &
@@ -664,23 +542,35 @@ contains
     ev_n = 0.d0
 
     call shift_mpi_init(vl, vt, .false., is_bcast=.true.)
-    do ml = 0, nprocs_reduce-1
-       !$omp parallel do private(idl, mr, myrank_right, iop, i, idr) &
-       !$omp schedule(dynamic) reduction(+: ev_p, ev_n)
-       do idl = self%idl_se(1,ml), self%idl_se(2,ml)
-          do mr = 0, nprocs_shift-1
-             myrank_right = modulo(myrank-mr, nprocs_shift)
-             do iop = 1, size(ops)
-                do i = 1, ops(iop)%p%mlmr(ml,myrank_right)%idl(idl)%n
-                   idr = ops(iop)%p%mlmr(ml,myrank_right)%idl(idl)%id(i)
-                   call ptn_ex_val_onebody_ops(self%ptnl, self%ptnr, &
-                        ops(iop)%p, idl, idr, vecl_shift(ml)%p, vec_recv(mr)%p, &
-                        ev_p(:,:,iop), ev_n(:,:,iop))
+
+
+    do iv_shift = 0, nprocs_shift-1, nv_shift
+       jv_shift = min(iv_shift+nv_shift, nprocs_shift) - 1
+
+       do ml = 0, nprocs_reduce-1
+          !$omp parallel do private(idl, mr, myrank_right, iop, i, idr) &
+          !$omp schedule(dynamic) reduction(+: ev_p, ev_n)
+          do idl = self%idl_se(1,ml), self%idl_se(2,ml)
+             ! do mr = 0, nprocs_shift-1
+             do mr = iv_shift, jv_shift
+                myrank_right = modulo(myrank-mr, nprocs_shift)
+                do iop = 1, size(ops)
+                   do i = 1, ops(iop)%p%mlmr(ml,myrank_right)%idl(idl)%n
+                      idr = ops(iop)%p%mlmr(ml,myrank_right)%idl(idl)%id(i)
+                      call ptn_ex_val_onebody_ops(self%ptnl, self%ptnr, &
+                           ops(iop)%p, idl, idr, &
+                           vec_reduce(ml)%p, vec_shift(mr-iv_shift)%p, &
+                           ev_p(:,:,iop), ev_n(:,:,iop))
+                   end do
                 end do
              end do
           end do
        end do
+
+       call shift_mpi_middle(jv_shift, .false.)
+
     end do
+
     call shift_mpi_finalize()
     
 #ifdef MPI
@@ -697,7 +587,8 @@ contains
 
 
 
-  subroutine ptn_ex_val_onebody_ops(ptnl, ptnr, op, idl, idr, vl, vr, ev_p, ev_n)
+  subroutine ptn_ex_val_onebody_ops(ptnl, ptnr, op, idl, idr, vl, vr, &
+    ev_p, ev_n)
     type(type_ptn_pn), intent(in) :: ptnl, ptnr
     type(opr_m), intent(in) :: op
     integer, intent(in) :: idl, idr  ! partition ID
@@ -816,14 +707,229 @@ contains
     real(kwf) :: u(:), v(:)
     integer :: i 
     real(8) :: r
-!    if (size(u) /= size(v)) stop "error dot_product48"
     r = 0.d0
     do i = 1, size(u)
        r = r + u(i) * v(i)
     end do
   end function dot_product48
-  
 
+
+  !--------------------------
+  
+  subroutine bp_ex_val_tbtd(self, vl, vr, op)
+    use operator_mscheme, only : init_tbtd_op, clear_tbtd_op, finalize_opr_m    
+    !
+    ! expectation values for TBTD, output : op
+    !  op = <vl| c+i c+j cl ck | vr> 
+    !
+    type(type_bridge_partitions), intent(inout) :: self
+    type(type_vec_p), intent(in) :: vl
+    type(opr_m), intent(inout) :: op
+    type(type_vec_p), intent(in), optional :: vr
+    type(type_vec_p) :: vt
+    integer :: i, ml, idl, mr, myrank_right, iop, idr
+    integer :: ntask, nntask, itask, npdim(4)
+    integer :: iv_shift, jv_shift
+    integer :: n1, n2, n3, n4, nj, ipn, n, mm, ns, loop, nt, it, nn
+    real(8), allocatable :: vi(:), vo(:)
+    type(opr_m), allocatable :: ops(:)
+
+    if (op%nbody /= 5) stop "ERROR bp_ex_val_tbtd"
+
+    call start_stopwatch(time_tbtd)
+    
+    if (present(vr)) then
+       vt%p => vr%p
+    else
+       call wf_alloc_vec(vt, self%ptnr)
+       vt%p = vl%p
+    end if
+
+    nntask = 0
+    do ml = 0, nprocs_reduce - 1
+       if (nntask < self%ml(ml)%ntask) nntask = self%ml(ml)%ntask
+    end do
+
+    nt = 1
+    !$ nt = omp_get_max_threads()
+    allocate( ops(nt) )
+    !$omp parallel do 
+    do it = 1, nt
+       call init_tbtd_op( ops(it), op%mm*2, op%ipr1_type )
+    end do
+    
+    
+    call shift_mpi_init(vl, vt, .false., is_bcast=.true.)
+    it = 1
+    
+    do iv_shift = 0, nprocs_shift-1, nv_shift
+       jv_shift = min(iv_shift+nv_shift, nprocs_shift) - 1
+       !$omp parallel private (ntask, ml, itask, idl, npdim, &
+       !$omp mr, myrank_right, i, idr, it)
+       !$ it = omp_get_thread_num() + 1
+       !$omp do schedule(dynamic) 
+       do ntask = 0, nntask*nprocs_reduce-1
+          itask = ntask / nprocs_reduce + 1
+          ml = mod(ntask, nprocs_reduce)
+          if (itask > self%ml(ml)%ntask) cycle
+          idl = self%ml(ml)%idl_itask(itask)
+          npdim = self%ml(ml)%dim_itask(:, itask)
+          do mr = iv_shift, jv_shift
+             myrank_right = modulo(myrank-mr, nprocs_shift)
+             do i = 1, op%mlmr(ml,myrank_right)%idl(idl)%n
+                idr = op%mlmr(ml,myrank_right)%idl(idl)%id(i)
+                call wf_operate_twobody( self%ptnl, self%ptnr, &
+                     ops(it), idl, idr, vec_reduce(ml)%p, &
+                     vec_shift(mr-iv_shift)%p, npdim )
+             end do
+          end do
+       end do
+       !$omp end do
+       !$omp end parallel
+
+       call shift_mpi_middle(jv_shift, .false.)
+
+    end do/* iv_shift */
+
+
+    call shift_mpi_finalize()
+
+
+    nj = maxval(n_jorb)
+    ns = 0
+    mm = op%mm
+    !$omp parallel do private(nn, n1, n2, ipn, n, it) &
+    !$omp& reduction(+:ns) schedule(dynamic)
+    do nn = 0, nj**2-1
+       n2 = nn / nj + 1
+       n1 = mod(nn, nj) + 1
+       do ipn = 1, 2
+          if (.not. allocated(op%nocc1b(ipn,n1,n2)%m)) cycle
+          n = size( op%nocc1b(ipn,n1,n2)%m(mm)%v )
+          if (n == 0) cycle
+          ns = ns + n
+          do it = 1, nt
+             op%nocc1b(ipn,n1,n2)%m(mm)%v &
+                  = op%nocc1b(ipn,n1,n2)%m(mm)%v &
+                  + ops(it)%nocc1b(ipn,n1,n2)%m(mm)%v
+          end do
+       end do
+    end do
+
+
+    
+    !$omp parallel do private(nn, n1, n2, n3, n4, ipn, n, mm, it) &
+    !$omp& reduction(+: ns) schedule(dynamic)
+    do nn = 0, nj**4-1
+       n4 = nn / nj**3 + 1
+       n3 = mod(nn, nj**3) / nj**2 + 1
+       n2 = mod(nn, nj**2) / nj + 1
+       n1 = mod(nn, nj) + 1
+       do ipn = 1, 3
+          if (.not. allocated(op%nocc2b(ipn,n1,n2,n3,n4)%m)) cycle
+          do mm = lbound( op%nocc2b(ipn,n1,n2,n3,n4)%m, 1 ), &
+               ubound( op%nocc2b(ipn,n1,n2,n3,n4)%m, 1 )
+             n = size( op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v )
+             if (n == 0) cycle
+             ns = ns + n
+             do it = 1, nt
+                op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v &
+                     = op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v &
+                     + ops(it)%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v
+             end do
+          end do
+       end do
+    end do
+
+    if (.not. present(vr)) call deallocate_l_vec (vt%p)
+
+    do it = 1, nt
+       call finalize_opr_m(ops(it))
+    end do
+    deallocate(ops)
+    
+#ifdef MPI
+    allocate( vi(ns), vo(ns) )
+
+    ns = 0
+    mm = op%mm
+    do nn = 0, nj**2-1
+       n2 = nn / nj + 1
+       n1 = mod(nn, nj) + 1
+       do ipn = 1, 2
+          if (.not. allocated(op%nocc1b(ipn,n1,n2)%m)) cycle
+          n = size( op%nocc1b(ipn,n1,n2)%m(mm)%v )
+          if (n == 0) cycle
+          vi(ns+1:ns+n) = op%nocc1b(ipn,n1,n2)%m(mm)%v
+          ns = ns + n
+       end do
+    end do
+    
+    do nn = 0, nj**4-1
+       n4 = nn / nj**3 + 1
+       n3 = mod(nn, nj**3) / nj**2 + 1
+       n2 = mod(nn, nj**2) / nj + 1
+       n1 = mod(nn, nj) + 1
+       do ipn = 1, 3
+          if (.not. allocated(op%nocc2b(ipn,n1,n2,n3,n4)%m)) cycle
+          do mm = lbound( op%nocc2b(ipn,n1,n2,n3,n4)%m, 1 ), &
+               ubound( op%nocc2b(ipn,n1,n2,n3,n4)%m, 1 )
+             n = size( op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v )
+             if (n==0) cycle
+             vi(ns+1:ns+n) = reshape( &
+                  op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v, (/n/) )
+             ns = ns + n
+          end do
+       end do
+    end do
+
+    call mpi_allreduce(vi, vo, ns, mpi_real8, &
+         mpi_sum, mpi_comm_world, ierr)
+
+    ns = 0
+    mm = op%mm
+    do nn = 0, nj**2-1
+       n2 = nn / nj + 1
+       n1 = mod(nn, nj) + 1
+       do ipn = 1, 2
+          if (.not. allocated(op%nocc1b(ipn,n1,n2)%m)) cycle
+          n = size( op%nocc1b(ipn,n1,n2)%m(mm)%v )
+          if (n == 0) cycle
+          op%nocc1b(ipn,n1,n2)%m(mm)%v = vo(ns+1:ns+n)
+          ns = ns + n
+       end do
+    end do
+
+    do nn = 0, nj**4-1
+       n4 = nn / nj**3 + 1
+       n3 = mod(nn, nj**3) / nj**2 + 1
+       n2 = mod(nn, nj**2) / nj + 1
+       n1 = mod(nn, nj) + 1
+       do ipn = 1, 3
+          if (.not. allocated(op%nocc2b(ipn,n1,n2,n3,n4)%m)) cycle
+          do mm = lbound( op%nocc2b(ipn,n1,n2,n3,n4)%m, 1 ), &
+               ubound( op%nocc2b(ipn,n1,n2,n3,n4)%m, 1 )
+             n = size( op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v )
+             if (n==0) cycle
+             op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v = reshape( &
+                  vo(ns+1:ns+n), (/ &
+                  size(op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v,1), &
+                  size(op%nocc2b(ipn,n1,n2,n3,n4)%m(mm)%v,2)  /) )
+             ns = ns + n
+          end do
+       end do
+    end do
+
+    deallocate(vi, vo)
+#endif
+
+    call stop_stopwatch(time_tbtd)
+    
+  end subroutine bp_ex_val_tbtd
+
+
+  
+  
 
 
 end module bp_expc_val

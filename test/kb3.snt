@@ -1,3 +1,7 @@
+! KB3 interaction for pf-shell
+!  A. Abzouzi, E. Caurier, and A. P. Zuker, 
+!   Phys. Rev. Lett. 66, 1134 (1991)
+!
 ! model space
    4   4    20 20
    1       0   3   7  -1    !  1 = p 0f_7/2

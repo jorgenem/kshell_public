@@ -3,64 +3,49 @@ module partition
 #ifdef MPI
   use mpi 
 #endif
-  !$use omp_lib
-  use constant, only : kmbit, kdim, kwf, c_no_init, mpi_kwf, mpi_kdim, max_int4
+  use constant, only : kmbit, kdim, kwf, c_no_init, &
+       mpi_kwf, mpi_kdim, mpi_kmbit, max_int4
   use model_space
   use class_stopwatch
   implicit none
 
   private
-  public :: type_ptn_pn, init_partition, finalize_partition, &
+  public :: type_ptn_pn, init_partition, copy_partition, finalize_partition, &
        type_ptn_id, type_mbit, deploy_partition, &
        compare_nocc, bin_srch_nocc, cost_from_localdim, &
-       type_jump_ob
+       c_prty
 
-
-
-  type type_jump_ob
-     integer :: n
-     integer, allocatable :: ij(:,:) 
-  end type type_jump_ob
-
-  type type_jump_tb
-     integer :: n
-     integer, allocatable :: ij(:,:)
-     real(8), allocatable :: v(:)
-  end type type_jump_tb
 
   type type_mbit 
      integer :: n                     ! number of states in m-scheme of id
      integer(kmbit), allocatable :: mbit(:) ! bit repr. of m-scheme states
-     !
-     ! store jump
-     integer :: n_id_jump_ob=0
-     integer, allocatable :: id_jump_ob(:,:) ! id_idx, nsplit
-     type(type_jump_ob), allocatable :: jump_ob(:,:) ! 1:+, 2:-
-     integer :: n_id_jump_tb=0
-     integer, allocatable :: id_jump_tb(:,:) ! id_tb, nsplit
-     type(type_jump_tb), allocatable :: jump_tb(:) 
   end type type_mbit
 
   type type_ptn_id
      type(type_mbit), allocatable :: mz(:) ! bit of m-state for Jz=mm
-     integer :: max_m, iprty               ! 2*maximum of Jz &  parity
+     integer :: min_m, max_m, iprty ! 2*max of Jz, J &  parity
   end type type_ptn_id
 
   type type_ptn  ! partition for proton (or neutron)
      integer :: n_id   ! number of partition id's
      type(type_ptn_id), allocatable :: id(:) 
-     integer, allocatable :: nocc(:,:)  !  nocc(korb, id)  number of occupation in orbits
-     integer(kdim) :: n_mbit ! total number of mscheme bits
+     !  nocc(korb, id)  number of occupation in orbits
+     integer, allocatable :: nocc(:,:)  
+     integer(kdim) :: n_mbit ! total number of M-scheme bits
+     integer :: n_targeted = 0
   end type type_ptn
 
 ! proton-neutron combined partitions
   type type_ptn_pn ! self 
-     integer :: n_ferm(2), iprty, mtotal
-     type(type_ptn) :: pn(2)
+     integer :: n_ferm(2), iprty, mtotal, max_jj
+     type(type_ptn), pointer :: pn(:) => null()  ! pn(2)
      integer :: n_pidpnM
-     integer, allocatable :: pidpnM_pid(:,:)     ! pidpnM_pid(:,id) = idp, idn, Mp*2 (deployed order)
-     integer, allocatable :: pidpnM_pid_srt(:,:) ! sorted partion id for binary search
-     integer, allocatable :: pid_srt2dpl(:) ! index trans. of sorted to that of deployed, and reversed
+     ! pidpnM_pid(:,id) = idp, idn, Mp*2 (deployed order)
+     integer, allocatable :: pidpnM_pid(:,:)     
+     ! sorted partion id for binary search
+     integer, allocatable :: pidpnM_pid_srt(:,:) 
+     ! index trans. of sorted to that of deployed, and reversed
+     integer, allocatable :: pid_srt2dpl(:) 
      integer, allocatable :: pid_dpl2srt(:) ! index reversed trans.
      integer(kdim) :: ndim, max_ndim_pid, max_ndim_pid_pn(2)
      integer(kdim), allocatable :: ndim_pid(:), ndim_srt(:), ndim_srt_acc(:)
@@ -73,47 +58,34 @@ module partition
      integer(kdim), allocatable :: local_dim_acc(:), local_dim_acc_start(:)
   end type type_ptn_pn
 
+
+  ! type for mbit_orb
+  type type_m_mbit 
+     integer :: n 
+     integer(kmbit), allocatable :: mbit(:)
+     integer, allocatable :: mm(:)
+  end type type_m_mbit
   
 contains
 
-  subroutine init_partition(self, mtot, lun, verbose)
+  subroutine init_partition(self, lun, mtot, verbose)
     type(type_ptn_pn), intent(out) :: self ! partition information
-    integer, intent(in) :: mtot, lun
+    integer, intent(in) :: lun, mtot
     logical, optional, intent(in) :: verbose
-    integer :: ipn, i, j, k, n, mm, loop, mi, mj, mp, mn, mz
-    type type_m_mbit 
-       integer :: n 
-       integer(kmbit), allocatable :: mbit(:)
-       integer, allocatable :: mm(:)
-    end type type_m_mbit
+    integer :: ipn, i, j, k, n, mm, loop, mi, mj, mp, mn, mz, iprty
+    integer :: id1, id2, j1, j2
     type(type_m_mbit), allocatable :: mbit_orb(:,:,:) 
     integer(kmbit) :: mb
     integer, allocatable :: pidpn_pid(:,:) ! idp,idn = pidpn_wo_M(:,id)
-    integer(kdim) :: mq
+    integer, allocatable :: max_j_s(:,:)
     logical :: verb
-
-#ifdef MPI
-    if (kwf==4) then 
-       mpi_kwf = mpi_real
-    elseif (kwf==8) then
-       mpi_kwf = mpi_real8
-    else
-       stop "kwf error"
-    end if
-    if (kdim==4) then 
-       mpi_kdim = mpi_integer4
-    elseif (kdim==8) then
-       mpi_kdim = mpi_integer8
-    else
-       stop "kdim error"
-    end if
-#endif
 
     verb = .true.
     if (present(verbose)) verb = verbose
-    if (myrank/=0) verb = .false.
-    self%mtotal = mtot
-    if (maxval(n_morb) > bit_size(mb)-2) stop 'increase kmbit'
+
+    if (associated(self%pn)) stop 'ERROR partition pn assocated'
+    allocate( self%pn(2) ) 
+    self%pn(1)%n_targeted = 1
 
     call skip_comment(lun)
     read(lun, *) self%n_ferm(1), self%n_ferm(2), self%iprty
@@ -124,9 +96,9 @@ contains
     if (is_debug) write(*,*) "ptn%pn(1)%n_id, ptn%pn(2)%n_id", &
          self%pn(1)%n_id, self%pn(2)%n_id
     do ipn = 1, 2
-       call skip_comment(lun)
        allocate( self%pn(ipn)%id( self%pn(ipn)%n_id ), &
             self%pn(ipn)%nocc( n_jorb(ipn), self%pn(ipn)%n_id ))
+       call skip_comment(lun)
        do i = 1, self%pn(ipn)%n_id
           read(lun, *) j, self%pn(ipn)%nocc(:, i)
           if (i>2) then
@@ -137,21 +109,450 @@ contains
           if (is_debug) write(*,*) "j, ptn(ipn)%nocc(:,i)", &
                j, self%pn(ipn)%nocc(:,i)
           if (i/=j) stop "error in partition file" 
-          mm = max_m_nocc(self%pn(ipn)%nocc(:,i), ipn)
-          self%pn(ipn)%id(i)%max_m = mm
-          allocate( self%pn(ipn)%id(i)%mz(-mm:mm) )
-          self%pn(ipn)%id(i)%iprty  = product( (/( &
-               iporbn(k,ipn)**self%pn(ipn)%nocc(k,i), &
-               k=1, n_jorb(ipn) )/) )
        end do
     end do
-    
-    call start_stopwatch(time_tmp, is_reset=.true.)
+
+
+    ! read partition of p-n combination
+    call skip_comment(lun)
+    read(lun, *) n
+    allocate( pidpn_pid(2,n) )
+    do i = 1, n
+       read(lun, *) pidpn_pid(1,i), pidpn_pid(2,i)
+       if (i>2) then
+          if (compare_nocc(pidpn_pid(1:2,i-1),  pidpn_pid(1:2,i)) /= 1) &
+               stop "error order p-n partition"
+       end if
+    end do
+    self%n_nocc = n
+
+
+    self%mtotal = mtot
+    if (maxval(n_morb) > bit_size(mb)-2) stop 'increase kmbit'
+
+    call start_stopwatch(time_tmp, is_reset=.true., is_mpi_barrier=.true.)
+
+    n = max(self%pn(1)%n_id, self%pn(2)%n_id)
+    allocate( max_j_s(n,2) )
+
+    do ipn = 1, 2
+       !$omp parallel do private (mm, iprty)
+       do i = 1, self%pn(ipn)%n_id
+          mm = max_m_nocc(self%pn(ipn)%nocc(:,i), ipn)
+          iprty = product( (/( &
+               iporbn(k,ipn)**self%pn(ipn)%nocc(k,i), &
+               k=1, n_jorb(ipn) )/) )
+          max_j_s(i, ipn) = mm
+          self%pn(ipn)%id(i)%iprty = iprty
+          self%pn(ipn)%id(i)%min_m =   max_j_s(i,ipn)
+          self%pn(ipn)%id(i)%max_m = - max_j_s(i,ipn)
+       end do
+    end do
+
+    k = 0
+    do i = 1, self%n_nocc
+       id1 = pidpn_pid(1,i)
+       id2 = pidpn_pid(2,i)
+       j1 = max_j_s( id1, 1 )
+       j2 = max_j_s( id2, 2 )
+       k = max( j1+j2, k )
+       self%pn(1)%id(id1)%min_m = min( &
+            self%pn(1)%id(id1)%min_m, &
+            self%mtotal - j2 )
+       self%pn(2)%id(id2)%min_m = min( &
+            self%pn(2)%id(id2)%min_m, &
+            self%mtotal - j1 )
+       self%pn(1)%id(id1)%max_m = max( &
+            self%pn(1)%id(id1)%max_m, &
+            self%mtotal + j2 )
+       self%pn(2)%id(id2)%max_m = max( &
+            self%pn(2)%id(id2)%max_m, &
+            self%mtotal + j1 )
+    end do
+    self%max_jj = k
+    if (myrank==0 .and. verb) &
+         write(*,'(a,i3)') 'Max 2*J = ', self%max_jj
+
+    do ipn = 1, 2
+       !$omp parallel do private (i, iprty, mi, mj)
+       do i = 1, self%pn(ipn)%n_id
+          iprty = self%pn(ipn)%id(i)%iprty
+          mi = max(-max_j_s(i,ipn), self%pn(ipn)%id(i)%min_m )
+          mj = min( max_j_s(i,ipn), self%pn(ipn)%id(i)%max_m )
+          allocate( self%pn(ipn)%id(i)%mz(mi:mj) )
+          self%pn(ipn)%id(i)%min_m = mi
+          self%pn(ipn)%id(i)%max_m = mj
+       end do
+    end do
+
+    deallocate( max_j_s )
+
+    call init_mbit_orb(self, mbit_orb)
+
+    if (myrank==0) write(*,*)
+
+
+#ifdef MPI
+    call set_mbit_parallel()  ! MPI parallel
+    ! call set_mbit_single()  ! single node version
+#else
+    ! call set_mbit_parallel()  ! MPI parallel
+    call set_mbit_single()    ! single node
+#endif
+
+    call finalize_mbit_orb(self, mbit_orb)
+
+    ! generate p-n combined partitions
+    do loop = 1, 2
+       n = 0
+       do k = 1, size(pidpn_pid, 2)
+          i = pidpn_pid(1,k)
+          j = pidpn_pid(2,k)
+          do mp = self%pn(1)%id(i)%min_m, self%pn(1)%id(i)%max_m, 2
+             mn = self%mtotal - mp
+             if ( self%pn(2)%id(j)%min_m > mn ) cycle
+             if ( self%pn(2)%id(j)%max_m < mn ) cycle
+             n = n + 1
+             if (loop==2) then
+                self%pidpnM_pid_srt(:,n) = (/ i, j, mp /)
+                self%srt2nocc(n) = k
+             end if
+          end do
+       end do
+       if (loop==1) allocate( self%pidpnM_pid_srt(3, n), &
+            self%srt2nocc(n) )
+    end do
+
+    self%n_pidpnM = size(self%pidpnM_pid_srt, 2)
+
+    allocate( self%ndim_srt_acc(0:self%n_pidpnM), self%ndim_srt(self%n_pidpnM) )
+    !$omp parallel do private(n, i, j, mp, mn)
+    do n = 1, self%n_pidpnM
+       i  = self%pidpnM_pid_srt(1, n)
+       j  = self%pidpnM_pid_srt(2, n)
+       mp = self%pidpnM_pid_srt(3, n)
+       mn = self%mtotal - mp
+       self%ndim_srt(n) = self%pn(1)%id(i)%mz(mp)%n * self%pn(2)%id(j)%mz(mn)%n
+    end do
+    self%ndim_srt_acc(0) = 0
+    do n = 1, self%n_pidpnM
+       self%ndim_srt_acc(n) = self%ndim_srt_acc(n-1) + self%ndim_srt(n)
+    end do
+
+    deallocate( pidpn_pid )
+
+    call stop_stopwatch(time_tmp)
+    if (myrank==0 .and. verb) write(*, '(/a, f10.3, a/)' ) &
+         "init_partition  time it took was:", time_tmp%time, " sec"
+
+    n = self%n_pidpnM
+    allocate( self%pidpnM_pid(3, n), self%ndim_pid(n) )
+    allocate( self%local_dim_acc(n), self%local_dim_acc_start(n) )
+    allocate( self%pid_srt2dpl(n),   self%pid_dpl2srt(n))
+    allocate( self%rank2ntask(0:nprocs-1), self%pid2rank(n) )
+
+    if (verb) call print_mem_usage_partition(self)
+
+  contains
+
+    subroutine set_mbit_parallel()
+      ! set M-scheme configuration in MPI parallel and memory saving
+      !$ use omp_lib, only: omp_get_num_threads
+      integer :: ipn, i, n_mbarray, n_idmn
+      integer(kdim) :: mq
+      integer(kmbit), allocatable :: mbarray(:)
+      integer, allocatable :: idmn(:,:)
+      integer, parameter :: max_mb = 200000000 !  600000000
+      integer :: id, mm, nmbs, ii, jj, iroot, from, dest, n, nn_idmn, nn_mbarray
+      integer, allocatable :: t_idmn(:,:), nr_idmn(:), nr_mb(:)
+      integer(kmbit), allocatable :: t_mbarray(:)
+#ifdef MPI
+      integer :: mympi_stat(mpi_status_size)
+#endif
+
+      allocate( mbarray(max_mb) )
+      allocate( idmn(5, max(self%pn(1)%n_id, self%pn(2)%n_id)*30) )
+      
+      do ipn = 1, 2
+         mq = 0
+         self%pn(ipn)%n_mbit = 0
+         n_idmn = 0
+         n_mbarray = 0
+         !$omp parallel do private(i) schedule(dynamic)
+         do i = 1+myrank, self%pn(ipn)%n_id, nprocs
+            call set_ptn_mbit_arr( i, self%pn(ipn)%id(i), &
+                 self%pn(ipn)%nocc(:,i), ipn, &
+                 mbarray, n_mbarray, idmn, n_idmn )
+         end do
+#ifdef MPI
+         allocate( nr_idmn(0:nprocs-1), nr_mb(0:nprocs-1) )
+         call mpi_allgather( n_idmn,    1, mpi_integer, &
+              nr_idmn, 1, mpi_integer, mpi_comm_world, ierr)
+         call mpi_allgather( n_mbarray, 1, mpi_integer, &
+              nr_mb,   1, mpi_integer, mpi_comm_world, ierr)
+
+         allocate( t_idmn(5, maxval(nr_idmn)), t_mbarray(maxval(nr_mb)) )
+         t_idmn(:,:n_idmn)     = idmn(:,:n_idmn)
+         t_mbarray(:n_mbarray) = mbarray(:n_mbarray)
+         
+         do iroot = 0, nprocs - 1
+#endif /* MPI */
+
+            
+            !$omp parallel do private(id, i, mm, nmbs, ii, jj) reduction(+: mq)
+            do id = 1, n_idmn
+               i    = idmn(1, id)
+               mm   = idmn(2, id)
+               nmbs = idmn(3, id)
+               ii   = idmn(4, id)
+               jj   = idmn(5, id)
+               self%pn(ipn)%id(i)%mz(mm)%n = nmbs
+               mq = mq + nmbs
+               allocate( self%pn(ipn)%id(i)%mz(mm)%mbit(nmbs) )
+               if (nmbs == 0) cycle
+               self%pn(ipn)%id(i)%mz(mm)%mbit = mbarray(ii:jj)
+            end do
+            
+#ifdef MPI
+            if (iroot == nprocs-1) cycle
+
+            from = modulo( myrank + 1, nprocs )
+            dest = modulo( myrank - 1, nprocs )
+
+            n = modulo( myrank + iroot + 1, nprocs ) 
+            nn_idmn    = nr_idmn(n)
+            nn_mbarray = nr_mb  (n)
+
+            ! TODO : square-type communication to 
+            call mpi_sendrecv( &
+                 idmn,    n_idmn*5, mpi_integer, dest, 0, &
+                 t_idmn, nn_idmn*5, mpi_integer, from, 0, &
+                 mpi_comm_world, mympi_stat, ierr )
+
+            call mpi_sendrecv( &
+                 mbarray,    n_mbarray, mpi_kmbit, dest, 0, &
+                 t_mbarray, nn_mbarray, mpi_kmbit, from, 0, &
+                 mpi_comm_world, mympi_stat, ierr )
+            
+            n_idmn = nn_idmn
+            n_mbarray = nn_mbarray
+            idmn(:,:n_idmn) = t_idmn(:,:n_idmn)
+            mbarray(:n_mbarray) = t_mbarray(:n_mbarray)
+
+         end do
+         
+         deallocate(  t_idmn, t_mbarray, nr_idmn, nr_mb)
+#endif /* MPI */
+
+         self%pn(ipn)%n_mbit = mq
+         if (myrank==0 .and. verb) write(*,'(a,i2,a,i15)') &
+              "pn=", ipn, "   # of mbits=", self%pn(ipn)%n_mbit
+      end do
+
+      deallocate( mbarray, idmn )
+
+    end subroutine set_mbit_parallel
+
+
+
+    subroutine set_ptn_mbit_arr( id, ptn_id, nocc, ipn, &
+         mbarray, n_mbarray, idmn, n_idmn  )
+      ! generate m-scheme bit representation of partition "ptn_id" of ipn
+      integer, intent(in) :: id
+      type(type_ptn_id), intent(in) :: ptn_id
+      integer, intent(in) :: nocc(:)
+      integer, intent(in) :: ipn
+      integer(kmbit), intent(inout) :: mbarray(:)
+      integer, intent(inout) :: n_mbarray, idmn(:,:), n_idmn
+      integer :: i, j, k, l, n, m, nn, mm
+      integer(kmbit) :: mb
+      integer, parameter :: max_orb=30
+      integer :: nz_occ, k_nz_occ(max_orb), i_idmn, i_mbarray
+      type(type_mbit), allocatable :: mbs(:)
+      integer, parameter :: max_mmb=10000000
+
+      if (max_orb < n_jorb(ipn)) stop "increase max_orb"
+
+      nz_occ = 0
+      do i = 1, n_jorb(ipn)
+         if (nocc(i) == 0) cycle
+         nz_occ = nz_occ +1
+         k_nz_occ(nz_occ) = i
+      end do
+
+      nn = 1 
+      do k = 1, n_jorb(ipn)
+         nn = nn * mbit_orb(k, nocc(k), ipn)%n
+      end do
+
+      allocate( mbs(ptn_id%min_m : ptn_id%max_m))
+
+      do mm = ptn_id%min_m,  ptn_id%max_m, 2
+         mbs(mm)%n = 0
+         allocate( mbs(mm)%mbit( max_mmb ) )
+      end do
+
+      do i = 1, nn
+         j = i - 1
+         mb = 0_kmbit
+         mm = 0 
+         do l = 1, nz_occ
+            k = k_nz_occ(l)
+            n = mbit_orb(k, nocc(k), ipn)%n
+            m = mod(j, n) + 1
+            j = j / n
+            mb = ior(mb, mbit_orb(k, nocc(k), ipn)%mbit(m))
+            mm = mm + mbit_orb(k, nocc(k), ipn)%mm(m)
+         end do
+         if (mm < ptn_id%min_m .or. mm > ptn_id%max_m) cycle
+         mbs(mm)%n = mbs(mm)%n + 1
+         if (mbs(mm)%n > max_mmb) stop 'increase max_mmb in set_ptn_mbit_arr'
+         mbs(mm)%mbit(mbs(mm)%n) = mb
+      end do
+
+      !$omp critical (set_ptn)
+      i_idmn = n_idmn
+      i_mbarray = n_mbarray
+      do mm = ptn_id%min_m,  ptn_id%max_m, 2
+         n_idmn = n_idmn + 1
+         n_mbarray = n_mbarray + mbs(mm)%n
+      end do
+      if (n_idmn > size(idmn,2)) stop 'increase size of idmn'
+      if (n_mbarray > size(mbarray,1)) stop 'increase size of mbarray'
+      !$omp end critical (set_ptn)
+
+
+      do mm = ptn_id%min_m,  ptn_id%max_m, 2
+         i_idmn = i_idmn + 1
+         idmn(1, i_idmn) = id
+         idmn(2, i_idmn) = mm
+         idmn(3, i_idmn) = mbs(mm)%n
+         idmn(4, i_idmn) = i_mbarray + 1 
+         idmn(5, i_idmn) = i_mbarray + mbs(mm)%n
+         if (mbs(mm)%n==0) cycle
+         mbarray(i_mbarray+1 : i_mbarray+mbs(mm)%n) = mbs(mm)%mbit(:mbs(mm)%n)
+         i_mbarray = i_mbarray + mbs(mm)%n
+      end do
+
+      do mm = ptn_id%min_m,  ptn_id%max_m, 2
+         deallocate( mbs(mm)%mbit )
+      end do
+      deallocate( mbs )
+
+    end subroutine set_ptn_mbit_arr
+
+
+
+    subroutine set_mbit_single
+      ! set m-scheme configuration in single node
+      integer :: ipn
+      integer(kdim) :: mq
+      do ipn = 1, 2
+         self%pn(ipn)%n_mbit = 0
+         mq = 0
+         !$omp parallel do private(i, mm) reduction (+: mq) schedule(dynamic)
+         do i = 1, self%pn(ipn)%n_id
+            call set_ptn_mbit( self%pn(ipn)%id(i), self%pn(ipn)%nocc(:,i), ipn )
+            do mm = self%pn(ipn)%id(i)%min_m, self%pn(ipn)%id(i)%max_m, 2
+               mq = mq + self%pn(ipn)%id(i)%mz(mm)%n
+            end do
+         end do
+         self%pn(ipn)%n_mbit = mq
+         if (myrank==0 .and. verb) write(*,'(a,i2,a,i15)') &
+              "pn=", ipn, "   # of mbits=", self%pn(ipn)%n_mbit
+      end do
+    end subroutine set_mbit_single
+
+
+
+    subroutine set_ptn_mbit( ptn_id, nocc, ipn )
+      ! generate m-scheme bit representation of partition "ptn_id" of ipn
+      type(type_ptn_id), intent(inout) :: ptn_id
+      integer, intent(in) :: nocc(:)
+      integer, intent(in) :: ipn
+      integer :: i, j, k, l, n, m, nn, mm
+      integer(kmbit) :: mb
+      integer, parameter :: max_orb=30
+      integer :: nz_occ, k_nz_occ(max_orb)
+      integer, parameter :: max_mmb=10000000
+      integer(kmbit), allocatable :: mbt(:)
+
+      if (max_orb < n_jorb(ipn)) stop "increase max_orb"
+
+      nz_occ = 0
+      do i = 1, n_jorb(ipn)
+         if (nocc(i) == 0) cycle
+         nz_occ = nz_occ +1
+         k_nz_occ(nz_occ) = i
+      end do
+
+      nn = 1 
+      do k = 1, n_jorb(ipn)
+         nn = nn * mbit_orb(k, nocc(k), ipn)%n
+      end do
+
+      do mm = ptn_id%min_m, ptn_id%max_m, 2
+         ptn_id%mz(mm)%n = 0 
+         allocate( ptn_id%mz(mm)%mbit( max_mmb ) )
+      end do
+
+      do i = 1, nn
+         j = i - 1
+         mb = 0_kmbit
+         mm = 0 
+         do l = 1, nz_occ
+            k = k_nz_occ(l)
+            n = mbit_orb(k, nocc(k), ipn)%n
+            m = mod(j, n) + 1
+            j = j / n
+            mb = ior(mb, mbit_orb(k, nocc(k), ipn)%mbit(m))
+            mm = mm + mbit_orb(k, nocc(k), ipn)%mm(m)
+         end do
+         if (mm < ptn_id%min_m .or. mm > ptn_id%max_m) cycle
+         ptn_id%mz(mm)%n = ptn_id%mz(mm)%n + 1
+         if ( ptn_id%mz(mm)%n > max_mmb ) stop 'increase max_mmb in set_ptn_mbit'
+         ptn_id%mz(mm)%mbit(ptn_id%mz(mm)%n) = mb
+      end do
+
+      allocate( mbt(max_mmb) )
+      do mm = ptn_id%min_m, ptn_id%max_m, 2
+         mbt( :ptn_id%mz(mm)%n ) = ptn_id%mz(mm)%mbit( : ptn_id%mz(mm)%n )
+         deallocate( ptn_id%mz(mm)%mbit )
+         allocate( ptn_id%mz(mm)%mbit( ptn_id%mz(mm)%n ) )
+         ptn_id%mz(mm)%mbit(:) = mbt( :ptn_id%mz(mm)%n )
+      end do
+      deallocate(mbt)
+      
+
+      if (is_debug) then 
+         write(*,'(1a,1i2,1a,100i2)') "m-scheme bit p-n",ipn," nocc",nocc(:)
+         do mm = ptn_id%min_m, ptn_id%max_m, 2
+            do n = 1,  ptn_id%mz(mm)%n 
+               write(*,*) mm, ptn_id%mz(mm)%mbit(n), &
+                    (/( btest(ptn_id%mz(mm)%mbit(n), k), k=1, n_morb(ipn) )/)
+            end do
+         end do
+      end if
+    end subroutine set_ptn_mbit
+
+  end subroutine init_partition
+
+
+
+  subroutine init_mbit_orb( self, mbit_orb )
     ! generate m-scheme bit for each orbit at "mbit_orb"
+    type(type_ptn_pn), intent(in) :: self ! partition information
+    type(type_m_mbit), allocatable, intent(inout) :: mbit_orb(:,:,:) 
+    integer :: loop, ipn, k, n, mm, j, i, mz
     allocate( mbit_orb(maxval(n_jorb), 0:maxval(self%n_ferm) ,2) ) 
     do loop = 1, 2
-       forall(k=1:maxval(n_jorb), n=0:maxval(self%n_ferm), ipn=1:2) mbit_orb(k,n,ipn)%n = 0
        do ipn = 1, 2
+          do k = 1, maxval(n_jorb)
+             do n = 0, maxval(self%n_ferm)
+                mbit_orb(k,n,ipn)%n = 0
+             end do
+          end do
+          !$omp parallel do private (k, mm, n, i)
           do k = 1, n_jorb(ipn) 
              do mm = 0, 2**(jorbn(k,ipn)+1)-1
 #ifndef NO_POPCNT
@@ -162,7 +563,7 @@ contains
                    if (btest(mm, i)) n = n + 1
                 end do
 #endif
-                if (n>self%n_ferm(ipn)) cycle
+                if (n > self%n_ferm(ipn)) cycle
                 mbit_orb(k,n,ipn)%n = mbit_orb(k,n,ipn)%n + 1
                 if (loop==2) mbit_orb(k,n,ipn)%mbit(mbit_orb(k,n,ipn)%n) = mm
              end do
@@ -196,83 +597,58 @@ contains
              do j = 1, mbit_orb(k,n,ipn)%n
                 mz = 0
                 do i = 1, n_morb(ipn)
-                   if (btest(mbit_orb(k,n,ipn)%mbit(j), i)) mz = mz + morbn(i, ipn)
+                   if (btest(mbit_orb(k,n,ipn)%mbit(j), i)) &
+                        mz = mz + morbn(i, ipn)
                 end do
                 mbit_orb(k,n,ipn)%mm(j) = mz
              end do
           end do
        end do
     end do
+  end subroutine init_mbit_orb
 
-    ! TODO: MPI distribution 226sec Ca48 3hw in sd-pf-sdg shell
-    ! mbit_orb => ptn(ipn)%id(i)%mz(mm)%mbit(:)
-    if (myrank==0) write(*,*)
+  subroutine finalize_mbit_orb(self, mbit_orb)
+    type(type_ptn_pn), intent(in) :: self 
+    type(type_m_mbit), allocatable, intent(inout) :: mbit_orb(:,:,:) 
+    integer :: ipn, k, n
+
     do ipn = 1, 2
-       self%pn(ipn)%n_mbit = 0
-       mq = 0
-       !$omp parallel do private(i, mm) reduction (+: mq)
-       do i = 1, self%pn(ipn)%n_id
-          call set_ptn_mbit( self%pn(ipn)%id(i), self%pn(ipn)%nocc(:,i), ipn )
-          do mm = -self%pn(ipn)%id(i)%max_m, self%pn(ipn)%id(i)%max_m, 2
-             mq = mq + self%pn(ipn)%id(i)%mz(mm)%n
+       do k = 1, n_jorb(ipn)
+          do n = 0, self%n_ferm(ipn)
+             deallocate( mbit_orb(k,n,ipn)%mbit )
+             deallocate( mbit_orb(k,n,ipn)%mm )
           end do
        end do
-       self%pn(ipn)%n_mbit = mq
-       if (myrank==0 .and. verb) &
-            write(*,'(a,i2,a,i15)')"pn=",ipn,"   # of mbits=",self%pn(ipn)%n_mbit
     end do
+    deallocate( mbit_orb )
 
-    ! read partion of p-n combination
-    call skip_comment(lun)
-    read(lun, *) n
-    allocate( pidpn_pid(2,n) )
-    do i = 1, n
-       read(lun, *) pidpn_pid(1,i), pidpn_pid(2,i)
-       if (i>2) then
-          if (compare_nocc(pidpn_pid(1:2,i-1),  pidpn_pid(1:2,i)) /= 1) &
-               stop "error order p-n partition"
-       end if
-    end do
-    self%n_nocc = n
+  end subroutine finalize_mbit_orb
 
-    do loop = 1, 2
-       n = 0
-       do k = 1, size(pidpn_pid, 2)
-          i = pidpn_pid(1,k)
-          j = pidpn_pid(2,k)
-          mi = self%pn(1)%id(i)%max_m
-          mj = self%pn(2)%id(j)%max_m
-          do mp = -mi, mi, 2
-             mn = self%mtotal - mp
-             if ( abs(mn) > mj ) cycle
-             n = n + 1
-             if (loop==2) then
-                self%pidpnM_pid_srt(:,n) = (/ i, j, mp /)
-                self%srt2nocc(n) = k
-             end if
-          end do
-       end do
-       if (loop==1) allocate( self%pidpnM_pid_srt(3, n), &
-            self%srt2nocc(n) )
-    end do
 
-    self%n_pidpnM = size(self%pidpnM_pid_srt, 2)
+
+  subroutine copy_partition(self, orig)
+    ! copy partition to save memory of m-scheme bit
+    type(type_ptn_pn), intent(out) :: self 
+    type(type_ptn_pn), intent(in) :: orig
+    integer :: n
+
+    self%pn => orig%pn
+    self%pn(1)%n_targeted = orig%pn(1)%n_targeted + 1
+    
+    self%n_nocc = orig%n_nocc
+    self%max_jj = orig%max_jj
+    self%mtotal = orig%mtotal
+
+    allocate( self%srt2nocc( size(orig%srt2nocc) ) )
+    self%srt2nocc(:) =  orig%srt2nocc(:)
+    
+    self%n_pidpnM = orig%n_pidpnM
+    allocate( self%pidpnM_pid_srt( 3, size(orig%pidpnM_pid_srt, 2) ) )
+    self%pidpnM_pid_srt(:,:) = orig%pidpnM_pid_srt(:,:) 
 
     allocate( self%ndim_srt_acc(0:self%n_pidpnM), self%ndim_srt(self%n_pidpnM) )
-    self%ndim_srt_acc(0) = 0
-    do n = 1, self%n_pidpnM
-       i  = self%pidpnM_pid_srt(1, n)
-       j  = self%pidpnM_pid_srt(2, n)
-       mp = self%pidpnM_pid_srt(3, n)
-       mn = self%mtotal - mp
-       self%ndim_srt(n) = self%pn(1)%id(i)%mz(mp)%n * self%pn(2)%id(j)%mz(mn)%n
-       self%ndim_srt_acc(n) = self%ndim_srt_acc(n-1) &
-            + self%pn(1)%id(i)%mz(mp)%n * self%pn(2)%id(j)%mz(mn)%n
-    end do
-
-    call stop_stopwatch(time_tmp)
-    if (myrank==0 .and. verb) write(*, '(/a, f10.3, a/)' ) &
-         "init_partition  time it took was:", time_tmp%time, " sec"
+    self%ndim_srt_acc = orig%ndim_srt_acc
+    self%ndim_srt     = orig%ndim_srt
 
     n = self%n_pidpnM
     allocate( self%pidpnM_pid(3, n), self%ndim_pid(n) )
@@ -280,109 +656,44 @@ contains
     allocate( self%pid_srt2dpl(n), self%pid_dpl2srt(n))
     allocate( self%rank2ntask(0:nprocs-1), self%pid2rank(n) )
 
-    call  print_mem_usage_partition(self)
+    self%pidpnM_pid(:,:)        = orig%pidpnM_pid(:,:)
+    self%ndim_pid(:)            = orig%ndim_pid(:) 
+    self%local_dim_acc(:)       = orig%local_dim_acc(:)
+    self%local_dim_acc_start(:) = orig%local_dim_acc_start(:)
+    self%pid_srt2dpl(:)         = orig%pid_srt2dpl(:)
+    self%pid_dpl2srt(:)         = orig%pid_dpl2srt(:)
+    self%rank2ntask(:)          = orig%rank2ntask(:)
+    self%pid2rank(:)            = orig%pid2rank(:)
 
-  contains
-
-    subroutine set_ptn_mbit( ptn_id, nocc, ipn )
-      ! generate m-scheme bit representation of partition "ptn_id" of p or n (ipn)
-      type(type_ptn_id), intent(inout) :: ptn_id
-      integer, intent(in) :: nocc(:)
-      integer, intent(in) :: ipn
-      integer :: i, j, k, l, n, m, nn, nf, mm, id, loop
-      integer(kmbit) :: mb
-!      integer, parameter :: mb_store1=450000, mb_store2=50
-!      integer(kmbit) :: mb_store(mb_store1, mb_store2)
-      integer, parameter :: max_orb=30
-      integer :: nz_occ, k_nz_occ(max_orb)
-
-      if (max_orb < n_jorb(ipn)) stop "increase max_orb"
-
-      nz_occ = 0
-      do i = 1, n_jorb(ipn)
-         if (nocc(i) == 0) cycle
-         nz_occ = nz_occ +1
-         k_nz_occ(nz_occ) = i
-      end do
-
-      nn = 1 
-      do k = 1, n_jorb(ipn)
-         nn = nn * mbit_orb(k, nocc(k), ipn)%n
-      end do
-      if (nn<0) stop "error in set_ptn_mbit"
-!      if (ptn_id%max_m > mb_store2) stop "increase mb_store2"
-
-      do mm = -ptn_id%max_m, ptn_id%max_m, 2
-         ptn_id%mz(mm)%n = 0 
-      end do
-
-      do i = 1, nn
-         j = i - 1
-         mm = 0 
-         do l = 1, nz_occ
-            k = k_nz_occ(l)
-            n = mbit_orb(k, nocc(k), ipn)%n
-            m = mod(j, n) + 1
-            j = j / n
-            mm = mm + mbit_orb(k, nocc(k), ipn)%mm(m)
-         end do
-         ptn_id%mz(mm)%n = ptn_id%mz(mm)%n + 1
-      end do
-
-      do mm = -ptn_id%max_m, ptn_id%max_m, 2
-         allocate( ptn_id%mz(mm)%mbit( ptn_id%mz(mm)%n ) )
-         ptn_id%mz(mm)%n = 0 
-      end do
-
-      do i = 1, nn
-         j = i - 1
-         mb = 0_kmbit
-         mm = 0 
-!         do k = 1, n_jorb(ipn)
-         do l = 1, nz_occ
-            k = k_nz_occ(l)
-            n = mbit_orb(k, nocc(k), ipn)%n
-            m = mod(j, n) + 1
-            j = j / n
-            mb = ior(mb, mbit_orb(k, nocc(k), ipn)%mbit(m))
-            mm = mm + mbit_orb(k, nocc(k), ipn)%mm(m)
-         end do
-         ptn_id%mz(mm)%n = ptn_id%mz(mm)%n + 1
-         ptn_id%mz(mm)%mbit(ptn_id%mz(mm)%n) = mb
-      end do
-
-      if (is_debug) then 
-         write(*,'(1a,1i2,1a,100i2)') "m-scheme bit p-n",ipn," nocc",nocc(:)
-         do mm = -ptn_id%max_m, ptn_id%max_m, 2
-            do n = 1,  ptn_id%mz(mm)%n 
-               write(*,*) mm, ptn_id%mz(mm)%mbit(n), &
-                    (/( btest(ptn_id%mz(mm)%mbit(n), k), k=1, n_morb(ipn) )/)
-            end do
-         end do
-      end if
-    end subroutine set_ptn_mbit
-
-  end subroutine init_partition
+  end subroutine copy_partition
 
 
   subroutine finalize_partition(self)
     type(type_ptn_pn), intent(out) :: self 
     integer :: ipn, id, m
     if (.not. allocated(self%pidpnM_pid)) return
-    do ipn = 1, 2
-       do id = 1, self%pn(ipn)%n_id 
-          do m = lbound(self%pn(ipn)%id(id)%mz, 1), ubound(self%pn(ipn)%id(id)%mz, 1)
-             deallocate( self%pn(ipn)%id(id)%mz(m)%mbit )
-          end do
-          deallocate( self%pn(ipn)%id(id)%mz )
-       end do
-       deallocate(self%pn(ipn)%id, self%pn(ipn)%nocc)
-    end do
     deallocate( self%pidpnM_pid,  self%pidpnM_pid_srt,  &
          self%pid_srt2dpl, self%pid_dpl2srt, &
          self%ndim_pid, self%ndim_srt, self%ndim_srt_acc, &
          self%srt2nocc, self%rank2ntask, self%pid2rank, &
          self%local_dim_acc, self%local_dim_acc_start)
+
+    self%pn(1)%n_targeted = self%pn(1)%n_targeted - 1
+
+    if ( self%pn(1)%n_targeted > 0) then 
+       do ipn = 1, 2
+          do id = 1, self%pn(ipn)%n_id 
+             do m = lbound(self%pn(ipn)%id(id)%mz, 1), ubound(self%pn(ipn)%id(id)%mz, 1)
+                deallocate( self%pn(ipn)%id(id)%mz(m)%mbit )
+             end do
+             deallocate( self%pn(ipn)%id(id)%mz )
+          end do
+          deallocate(self%pn(ipn)%id, self%pn(ipn)%nocc)
+       end do
+    end if
+
+    self%pn => null()
+
   end subroutine finalize_partition
 
 
@@ -396,25 +707,26 @@ contains
     if (.not. allocated(self%pidpnM_pid)) return
     do ipn = 1, 2
        do id = 1, self%pn(ipn)%n_id 
-          do m = -self%pn(ipn)%id(id)%max_m, self%pn(ipn)%id(id)%max_m, 2
+          do m = self%pn(ipn)%id(id)%min_m, self%pn(ipn)%id(id)%max_m, 2
              r = r +  self%pn(ipn)%id(id)%mz(m)%n * kmbit
           end do
        end do
        r = r + size( self%pn(ipn)%nocc, kind=kdim ) * 4
     end do
 
-    r = r + size(self%pidpnM_pid, kind=kdim)   * 4 &
+    r = r + size(self%pidpnM_pid,     kind=kdim) * 4 &
          +  size(self%pidpnM_pid_srt, kind=kdim) * 4 &
-         +  size(self%pid_srt2dpl, kind=kdim)  * 4 &
-         +  size(self%ndim_pid, kind=kdim)     * kdim &
-         +  size(self%ndim_srt, kind=kdim)     * kdim &
-         +  size(self%ndim_srt_acc, kind=kdim) * kdim &
-         +  size(self%srt2nocc,   kind=kdim)   * 4 &
-         +  size(self%rank2ntask, kind=kdim)   * 4 &
-         +  size(self%pid2rank, kind=kdim)     * 4 &
-         +  size(self%local_dim_acc, kind=kdim)* kdim &
+         +  size(self%pid_srt2dpl,    kind=kdim) * 4 &
+         +  size(self%pid_dpl2srt,    kind=kdim) * 4 &
+         +  size(self%ndim_pid,       kind=kdim) * kdim &
+         +  size(self%ndim_srt,       kind=kdim) * kdim &
+         +  size(self%ndim_srt_acc,   kind=kdim) * kdim &
+         +  size(self%srt2nocc,       kind=kdim) * 4 &
+         +  size(self%rank2ntask,     kind=kdim) * 4 &
+         +  size(self%pid2rank,       kind=kdim) * 4 &
+         +  size(self%local_dim_acc,  kind=kdim) * kdim &
          +  size(self%local_dim_acc_start, kind=kdim)* kdim
-
+    
 !    write(*,'(a,i5,f8.2,a)') "memory usage ptn rank", myrank,&
 !         dble(r)/1024.d0**2, "MB"
 #ifdef MPI
@@ -423,7 +735,8 @@ contains
     r = mr
 #endif
     if (myrank==0) &
-         write(*,'(a,f8.2,a)') "Memory usage in partition",dble(r)/1024.d0**2,"MB"
+         write(*,'(a,f12.2,a)') "Memory usage in partition", &
+         dble(r)/1024.d0**2," MB"
   end subroutine print_mem_usage_partition
 
 
@@ -435,7 +748,7 @@ contains
     real(8), intent(in), optional :: cost(:)
     logical, intent(in), optional :: verbose
     real(8) :: x
-    integer :: i, j, n, mp, mn, myprec, ntask
+    integer :: i, j, n, mp, mn, ntask
     logical :: verbosei 
 
     verbosei = .false.
@@ -452,7 +765,8 @@ contains
     end if
 
     call start_stopwatch(time_tmp, is_reset=.true.)
-    call cost_dist_pidpnM(self, self%pidpnM_pid_srt, nprocs, self%pidpnM_pid, cost=cost)
+    call cost_dist_pidpnM(self, self%pidpnM_pid_srt, nprocs, &
+         self%pidpnM_pid, cost=cost)
     call stop_stopwatch(time_tmp)
     if(myrank==0 .and. verbosei) &
          write(*,*) "partition distribution algorithm time:",time_tmp%time
@@ -466,12 +780,18 @@ contains
        mn = self%mtotal - mp
        self%ndim_pid(n) = self%pn(1)%id(i)%mz(mp)%n * self%pn(2)%id(j)%mz(mn)%n
        self%ndim = self%ndim + self%ndim_pid(n) 
-       if (self%max_ndim_pid_pn(1) < self%pn(1)%id(i)%mz(mp)%n) &
+       if ( self%max_ndim_pid_pn(1) < self%pn(1)%id(i)%mz(mp)%n ) &
             self%max_ndim_pid_pn(1) = self%pn(1)%id(i)%mz(mp)%n
-       if (self%max_ndim_pid_pn(2) < self%pn(2)%id(j)%mz(mn)%n) &
+       if ( self%max_ndim_pid_pn(2) < self%pn(2)%id(j)%mz(mn)%n ) &
             self%max_ndim_pid_pn(2) = self%pn(2)%id(j)%mz(mn)%n
     end do
     self%max_ndim_pid = maxval(self%ndim_pid)
+
+    if(myrank==0 .and. verbosei) then
+       write(*,*) "max proton  dim. / a partition " , self%max_ndim_pid_pn(1) 
+       write(*,*) "max neutron dim. / a partition " , self%max_ndim_pid_pn(2) 
+    end if
+
 
     ntask = (self%n_pidpnM - 1) / nprocs + 1
     do i = 0, nprocs-1
@@ -510,11 +830,8 @@ contains
        end if
     end do
 
-
 #ifdef MPI
-    myprec = mpi_integer
-    if (kdim==8) myprec = mpi_integer8
-    call mpi_allreduce(self%local_dim, self%max_local_dim, 1, myprec, &
+    call mpi_allreduce(self%local_dim, self%max_local_dim, 1, mpi_kdim, &
          mpi_max, mpi_comm_world, ierr)
 #endif
 
@@ -534,9 +851,13 @@ contains
 !    if (myrank==0) write(*,*) 'loadbalance: # of partitions / proc.', self%ntask
     if (myrank==0 .and. verbosei) write(*,*) ' myrank, id_start,   id_end,   local_id,  local_dim'
     call mpi_barrier(mpi_comm_world, ierr)
-    if (verbosei) write(*,'(i4,4i12)') myrank, self%idl_start, self%idl_end, &
-         self%idl_end-self%idl_start+1, self%local_dim
-    call flush(6)
+    if (verbosei) then 
+       if ( any( myrank == (/( (nprocs-1)/5*i, i=0, 5 )/) ) ) then
+          write(*,'(i4,4i12)') myrank, self%idl_start, self%idl_end, &
+               self%idl_end-self%idl_start+1, self%local_dim
+       end if
+    end if
+!    call flush(6)
     call mpi_barrier(mpi_comm_world, ierr)
 #endif
     if (myrank==0 .and. verbosei) then
@@ -567,7 +888,7 @@ contains
     logical, intent(in), optional :: verbose
     real(8), parameter :: tol_ratio=0.0001 ! minimum dim./proc is (1-tol_ratio)*ndim 
     real(8) :: x
-    integer :: i, j, n, mp, mn, myprec, mr
+    integer :: i, j, n, mp, mn, mr
     integer(kdim) :: mq, thrsd_dim
     logical :: verbosei 
 
@@ -599,7 +920,7 @@ contains
     mq = 0
     mr = 0
     self%rank2ntask(:) = 0
-    thrsd_dim = self%ndim / nprocs * (1.d0 - tol_ratio)
+    thrsd_dim = self%ndim * (1.d0 - tol_ratio) / nprocs 
     do i = 1, self%n_pidpnM
        self%pid2rank(i) = mr
        self%rank2ntask(mr) = self%rank2ntask(mr) + 1
@@ -622,11 +943,8 @@ contains
     end do
     self%max_local_dim = self%local_dim
 
-
 #ifdef MPI
-    myprec = mpi_integer
-    if (kdim==8) myprec = mpi_integer8
-    call mpi_allreduce(self%local_dim, self%max_local_dim, 1, myprec, mpi_max, &
+    call mpi_allreduce(self%local_dim, self%max_local_dim, 1, mpi_kdim, mpi_max, &
          mpi_comm_world, ierr)
     if (is_debug) then
        if (myrank==0) write(*,*) ' myrank, id_start,  id_end,    local_dim,    ntask'
@@ -637,8 +955,7 @@ contains
        call mpi_barrier(mpi_comm_world, ierr)
     end if
 #endif
-    ! if (verbosei .and. myrank==0) then
-    if (myrank==0) then
+    if (verbosei .and. myrank==0) then
        write(*,'(a,i16,a,f5.2)') "total # of partitions   ", self%n_pidpnM, &
             "  = 10**", log10(dble(self%n_pidpnM))
        write(*,'(a,i16,a,f5.2)') "total m-scheme dimension", self%ndim, &
@@ -742,7 +1059,8 @@ contains
     logical :: is_not_full(nprocs)
     integer, allocatable :: dpl2srt(:)
 
-    if (myrank==0) write(*,*) "partition distribution based on counted dim.", nprocs
+    if (myrank==0) write(*,*) &
+         "partition distribution based on counted dim.", nprocs
     n = size(ain, 2)
     allocate( dpl2srt(n) )
     do i = 1, n
@@ -788,6 +1106,7 @@ contains
 
   end subroutine cost_dist_pidpnM
 
+
   recursive subroutine qsort_ord(ord, v, left, right)
     ! quick sort in descending order of v
     integer, intent(inout) :: ord(:)
@@ -820,12 +1139,14 @@ contains
     if (j+1  < right) call qsort_ord(ord, v, j+1,  right)
   end subroutine qsort_ord
 
+
   subroutine cost_from_localdim(self, ain, nprocs, cost)
     type(type_ptn_pn), intent(inout) :: self
     integer, intent(in)  :: ain(:,:), nprocs
     real(8), intent(out) :: cost(:)
     integer :: i, n, np, nn, mp, mn
-    if (myrank==0) write(*,*) "partition distribution based on counted dim.", nprocs
+    if (myrank==0) write(*,*) &
+         "partition distribution based on counted dim.", nprocs
     do i = 1, size(ain, 2)
        np = ain(1,i)
        nn = ain(2,i)
@@ -835,5 +1156,12 @@ contains
     end do
   end subroutine cost_from_localdim
 
+  function c_prty(self) result (r)
+    type(type_ptn_pn), intent(in) :: self
+    character(len=1) :: r
+    r = '?'
+    if (self%iprty ==  1) r = '+'
+    if (self%iprty == -1) r = '-'
+  end function c_prty
 
 end module partition

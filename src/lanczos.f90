@@ -4,20 +4,25 @@ module lanczos
   use lib_matrix, only: gaussian_random_mat, diagonalize, &
        diagonalize_sym_tridiag
   use model_space, only: myrank, nprocs, sum_rule, &
-       allocate_l_vec, deallocate_l_vec
+       allocate_l_vec, deallocate_l_vec, print_max_l_vec, is_mpi
+  use bp_io, only: dump_snapshot_mpi_sf, load_snapshot_mpi_sf, &
+       set_dump_fname_mpi_sf
   use class_stopwatch
   implicit none
   private
   public :: lanczos_main, max_lanc_vec_doublej, &
        read_vec, write_vec, set_lanczos_tmp_fn
+  ! for block lanczos
+  public :: is_save_tmp, fn_base_dump
 
-  integer, parameter :: max_lanc_vec_doublej=10
+!  integer, parameter :: max_lanc_vec_doublej=10
+  integer, parameter :: max_lanc_vec_doublej=3
+
   character(len=maxchar) :: fn_base_dump='tmp_snapshot_'
-
   character(len=maxchar) :: fn_base_lv='tmp_lv_'
   integer, parameter :: lun_lv=23
-  logical :: is_first_inner = .true.
-
+  logical :: is_first_inner = .true., is_save_tmp = .true.
+  
 contains
 
   recursive subroutine lanczos_main(matvec, dotprod, ndim, eval, evec, &
@@ -27,25 +32,31 @@ contains
     !
     ! Thick-restart Lanczos diagonalization in real(kwf)
     !
-    !   input   subroutine matvec(v1, v2) : matrix-vector product, v2 = matrix * v1
-    !           subroutine dotprod(v1, v2, r)  : dot_product of vectors, r = <v1|v2>
+    !   input   subroutine matvec(v1, v2) : 
+    !                       matrix-vector product, v2 = matrix * v1
+    !           subroutine dotprod(v1, v2, r)  : 
+    !                       dot_product of vectors, r = <v1|v2>
     !           ndim : size of local vector
-    !           subroutine matvec_jj(v1, v2) : matrix-vector product, v2 = jj * v1
+    !           subroutine matvec_jj(v1, v2) :
+    !                       matrix-vector product, v2 = jj * v1
     !                         it is NOT called if .not. present(eval_jj)
     !           evec(1)    initial vector
     !     opt.  eval_jj ... expected jj for double_lanczos ( = M*(M+1) )
-    !           n_eig : # of lowest eigenvalues    (default: min(size(evec,2), size(eval))
+    !           n_eig : # of lowest eigenvalues    
+    !                       (default: min(size(evec,2), size(eval))
     !           tol : tolerance of eigenvalues     (default: 1.d-5)
     !           maxiter : max. # of iterations of thick-restart  (default: 10)
     !           n_restart_vec : # of vectors at restart  (default: 1)
     !           max_lanc_vec  : max of lanczos vector  (default: 100)
     !           evec(1...n) : initial vector if evec(n)%p is associated
-    !                   N. B. evec is assumed to be generated like Thick-restart Lanczos
+    !                N. B. evec is assumed to be generated like TR-Lanczos
     !           is_load_snapshot : load snapshot file if true
-    !           is_inner : NOT used from outside, flag for recursive call of double Lanczos
+    !           is_inner : NOT used from outside, 
+    !                          flag for recursive call of double Lanczos
     !           mode_lv_hdd = 0 : lanczos vector on memory
-    !                       = 1 ! lanczos vector on HDD
-    !                       = 2 ! lanczos vector not conserved for strength function
+    !                       = 1 : lanczos vector on HDD
+    !                       = 2 : lanczos vector not conserved 
+    !                                   for strength function
     !   output  eval(n_eig) : eigenvalues
     !           evec(ndim, n_eig) : eigenvectors
     interface 
@@ -87,6 +98,7 @@ contains
     integer(kdim) :: mq
     character(len=maxchar) :: fn_lv, c_num
 
+
     neig = min(size(eval), size(evec))
     if (present(n_eig)) neig = n_eig
     tl = 1.d-6 ! 1.d-5
@@ -117,7 +129,7 @@ contains
     nskip_diag = 1
     nskip_time = 20
     if ((.not. present(is_inner)) .and. &
-         abs(sum_rule)<=1.d-8 .and. mode_lv_hdd/=2) then
+         abs(sum_rule)<=1.d-8 .and. mod_lv_hdd/=2) then
        if (max_lv > 500 ) nskip_diag = 5
        if (max_lv > 1000) nskip_diag = 30
        if (max_lv > 2000) nskip_diag = 50
@@ -138,73 +150,28 @@ contains
     is_load_s = .false.
     if (present(is_load_snapshot)) is_load_s = is_load_snapshot
     if (is_load_s) then
+
        call load_snapshot(n_iv_start)
+       
     else if (.not. associated(evec(1)%p)) then
-       stop "ERROR Lanczos  initial vector"
-    else  ! input initial vectors
-       do iv = 1, size(evec)
-          if ( associated(evec(iv)%p) ) then
-             vec(iv)%p => evec(iv)%p
-             n_iv_start = iv 
-             nullify( evec(iv)%p )
-          else
-             exit
-          end if
-       end do
-       if (n_iv_start==1) then 
-          if (.not. present(is_inner) .and. present(eval_jj)) &
-               call jj_refine( vec(1), 1, x )
-       end if
 
-       if (n_iv_start>1) then
-          ! construct thick-restart matrix
-          if (max_lv <= n_iv_start+2) stop "increase max_lv"
-          j = n_iv_start + 1
-          call allocate_l_vec( vec(j)%p, ndim )
-          call allocate_l_vec( vec(n_iv_start+2)%p, ndim )
-          call matvec(vec(n_iv_start), vec(j))
-          call dotprod(vec(n_iv_start), vec(j), r)
-          tmat(n_iv_start, n_iv_start) = r
-          teval(n_iv_start) = r
-          vec(n_iv_start+2)%p = vec(j)%p
-          call reorth(j)
-          call dotprod(vec(j), vec(j), r)
-          if (r < 1.d-6) then 
-             write(*,*)"Warning: n+1-th vector is generated randomly"
-             call gaussian_random_mat(ndim, vec(j)%p) 
-             vec(j)%p = vec(j)%p * vec(1)%p ! remove tail part
-             call reorth(j)
-             call dotprod(vec(j), vec(j), r)
-          end if
-          vec(j)%p = 1.d0/sqrt(r) * vec(j)%p
+       stop "ERROR : Lanczos  initial vector"
 
-          if (.not. present(is_inner) .and. present(eval_jj)) &
-               call jj_refine( vec(j), n_iv_start+2, x )
+    else  ! initial vector = evec(1)
 
-          call reorth(j)
-          call dotprod(vec(j), vec(j), r)
-          vec(j)%p = 1.d0/sqrt(r) * vec(j)%p
+       n_iv_start = 1
+       vec(1)%p => evec(1)%p
+       nullify( evec(1)%p )
 
-          call dotprod(vec(j), vec(n_iv_start+2), r)
-          tmat(j, n_iv_start) = r
-          tmat(n_iv_start, j) = r
-          do iv = 1, n_iv_start-1
-             call matvec(vec(iv), vec(n_iv_start+2))
-             call dotprod(vec(iv), vec(n_iv_start+2), r)
-             tmat(iv, iv) = r
-             teval(iv) = r
-             call dotprod(vec(j), vec(n_iv_start+2), r)
-             tmat(iv, j) = r
-             tmat(j, iv) = r
-          end do
-          call deallocate_l_vec( vec(n_iv_start+2)%p )
-          n_iv_start = n_iv_start + 1
-       end if
+       if (.not. present(is_inner) .and. present(eval_jj)) &
+            call jj_refine( vec(1), 1, x )
+
     end if
 
     do iv = 1, size(evec)
        if (associated(evec(iv)%p)) call deallocate_l_vec(evec(iv)%p)
     end do
+
 
     outer: do itr = 1, miter
        do iv = n_iv_start, max_lv-1
@@ -233,26 +200,19 @@ contains
              if (present(is_inner) .and. .not. is_first_inner .and. &
                   abs(teval(1) - eval_jj) > 0.5d0) then 
                 if (myrank==0) write(*,*) &
-                     "possible JJ collapse : check bn converge condition", &
+                     "possible JJ collapse : check bn converge condition, try is_addrand", &
                      teval(1), eval_jj
                 stop "possible JJ collapse "
              end if
           end if
           
-!          call start_stopwatch(time_tmp, is_reset=.true.)
           call reorth(iv+1)
-!          call stop_stopwatch(time_tmp)
-!          if (myrank==0 .and. mod(iv,100)==1 .and. .not. present(is_inner)) &
-!               write(*,'(a,f10.3,a)') "time re-orth",time_tmp%time," sec"
           call dotprod(vec(iv+1), vec(iv+1), bn)
 
           n_iv = iv
-!          write(*,*) trim(c_inout), " bn = ", bn
           if ( (kwf==4 .and. abs(bn) < max(tl**2, 1.d-5)) .or. &
-               (kwf==8 .and. abs(bn) < max(tl**2, 1.d-8))  ) then
-!          if ( dabs(bn) < max(tl**2, 3.d-8) ) then
-!          if (dabs(bn) < max(1.d-8) then
-!          if (dabs(bn)<tl**2) then
+!               (kwf==8 .and. abs(bn) < max(tl**2, 1.d-8))  ) then
+               (kwf==8 .and. abs(bn) < max(tl**2, 1.d-7))  ) then
              if (myrank==0) write(*,'(2a,i5,20e10.2)') &
                   trim(c_inout)," bn converged", n_iv, bn
              exit outer
@@ -282,8 +242,8 @@ contains
                      " converged", teval(1), teval(1)-eval_jj
                 exit outer
              end if
-             if (myrank==0) write(*,'(2a,2i5,10000f15.6)') trim(c_inout),"  lanczos ", &
-                  itr_a, iv, teval(:neig)
+             if (myrank==0) write(*,'(2a,2i5,10000f15.6)') &
+                  trim(c_inout),"  lanczos ", itr_a, iv, teval(:neig)
           else
 
              if (myrank==0 .and. abs(sum_rule)>1.d-8) then
@@ -291,8 +251,10 @@ contains
                 call diagonalize(tmat(:iv,:iv), teval(:iv), tevec(:iv,:iv))
                 call stop_stopwatch(time_diag)
                 do i = 1, iv
-                   write(*,'(a,2i5,2f12.5)') "strength function", &
-                        iv, i,teval(i), sum_rule*tevec(1,i)**2
+                   !write(*,'(a,2i5,f12.5,f15.8)') "strength function", &
+                   !     iv, i,teval(i), sum_rule*tevec(1,i)**2
+                   write(*,'(a,2i5,f12.5,f15.8,f10.7)') "strength function", &
+                        iv, i,teval(i), sum_rule*tevec(1,i)**2, tevec(1,i)**2
                 end do
              end if
              
@@ -308,8 +270,8 @@ contains
           end if
           itr_a = itr_a + 1
 
-          if (.not. present(is_inner) .and. mod_lv_hdd == 2 &
-               .and. mod(iv,20) == 0 ) call dump_snapshot(iv+1)
+!          if (.not. present(is_inner) .and. mod_lv_hdd == 2 &
+!               .and. mod(iv,20) == 0 ) call dump_snapshot(iv+1)
 
        end do
 
@@ -318,7 +280,7 @@ contains
 
        call set_restart_vec(n_res_vec, n_iv)
 
-       if (.not. present(is_inner) ) call dump_snapshot(n_res_vec+1)
+!       if (.not. present(is_inner) ) call dump_snapshot(n_res_vec+1)
        n_iv_start = n_res_vec + 1
     end do outer
 
@@ -326,8 +288,9 @@ contains
          trim(c_inout)," not converged"
     is_first_inner = .false.    
 
-!    if (mod_lv_hdd==2 .or. (.not.present(is_inner) .and. abs(sum_rule)>1.d-8)) then
     if (mod_lv_hdd==2) then
+    ! if (mod_lv_hdd==2 .or. &
+    !      (.not.present(is_inner) .and. abs(sum_rule)>1.d-8)) then
        call my_mpi_finalize()
        if (myrank==0) write(*,*) " finished strength function"
        stop
@@ -335,7 +298,7 @@ contains
 
     if (neig > n_iv) neig = n_iv
     call set_restart_vec(neig, n_iv)
-    if (.not. present(is_inner) ) call dump_snapshot(neig+1)
+!    if (.not. present(is_inner) ) call dump_snapshot(neig+1)
     eval = 0.d0 
     eval(:neig) = teval(:neig)
     call deallocate_l_vec( vec(neig+1)%p )
@@ -349,6 +312,9 @@ contains
           evec(i)%p => vec(i)%p
        end do
     end if
+
+!    call print_max_l_vec()
+
 
     if (is_time_exceed) then
        call my_mpi_finalize()
@@ -366,7 +332,9 @@ contains
       type(type_vec_p) :: evec_jj_tmp(1)
       real(8) :: eval_jj_tmp(1), tol_jj=1.d-6
       integer :: maxiter, mode_lv_hdd, max_lanc_vec
-      if (kwf == 8) tol_jj= 1.d-10
+!      if (kwf == 8) tol_jj= 1.d-10
+!      if (kwf == 8) tol_jj= 1.d-9
+      if (kwf == 8) tol_jj= 1.d-7
       mode_lv_hdd = mod_lv_hdd
       if (mod_lv_hdd == 2) mode_lv_hdd = 0
       max_lanc_vec = max_lv-ivv-1+max_lanc_vec_doublej
@@ -375,7 +343,9 @@ contains
       call lanczos_main(matvec_jj, dotprod, ndim, eval_jj_tmp, evec_jj_tmp, &
            matvec_jj, eval_jj=eval_jj, is_inner=.true., &
            n_restart_vec=1, max_lanc_vec=max_lanc_vec, &
-           maxiter=max(20,miter), tol=tol_jj, mode_lv_hdd=mode_lv_hdd)
+           maxiter=10, &
+           ! maxiter=max(20,miter), &
+           tol=tol_jj, mode_lv_hdd=mode_lv_hdd)
       v%p => evec_jj_tmp(1)%p
       eval_jj_out = eval_jj_tmp(1)
     end subroutine jj_refine
@@ -479,7 +449,7 @@ contains
       tmat(n_res_vec+1, :n_res_vec) = tevec(iv, :n_res_vec) * bn
 
       call stop_stopwatch(time_restart, time_last=t)
-      if (myrank==0 .and. .not. present(is_inner)) write(*,*) "time restart", t
+      if (myrank==0 .and. .not. present(is_inner)) write(*,'(a,f10.3)') "time restart", t
 
     end subroutine set_restart_vec
 
@@ -490,18 +460,30 @@ contains
       integer :: i, lun=22, ist, nn
       character(len=maxchar) :: fn, cr
       real(8) :: t
-      
+
+      if (.not. is_save_tmp) return
+
+      if (is_mpi) then 
+         call dump_snapshot_mpi_sf( &
+              n, vec, ndim, tmat(:n,:n), mod_lv_hdd, sum_rule)
+         return
+      end if
+
       call start_stopwatch(time_dump, is_mpi_barrier=.true.)
 
       write(cr, '(i0)') myrank
-      fn = trim(fn_base_dump)//trim(cr)
+      fn = trim(fn_base_dump) // trim(cr)
+
       call start_stopwatch(time_io_write)
+
       open(lun, file=fn, form='unformatted')
       write(lun) n
       write(lun) tmat(:n,:n)
+
       ist = 1
-      if (mode_lv_hdd == 1) ist = n+1
-      if (mode_lv_hdd == 2) ist = n-1
+      if (mod_lv_hdd == 1) ist = n+1
+      if (mod_lv_hdd == 2) ist = n-1
+
       do i = ist, n
          write(lun) vec(i)%p
       end do
@@ -511,9 +493,10 @@ contains
       nn = n - ist + 1
 
       call stop_stopwatch(time_dump, time_last=t, is_mpi_barrier=.true.)
-      if (myrank==0) write(*,'(a,f10.5,x,a,f8.2,a,i5/)') &
+
+      if (myrank==0) write(*,'(a,f9.3,x,a,f9.3,a,i5/)') &
            "time dump_snapshot I/O: ", t, trim(fn_base_dump)//"(myrank) ", &
-           (kwf*ndim*nn+8.d0*n**2)/t/(1024.d0**3), "GB/s x ",nprocs
+           (kwf*ndim*nn+8.d0*n**2)/t/(1024.d0**3), " GB/s x ",nprocs
     end subroutine dump_snapshot
 
 
@@ -523,6 +506,17 @@ contains
       integer :: i, lun=22, ist
       character(len=maxchar) :: fn, cr
       real(8) :: t
+
+      if (is_mpi) then 
+         call load_snapshot_mpi_sf( &
+              n, vec, ndim, tmat(:n,:n), mod_lv_hdd, sum_rule)
+         if (mod_lv_hdd == 1) then
+            call allocate_l_vec( evec(n)%p, ndim )
+            call read_vec( n, fn_lv, evec(n) )
+         end if
+         return
+      end if
+
       
       call start_stopwatch(time_tmp, is_reset=.true., is_mpi_barrier=.true.)
       write(cr, '(i0)') myrank
@@ -530,22 +524,26 @@ contains
       open(lun, file=fn, form='unformatted')
       read(lun) n
       read(lun) tmat(:n,:n)
+
       ist = 1
-      if (mode_lv_hdd == 1) ist = n + 1
-      if (mode_lv_hdd == 2) ist = n - 1
+      if (mod_lv_hdd == 1) ist = n + 1
+      if (mod_lv_hdd == 2) ist = n - 1
+
       do i = ist, n
          if (.not. associated(vec(i)%p)) call allocate_l_vec( vec(i)%p, ndim )
          read(lun) vec(i)%p
       end do
       if (mod_lv_hdd == 2) read(lun) sum_rule
       close(lun)
-      if (mode_lv_hdd == 1) then
+
+      if (mod_lv_hdd == 1) then
          call allocate_l_vec( evec(n)%p, ndim )
          call read_vec( n, fn_lv, evec(n) )
       end if
       call stop_stopwatch(time_tmp, is_mpi_barrier=.true.)
       t = time_tmp%time
-      if (myrank==0) write(*,'(a,f10.5,x,a,f8.2,a)') "time load dump_snapshot I/O: ", &
+      if (myrank==0) write(*,'(a,f10.5,x,a,f8.2,a)') &
+           "time load dump_snapshot I/O: ", &
            t, trim(fn_base_dump)//"(myrank) ", &
            (kwf*ndim*n+8.d0*n**2)/t/(1024.d0**3), "GB/s"
     end subroutine load_snapshot
@@ -660,9 +658,11 @@ contains
     call stop_stopwatch( time_io_read )
   end subroutine read_vec
 
-  subroutine set_lanczos_tmp_fn(fn_base)
+  subroutine set_lanczos_tmp_fn(fn_base, is_save)
     character(len=*), intent(in) :: fn_base
-    character(len=maxchar) :: fnt
+    logical, intent(in) :: is_save
+    character(len=maxchar) :: fnt, c_myrank
+    logical :: is_rank_dir = .false.
     integer :: i
     fnt = fn_base
     do i = 1, len_trim(fnt)
@@ -670,6 +670,16 @@ contains
     end do
     fn_base_dump = 'tmp_snapshot_'//trim(fnt)//'_'
     fn_base_lv   = 'tmp_lv_'//trim(fnt)//'_'
+    is_save_tmp = is_save
+
+    if (is_mpi) call set_dump_fname_mpi_sf(fn_base_dump)
+
+    if (is_rank_dir) then
+       write(c_myrank, '(i0)') myrank
+       fn_base_dump = trim(c_myrank) // '/' // trim(fn_base_dump)
+       fn_base_lv   = trim(c_myrank) // '/' // trim(fn_base_lv)
+    end if
+
   end subroutine set_lanczos_tmp_fn
 
 

@@ -4,6 +4,10 @@
 ! Y. Utsuno, T. Otsuka, B. A. Brown, M. Honma, T. Mizusaki, and N. Shimizu
 ! Phys. Rev. C 86, 051301(R) (2012).
 ! 
+! default input parameters 
+!namelist eff_charge = 1.35, 0.35
+!namelist hw_type = 2
+!
 ! model space
    7   7     8   8
    1       0   2   5  -1    !  1 = p 0d_5/2

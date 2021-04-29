@@ -1,15 +1,17 @@
 !
 ! count dimension 
 !  ./count_dim foo.snt bar.ptn
+!   or ./count_dim -m 0 foo.snt bar.ptn
+!   -m ... 2*M for simplified view
 !
 
 program count_dim
-  use constant, only: kdim, kmbit, maxchar
+  use constant, only: kdim, kmbit, kwf, maxchar
   use model_space, only: read_sps, set_n_ferm, n_morb_pn, &
        n_jorb_pn, n_jorb, n_ferm, skip_comment, jorbn, jorb
   implicit none
   integer, parameter :: lunint=11, lunptn=12
-  character(len=maxchar) :: fn_int, fn_ptn
+  character(len=maxchar) :: fn_int, fn_ptn, c_num
   integer :: iprty, n_id_pn(2), n_pid_pn
   integer :: mtot, ipn, i, j, k, l, n, id, mm, nf, &
        maxm, maxm_pn(2), maxsj, maxnf
@@ -17,15 +19,27 @@ program count_dim
   integer, allocatable :: maxm_sj(:,:)
   integer(kdim), allocatable :: ndim_sj(:,:,:), ndim_mat(:,:,:)
   integer(kmbit) :: mb
+  logical :: verbose = .true.
   integer :: iargc
 
-  if (iargc()/=2) stop "usage: ./count_dim foo.snt bar.ptn "
+  if (iargc() < 2) stop "usage: ./count_dim foo.snt bar.ptn "
 
-  call getarg(1, fn_int)
-  call getarg(2, fn_ptn)
-  write(*,'(/,4a,/)') " count_dim ", trim(fn_int), ' ', trim(fn_ptn)
+  n = 0
+  call getarg(1, c_num) 
+  if (c_num(:2)=='-m') then 
+     call getarg(2, c_num)
+     read(c_num,*) mtot
+     verbose = .false.
+     n = 2
+  end if
+  
+  
+  call getarg(n+1, fn_int)
+  call getarg(n+2, fn_ptn)
+  if (verbose) write(*,'(/,4a,/)') &
+       " count_dim ", trim(fn_int), ' ', trim(fn_ptn)
   open(lunint, file=fn_int, status='old')
-  call read_sps(lunint)
+  call read_sps(lunint, verbose)
   close(lunint)
 
 
@@ -33,7 +47,8 @@ program count_dim
   open(lunptn, file=fn_ptn, status='old')
   call skip_comment(lunptn)
   read(lunptn, *) n_ferm(1), n_ferm(2), iprty
-  write(*,'(/,a,i3,a,i3,a,i3,/)') ' Z=',n_ferm(1),' N=',n_ferm(2),' parity',iprty
+  if (verbose) write(*,'(/,a,i3,a,i3,a,i3,/)') &
+       ' Z=',n_ferm(1),' N=',n_ferm(2), ' parity',iprty
   call skip_comment(lunptn)
   read(lunptn, *) n_id_pn(1), n_id_pn(2)
   call skip_comment(lunptn)
@@ -128,7 +143,8 @@ contains
 
     ndim_mat(:,:,:) = 0
     do ipn = 1, 2
-       !$omp parallel do private(id, i, mlist_max, mlist, nd, mm) schedule(dynamic)
+       !$omp parallel do private(id, i, mlist_max, mlist, nd, mm) &
+       !$omp schedule(dynamic)
        do id = 1, n_id_pn(ipn)
 
           do i = 1, n_jorb(ipn)  ! initialize mlist
@@ -164,6 +180,8 @@ contains
   subroutine print_prod_pn_dim()
     integer :: i, mp, mn, mm, mpow, jpow
     integer(kdim) :: ndim( -maxm-2 : maxm+2 ), jdim
+    real(8) :: t
+    
     ndim = 0
     !$omp parallel do private (i, mp, mn, mm) reduction (+: ndim)
     do i = 1, n_pid_pn
@@ -178,19 +196,36 @@ contains
        end do
     end do
 
-    write(*,'(/,a)') "      2*M        M-scheme dim.          J-scheme dim."
-    do mm = maxm, 0, -2
-!       write(*,'(a,i5,2i21)') "dim. ", mm, ndim(mm),  ndim(mm)-ndim(mm+2)
-       jdim = ndim(mm)-ndim(mm+2)
-       mpow = 0 
-       jpow = 0 
-       if (ndim(mm)/=0) mpow = log10(dble(ndim(mm)))
-       if (jdim    /=0) jpow = log10(dble(jdim))
-       write(*,'(a,i5,2i21,3x,f4.2,a,i2,2x,f4.2,a,i2)') "dim. ", &
-            mm, ndim(mm), jdim, &
-            ndim(mm)/(10.d0**mpow), 'x10^', mpow, &
-            jdim    /(10.d0**jpow), 'x10^', jpow
-    end do
+    if (verbose) then 
+
+       write(*,'(/,a)') "      2*M        M-scheme dim.          J-scheme dim."
+       do mm = maxm, 0, -2
+          !       write(*,'(a,i5,2i21)') "dim. ", mm, ndim(mm),  ndim(mm)-ndim(mm+2)
+          jdim = ndim(mm)-ndim(mm+2)
+          mpow = 0 
+          jpow = 0 
+          if (ndim(mm)/=0) mpow = log10(dble(ndim(mm)))
+          if (jdim    /=0) jpow = log10(dble(jdim))
+          write(*,'(a,i5,2i21,2x,f5.2,a,i2,x,f5.2,a,i2)') "dim. ", &
+               mm, ndim(mm), jdim, &
+               ndim(mm)/(10.d0**mpow), 'x10^', mpow, &
+               jdim    /(10.d0**jpow), 'x10^', jpow
+       end do
+       !    write(*,'(a, 2i3,1f8.3)') 'dim-low ', n_ferm(1), n_ferm(2), log10(dble(ndim(mm)))
+
+       t = dble( maxval(ndim) ) * kwf * 2 * 1.d-9 
+       t = t * 1.2d0 ! ad hoc factor
+       write(*,'(/,a,f12.3,a,/)') "Estimated memory size for single-node mode :  ", t, "GB"
+       
+
+    else
+       if (mtot<lbound(ndim,1) .or. mtot>ubound(ndim,1)) then 
+          write(*,*) 0
+       else
+          write(*,*) ndim(mtot)
+       end if
+    end if
+
   end subroutine print_prod_pn_dim
  
 end program count_dim

@@ -9,27 +9,35 @@ module model_space
   integer, allocatable :: norb(:), lorb(:), jorb(:), itorb(:), iporb(:)
   integer, allocatable :: morb(:), korb(:)
   integer, allocatable :: morbn(:,:), korbn(:,:), jorbn(:,:), iporbn(:,:)
-  character(8), allocatable  :: corb(:)
   integer :: n_ferm(2), n_ferm_pn=0, mass
   logical :: is_debug=.false.
 
   integer :: myrank=0, nprocs=1, ierr=0 ! MPI environment
-  integer :: nprocs_shift=1, nprocs_reduce=1, myrank_shift=0, myrank_reduce=0
+  integer :: nprocs_shift=1, myrank_shift=0, myrank_reduce=0
+  integer :: nprocs_reduce=1, nv_shift=0
   integer :: mycomm_shift, mycomm_reduce
+  logical :: is_mpi = .false.
 
-  private :: check_orb
+  private :: check_orb, set_core_orbit
+
+  integer, parameter :: n_orb_char=8
+  character(n_orb_char), allocatable  :: corb(:)
 
   real(8) :: sum_rule = 0.d0
   integer, private :: n_alloc_vec = 0, max_n_alloc_vec = 0
 
+  ! core orbits
+  integer :: n_nljt_core=0
+  integer, allocatable :: nljt_core(:,:)
 
 contains
   
-  subroutine read_sps(lunsps)
+  subroutine read_sps(lunsps, verbose)
     !
     !  read definition of the model space from sps file of LUN = lunsps
     !
     integer, intent(in) :: lunsps
+    logical, intent(in), optional :: verbose
     character(1) :: c1, c2
     character(1), parameter :: com1 = '!', com2 = '#'
     integer :: ipn, k, m, i, index
@@ -44,7 +52,7 @@ contains
     ! read data
     read(lunsps,*) (n_jorb(ipn), ipn = 1, 2), (n_core(ipn), ipn = 1, 2)
     n_jorb_pn = n_jorb(1) + n_jorb(2)
-    n_core_pn = n_core(1) + n_core(2)
+    n_core_pn = abs(n_core(1)) + abs(n_core(2))
 
     allocate(norb(1:n_jorb_pn))
     allocate(lorb(1:n_jorb_pn))
@@ -122,6 +130,11 @@ contains
        end do
     end do
 
+    call set_core_orbit()
+
+    if (present(verbose)) then
+       if (.not. verbose) return
+    end if
     if (myrank==0) then 
        write(*,*)
        write(*,*)'model space'
@@ -137,15 +150,17 @@ contains
 
   subroutine char_orbit(n, l, j, it, corb)
     integer, intent(in) :: n, l, j, it
-    character(8), intent(out) :: corb
+    character(n_orb_char), intent(out) :: corb
     character(1), parameter :: cl(0:16) = &
          & (/'s', 'p', 'd', 'f', 'g', 'h', 'i', 'j', 'k', &
          'l', 'm', 'n', 'o', 'p', 'q', 'r', 's'/)
-    character(2), parameter :: cj(1:17) = &
+    character(2), parameter :: cj(1:40) = &
          & (/'_1', '_2', '_3', '_4', '_5', '_6', '_7', '_8', '_9', '10', &
-         & '11', '12', '13', '14', '15', '16', '17'/)
-    character(1), parameter :: cn(0:16) = (/'0', '1', '2', '3', '4', '5', '6', &
-         '7', '8', '9', 'x', 'x', 'x', 'x', 'x', 'x', 'x'/)
+         &   '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', &
+         &   '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', &
+         &   '31', '32', '33', '34', '35', '36', '37', '38', '39', '40' /)
+    character(1), parameter :: cn(0:16) = (/'0', '1', '2', '3', '4', '5', &
+         '6', '7', '8', '9', 'x', 'x', 'x', 'x', 'x', 'x', 'x'/)
     character(1), parameter :: cit(-1:1) = (/'p',' ','n'/)
 
     corb = cit(it)// ' '//cn(n)//cl(l)//cj(j)//'/2'
@@ -186,11 +201,23 @@ contains
     n_ferm(2) = nn
     n_ferm_pn = sum(n_ferm)
     if (imass==0) then
-       mass = n_core_pn + np + nn
+       ! mass = n_core_pn + np + nn
+       mass = n_core_pn 
+       if (n_core(1) >= 0) then
+          mass = mass + np
+       else
+          mass = mass - np
+       end if
+       if (n_core(2) >= 0) then
+          mass = mass + nn
+       else
+          mass = mass - nn
+       end if
+          
     else
        mass = imass
     end if
-    if (myrank==0) write(*,'(1a, 1i3, 1i3, 1a, 1i3, 1a, 1i3, 1i3)') &
+    if (myrank==0) write(*,'(a, 2i3, a, i3, a, 2i5)') &
          'N. of valence protons and neutrons = ', np,nn, '   mass=',mass,&
          "   n,z-core ", n_core(1), n_core(2)
   end subroutine set_n_ferm
@@ -207,8 +234,8 @@ contains
     end do
     backspace(lun)
   end subroutine skip_comment
-
-
+  
+  
   subroutine allocate_l_vec(v, n)
     real(kwf), pointer, intent(inout) :: v(:)
     integer(kdim) :: n
@@ -216,7 +243,7 @@ contains
     allocate( v(n) )
     if (.not. associated(v)) stop "*** ERROR: memory insufficient ***"
     n_alloc_vec = n_alloc_vec + 1
-!    if (myrank==0) write(*,*)"allocate lanc_vec",n_alloc_vec
+    ! if (myrank==0) write(*,*)"allocate lanc_vec",n_alloc_vec
     max_n_alloc_vec = max(max_n_alloc_vec, n_alloc_vec)
   end subroutine allocate_l_vec
 
@@ -230,10 +257,68 @@ contains
 
   subroutine print_max_l_vec()
     if (myrank /= 0) return
+    write(*,*)
     write(*,*) "maximum num of allocated lanczos vec.", &
          max_n_alloc_vec
     write(*,*) "present num of allocated lanczos vec.", &
          n_alloc_vec
+    write(*,*)
   end subroutine print_max_l_vec
+
+
+  subroutine set_core_orbit()
+    integer ::  it, itc, maxosc, nsum, nosc, &
+         nc, lc, jc, k, i
+    character(n_orb_char) :: corb
+
+    n_nljt_core = 0
+    if (n_core(1)<0 .or. n_core(2)<0) return
+
+    allocate( nljt_core(4, sum(n_core)) )
+    do it = 1, 2
+       if (n_core(it) == 0) cycle
+       itc = it*2-3
+       maxosc = int(sqrt( dble(n_core(it)) ))+2
+       nsum = 0
+       outer: do nosc = 0, maxosc
+          do nc = 0, nosc/2+1
+             lc = nosc - 2*nc
+             core: do jc = 2*lc+1, max(2*lc-1, 1), -2
+                do k = 1, n_jorb_pn
+                   if ( nc == norb(k) .and. lc  == lorb(k) .and. &
+                        jc == jorb(k) .and. itc == itorb(k) ) cycle core
+                end do
+                n_nljt_core = n_nljt_core + 1
+                nljt_core(:, n_nljt_core) = (/ nc, lc, jc, itc /)
+!                if (myrank==0) write(*,'(a, 4i3)') 'core orbit ', nc,lc,jc,itc
+                nsum = nsum + jc + 1
+                if (nsum == n_core(it)) exit outer
+                if (nsum > n_core(it)) stop "n_core error"
+             end do core
+          end do
+       end do outer
+    end do
+
+
+    if (myrank/=0) return
+
+    write(*,*)
+    do it = 1, 2
+       if (it==1) write(*,'(a)', advance='no') ' proton  core'
+       if (it==2) write(*,'(a)', advance='no') ' neutron core'
+       write(*,'(i3,a)', advance='no') n_core(it),', orbit:'
+       do i = 1, n_nljt_core
+          if (it*2-3 /= nljt_core(4,i)) cycle
+          call char_orbit( &
+               nljt_core(1,i), &
+               nljt_core(2,i), &
+               nljt_core(3,i), &
+               nljt_core(4,i), corb)
+          write(*,'(2a)', advance='no') corb(2:)
+       end do
+       write(*,*)
+    end do
+
+  end subroutine set_core_orbit
 
 end module model_space
