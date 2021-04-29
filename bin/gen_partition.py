@@ -5,26 +5,23 @@
 #
 
 import sys, operator, random
-
-
+from functools import reduce
 
 output_ans = ""
+
 def raw_input_save(c=None):
-    if c is None: r = raw_input()
-    else: r = raw_input(c)
+    if c is None: r = input()
+    else: r = input(c)
     global output_ans
     output_ans += r + '\n'
     return r
-
-
-
 
 def read_comment_skip(fp):
     while True:
         arr = fp.readline().split()
         if not arr: return None
         for i in range(len(arr)): 
-            if arr[i][0]=="!" or arr[i][0]=="#": 
+            if (arr[i][0] == "!") or (arr[i][0] == "#"): 
                 arr = arr[:i]
                 break
         if not arr: continue
@@ -36,12 +33,11 @@ def read_comment_skip(fp):
             except ValueError:
                 return arr
 
-def orb2char(n,l,j,tz):
+def orb2char(n, l, j, tz):
     lorb2c = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 
               'm', 'n', 'o']
     tz2c = { -1:'p', 1:'n' }
     return "%c_%d%c%d/2" % (tz2c[tz], n, lorb2c[l], j)
-
 
 class ModelSpace:
     def __init__(self, nf, norb, lorb, jorb, itorb):
@@ -372,8 +368,6 @@ class ModelSpace:
             for j in self.gen_nocc(nrest, nf-i):
                 yield (i,) + j
 
-
-
 def main(fn_snt, fn_ptn, nf, nparity):
     
     fp = open(fn_snt, 'r')
@@ -529,9 +523,6 @@ def main(fn_snt, fn_ptn, nf, nparity):
         # orbit list in the first truncation
         ret = [i+1 for i in orb_list[0]] 
     return ret
-
-
-    
 
 if __name__ == "__main__":
 
