@@ -23,14 +23,14 @@ def weisskopf_unit(asc, mass):
     if asc[0] in ('e', 'E'):
         wu = 1.2**(2*l) / ( 4.*pi )  * (3./(l+3.))**2 \
             * mass**(2.*l/3.)  
-        unit = 'e^2 fm^'+str(2*l)
+        unit = 'e^2 fm^' + str(2*l)
     elif asc[0] in ('m', 'M'):
         wu = 10. / pi * 1.2**(2*l-2) * (3./(l+3.))**2 \
             * mass**((2.*l-2.)/3.) 
-        if l==1: 
+        if l == 1: 
             unit = 'mu_N^2  '
         else:
-            unit = 'mu_N^2 fm^'+str(2l-2)
+            unit = 'mu_N^2 fm^' + str(2*l - 2)
     else:
         raise 'weisskopf error'
     return  wu, unit
@@ -89,7 +89,7 @@ def read_file_tran(fn, asc):
             if not mass_save:
                 mass_save = mass
             if mass_save != mass: 
-                print 'ERROR  mass', mass, mass_save
+                print('ERROR  mass', mass, mass_save)
             wu, unit = weisskopf_unit(asc, mass)
         if arr[0] == 'fn_load_wave_l': 
             fn_l = arr[2]
@@ -150,7 +150,7 @@ def read_file_tran(fn, asc):
 
 
 def main(fn_list):
-    print "\n Energy levels"
+    print("\n Energy levels")
     for fn in fn_list:
         read_file_ene(fn)
 
@@ -168,12 +168,12 @@ def main(fn_list):
 
         global e_gs
         e_gs = keys[0]
-        print '\n    N    J prty N_Jp    T     E(MeV)  Ex(MeV)  log-file\n'
-        for i,e in enumerate(keys):
+        print('\n    N    J prty N_Jp    T     E(MeV)  Ex(MeV)  log-file\n')
+        for i, e in enumerate(keys):
             fn, mtot, prty, n_eig, tt = e_data[e]
-            print "%5d %5s %1s %5d %5s %10.3f %8.3f  %s " \
-                % (i+1, str_JJ(mtot), prty, n_eig, str_JJ(tt), e, e-e_gs, fn)
-        print
+            print("%5d %5s %1s %5d %5s %10.3f %8.3f  %s " \
+                % (i+1, str_JJ(mtot), prty, n_eig, str_JJ(tt), e, e-e_gs, fn))
+        print()
 
 
     def print_transition(asc):
@@ -189,9 +189,9 @@ B(%s)  ( > %.1f W.u.)  mass = %d    1 W.u. = %.1f %s
                                            %s (W.u.) 
    J_i    Ex_i     J_f    Ex_f   dE        B(%s)->         B(%s)<- 
 """ % (asc, thrd,  mass, wu, unit, is_show, asc, asc)
-        for e,out in sorted(output_e.items()):
+        for e, out in sorted(output_e.items()):
             output += out        
-        if is_show: print output
+        if is_show: print(output)
 
     print_transition('E2')
     print_transition('M1')
