@@ -1,10 +1,10 @@
 This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ### Prerequisites
-```Python 2.7``` (kshell_ui.py works only with version 2.x)
-```gfortran 10.2.0``` (tested with this version, might work with other versions)
-```openblas```
-```lapack```
+* ```Python 2.7``` (kshell_ui.py works only with version 2.x)
+* ```gfortran 10.2.0``` (tested with this version, might work with other versions)
+* ```openblas```
+* ```lapack```
 
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
