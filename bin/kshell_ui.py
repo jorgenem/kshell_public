@@ -1,17 +1,17 @@
 #!/usr/bin/env python
-# 
-# (kshell_home_dir)/bin/kshell_ui.py 
-#    user interface to generate shell script.
-# 
 
 import gen_partition
 import sys, os, os.path, shutil
 import readline
 from gen_partition import raw_input_save
 
+bindir = os.path.dirname( __file__ )    # Full path to the directory of this file.
 
-bindir = os.path.dirname( __file__ )
-# is_mpi = False         # single node (w/o MPI)
+# # Change the default behaviour by uncommenting the correct MPI preset.
+# # The values listed can be chosen in the interactive setup even though
+# # they are commented here.
+
+is_mpi = False         # single node (w/o MPI)
 #is_mpi = True         # FX10 
 #is_mpi = 'fx10'       # FX10 
 #is_mpi = 'coma'       # Tsukuba CCS COMA + sbatch
@@ -22,7 +22,7 @@ bindir = os.path.dirname( __file__ )
 #is_mpi = 'cx400'      # CX400 at Nagoya Univ.
 #is_mpi = 'ofp'        # Oakforest-PACS at Tokyo and Tsukuba  
 #is_mpi = 'ofp-flat'   # Oakforest-PACS at Tokyo and Tsukuba , flat mode
-is_mpi = "fram" # Fram cluster @ UiT, Norway
+# is_mpi = "fram" # Fram cluster @ UiT, Norway
 
 n_nodes = 24  # default number of MPI nodes 
 # n_nodes = 768
@@ -40,36 +40,29 @@ var_dict = {
     "gl"            : [1.0, 0.0], 
     "gs"            : [3.910, -2.678],  # [ 5.585, -3.826],
     "beta_cm"       : 0.0, 
-    }
+}
 
 fn_stgin  = [ 'kshell.exe', 'transit.exe', 'collect_logs.py' ]
 fn_stgout = [ 'tmp_snapshot_*']
 
 list_fn_base = []
-snt_prm = {}
+snt_parameters = {} # Parameters will be read from the .snt file and put in this dictionary.
 
-
-def read_comment_skip(fp):
-    while 1:
-        arr = fp.readline().split()
-        if not arr: return None
-        if arr[0] == '!namelist':
-            if arr[2] != '=': raise 'ERROR namelist line in snt'
-            var_dict[arr[1]]  = ' '.join(arr[3:])
-        for i in range(len(arr)): 
-            if arr[i][0]=="!" or arr[i][0]=="#": 
-                arr = arr[:i]
-                break
-        if not arr: continue
-        try:
-            return [int(i) for i in arr]
-        except ValueError:
-            try:
-                return [int(i) for i in arr[:-1]]+[float(arr[-1])]
-            except ValueError:
-                return arr
-
-
+element = [
+    'NA', 
+    'H',  'He', 'Li', 'Be', 'B',  'C',  'N',  'O',  'F',  'Ne', 
+    'Na', 'Mg', 'Al', 'Si', 'P',  'S',  'Cl', 'Ar', 'K',  'Ca',
+    'Sc', 'Ti', 'V',  'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
+    'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y',  'Zr',
+    'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn',
+    'Sb', 'Te', 'I',  'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd',
+    'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb',
+    'Lu', 'Hf', 'Ta', 'W',  'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
+    'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th',
+    'Pa', 'U',  'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm',
+    'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds',
+    'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og'
+]
 
 class SimpleCompleter(object):
     def __init__(self, options):
@@ -92,23 +85,6 @@ class SimpleCompleter(object):
 
 readline.set_completer_delims('')
 
-element = [
-    'NA', 
-    'H',  'He', 'Li', 'Be', 'B',  'C',  'N',  'O',  'F',  'Ne', 
-    'Na', 'Mg', 'Al', 'Si', 'P',  'S',  'Cl', 'Ar', 'K',  'Ca',
-    'Sc', 'Ti', 'V',  'Cr', 'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn',
-    'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y',  'Zr',
-    'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag', 'Cd', 'In', 'Sn',
-    'Sb', 'Te', 'I',  'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd',
-    'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb',
-    'Lu', 'Hf', 'Ta', 'W',  'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg',
-    'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th',
-    'Pa', 'U',  'Np', 'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm',
-    'Md', 'No', 'Lr', 'Rf', 'Db', 'Sg', 'Bh', 'Hs', 'Mt', 'Ds',
-    'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og' ]
-
-
-
 def split_jpn(jpn, nf):
     idx = jpn.find("+")
     p = 1
@@ -126,9 +102,8 @@ def split_jpn(jpn, nf):
     else:      n = 10
     return j,p,n,is_jproj
     
-
 def fn_element(nf, fn_snt):
-    corep, coren = snt_prm['ncore']
+    corep, coren = snt_parameters['ncore']
     Z = abs(corep)
     # Z +=  nf[0] if corep>0 else -nf[0]
     if corep > 0: Z +=  nf[0]
@@ -152,7 +127,7 @@ def element2nf(ele):
         print('*** Invalid: unknown element ***', asc)
         return False
     z = element.index(asc)
-    corep, coren = snt_prm['ncore']
+    corep, coren = snt_parameters['ncore']
     
     if corep > 0: nf1 =  z - corep
     else:         nf1 = -z - corep
@@ -162,13 +137,12 @@ def element2nf(ele):
     print('\n number of valence particles ', nf1, nf2)
     
     if nf1 < 0 or nf2 < 0 or \
-       nf1 > snt_prm['nfmax'][0] or \
-       nf2 > snt_prm['nfmax'][1]:
+       nf1 > snt_parameters['nfmax'][0] or \
+       nf2 > snt_parameters['nfmax'][1]:
         print('*** ERROR: nuclide out of model space ***')
         return False
     return (nf1, nf2)
     
-
 def print_var_dict( var_dict, skip=() ):
     ret = ""
     keys = var_dict.keys()
@@ -185,59 +159,130 @@ def print_var_dict( var_dict, skip=() ):
         ret += "  " + key + " = " + vv + "\n"
     return ret
 
-
 def prty2str(p):
-    if p==1: return "p"
-    elif p==-1: return "n"
-    else: raise
+    """
+    Convert numeric parity representation to string representation.
 
+    Parameters
+    ----------
+    p : int
+        Parity. Valid inputs are 1, -1.
+
+    Returns
+    -------
+    : string
+        'p' if input parity is 1, 'n' if input parity is -1.
+
+    Raises
+    ------
+    ValueError
+        If input is anything other than 'p' or 'n'.
+    """
+    if p == 1: return "p"
+    elif p == -1: return "n"
+    else: raise ValueError("Parity must be 1 or -1.")
+
+def read_comment_skip(fp):
+    """
+    Read data from a .snt file and remove comments.
+    
+    Examples in the docstrings in this function are from gxpf1a.snt.
+
+    Parameters
+    ----------
+    fp : file object
+    """
+    while True:
+        arr = fp.readline().split()
+        if not arr: return None     # NOTE: Should this be here? See 'if not arr' a few lines down.
+        if arr[0] == '!namelist':
+            if arr[2] != '=':
+                """
+                Second element in '!namelist' line should always be '='.
+                """
+                raise 'ERROR namelist line in snt'
+            var_dict[arr[1]]  = ' '.join(arr[3:])   # Read eff_charge or orbs_ratio.
+        
+        for i in range(len(arr)): 
+            if (arr[i][0] == "!") or (arr[i][0] == "#"): 
+                arr = arr[:i]
+                break
+        if not arr: continue    # NOTE: Should this be here? See 'if not arr' a few lines up.
+        
+        try:
+            """
+            Example: 4   4    20  20
+            """
+            return [int(i) for i in arr]
+        except ValueError:
+            try:
+                return [int(i) for i in arr[:-1]] + [float(arr[-1])]
+            except ValueError:
+                return arr
+
+class ExternalSyntaxError(Exception):
+    """
+    Raised when there is a syntax error in any of the data files
+    associated with KSHELL.
+    """
+    pass
 
 def read_snt(fn_snt):
+    """
+    Read model space file (.snt), extract information about orbit
+    properties (occupation, angular momentum, etc.) and save in snt_parameters
+    dictionary.
+
+    Parameters
+    ----------
+    fn_snt : string
+        Path to snt file.
+    """
     fp = open( fn_snt, 'r')
     np, nn, ncp, ncn  = read_comment_skip(fp)
     norb, lorb, jorb, torb = [], [], [], []
-    npn = [np, nn]
+    npn = [np, nn]  # NOTE: Not in use.
     nfmax = [0, 0]
-    for i in range(np+nn):
+    
+    for i in range(np + nn):
         arr = read_comment_skip(fp)
-        if i + 1 != int(arr[0]): 
-            print ('snt index error', i, arr[0])
-            raise 
+        if (i + 1) != int(arr[0]): 
+            msg = f"Syntax error in {fn_snt}. Expected {i + 1} got {arr[0]}."
+            raise ExternalSyntaxError(msg)
+
         norb.append( int(arr[1]) )
         lorb.append( int(arr[2]) )
         jorb.append( int(arr[3]) )
         torb.append( int(arr[4]) )
         nfmax[(int(arr[4]) + 1)//2] += int(arr[3]) + 1
+
     fp.close()
-    snt_prm['ncore'] = (ncp, ncn)
-    snt_prm['n_jorb'] = (np, nn)
-    snt_prm['norb'] = norb
-    snt_prm['lorb'] = lorb
-    snt_prm['jorb'] = jorb
-    snt_prm['torb'] = torb
-    snt_prm['nfmax'] = nfmax
+    snt_parameters['ncore'] = (ncp, ncn)   # Number of protons and neutrons in the core.
+    snt_parameters['n_jorb'] = (np, nn)
+    snt_parameters['norb'] = norb
+    snt_parameters['lorb'] = lorb          # Angular momentum of each orbit.
+    snt_parameters['jorb'] = jorb          # z proj. of total spin of each orbit.
+    snt_parameters['torb'] = torb          # Isospin of each orbit (proton or neutron).
+    snt_parameters['nfmax'] = nfmax
     return
     
-
-
 def check_cm_snt(fn_snt):
     # return whether Lawson term is required or not
     is_cm = False
-    nc = snt_prm['ncore']
+    nc = snt_parameters['ncore']
     if nc[0] < 0 or nc[1] < 0: return
-    npn = snt_prm['n_jorb']
+    npn = snt_parameters['n_jorb']
     for np in range(2):
         p_list, j_list = [], []
         for i in range(npn[np]):
-            p_list.append( 1 - (snt_prm['lorb'][i] % 2)*2 )
-            j_list.append( snt_prm['jorb'][i] )
+            p_list.append( 1 - (snt_parameters['lorb'][i] % 2)*2 )
+            j_list.append( snt_parameters['jorb'][i] )
         j_list_posi = [ j for p, j in zip(p_list,j_list) if p== 1 ]
         j_list_nega = [ j for p, j in zip(p_list,j_list) if p==-1 ]
         for jp in j_list_posi:
             for jn in j_list_nega:
                 if abs(jp-jn) <= 2: is_cm = True        
     return is_cm
-
 
 def exec_string(mode, fn_input, fn_log):
     # mode = 'kshell' or 'transit'
@@ -256,8 +301,6 @@ def exec_string(mode, fn_input, fn_log):
         return 'mpiexec -of ' + fn_log + fn_exe + fn_input + ' \n\n'
     else:
         return 'nice' + fn_exe + fn_input + ' > ' + fn_log + ' 2>&1 \n\n'
-
-
 
 def output_transit(fn_base, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
     m1, np1, ne1, isj1 = jpn1
@@ -301,8 +344,6 @@ def output_transit(fn_base, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
     out +=  exec_string('transit', fn_input, fn_log)
 
     return out
-
-
 
 def main_nuclide(fn_snt):
     print()
@@ -368,7 +409,7 @@ def main_nuclide(fn_snt):
 
         if os.path.exists( fn_ptn ): fn_stgin.append( fn_ptn )
 
-#-----------------------------------------------------
+    #-----------------------------------------------------
 
       
     
@@ -420,7 +461,7 @@ def main_nuclide(fn_snt):
             print("ILLEGAL INPUT")
 
 
-# ---------------------------------------------
+    # ---------------------------------------------
 
     out = '# ---------- ' + fn_base + ' --------------\n'
 
@@ -529,7 +570,6 @@ def main_nuclide(fn_snt):
     
     return fn_base, out, (nf, list_jpn, fn_save_list)
 
-
 def ask_yn(optype):
     ret = False
     ans = raw_input_save( \
@@ -538,9 +578,6 @@ def ask_yn(optype):
         if ans[0] == 'Y' or ans[0] == 'y': ret = True
         if ans[0] == 'N' or ans[0] == 'n': ret = False
     return ret
-
-
-
 
 def main():
     print( "\n" \
@@ -649,7 +686,7 @@ def main():
     if (var_dict[ 'beta_cm' ] == 0.0) and check_cm_snt(fn_snt): 
         var_dict[ 'beta_cm' ] = 10.0
     if is_mpi: var_dict['mode_lv_hdd'] = 0
-    if snt_prm['ncore'] == (8,8): var_dict['hw_type'] = 2
+    if snt_parameters['ncore'] == (8,8): var_dict['hw_type'] = 2
 
     fn_run = ''
     fn_snt_base = fn_snt[:-4]
