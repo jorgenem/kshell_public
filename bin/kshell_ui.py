@@ -504,7 +504,6 @@ def main_nuclide(fn_snt):
             var_dict[ 'is_double_j' ] = '.false.'
         var_dict[ 'fn_ptn' ] = '"' + fn_ptn_list[nparity] + '"'
 
-        # if (trc_list_prty[nparity] is not None) and (not var_dict.has_key('orbs_ratio')):
         if (trc_list_prty[nparity] is not None) and (not 'orbs_ratio' in var_dict.keys()):
             var_dict[ 'orbs_ratio' ] = trc_list_prty[nparity]
 
@@ -528,7 +527,6 @@ def main_nuclide(fn_snt):
         
         fn_input = fn_base + '_' + str(mtot) + '.input'
 
-        # if var_dict.has_key('no_save'):
         if 'no_save' in var_dict.keys():
             del var_dict[ 'fn_save_wave' ]
 
