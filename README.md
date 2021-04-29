@@ -10,7 +10,7 @@ This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [n
 ```
 module load foss/2017a
 ```
-This module contains the necessary compilers and libraries. Note that the gfortran compiler in foss/2017a which does not support the ```-fallow-argument-mismatch``` compiler flag. Remove / comment this flag in the ```Makefile```.
+This module contains the necessary compilers and libraries. Note that the gfortran compiler in foss/2017a does not support the ```-fallow-argument-mismatch``` compiler flag. Remove / comment this flag in the ```Makefile```.
 
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
