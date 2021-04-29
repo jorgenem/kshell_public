@@ -22,6 +22,7 @@ is_mpi = False         # single node (w/o MPI)
 #is_mpi = 'cx400'      # CX400 at Nagoya Univ.
 #is_mpi = 'ofp'        # Oakforest-PACS at Tokyo and Tsukuba  
 #is_mpi = 'ofp-flat'   # Oakforest-PACS at Tokyo and Tsukuba , flat mode
+#is_mpi = "fram" # Fram cluster @ UiT, Norway
 
 n_nodes = 24  # default number of MPI nodes 
 # n_nodes = 768
@@ -249,6 +250,8 @@ def exec_string(mode, fn_input, fn_log):
             + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi in ('ofp', ):
         return 'mpiexec.hydra  -n ${PJM_MPI_PROC} ' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+    elif is_mpi == 'fram': 
+         return 'mpirun' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi:
         return 'mpiexec -of ' + fn_log + fn_exe + fn_input + ' \n\n'
     else:
@@ -545,7 +548,7 @@ def main():
     if cdef == True: cdef = 'Y'
     list_param = [ 'coma', 'fx10', 'k', 'k-micro', 
                    'k-small', 'k-large', 'cx400',
-                   'ofp', 'ofp-flat', 'oakforest-pacs',
+                   'ofp', 'ofp-flat', 'oakforest-pacs', 'fram',
                    'yes', 'no', 'Y', 'N', 'y', 'n', 'Yes', 'No', '' ]
     readline.set_completer( SimpleCompleter(list_param).complete )
     readline.parse_and_bind("tab: complete")
@@ -587,6 +590,8 @@ def main():
         print txt + 'on oakforest-pacs'
     elif is_mpi == 'ofp-flat':
         print txt + 'on oakforest-pacs flat mode'
+    elif is_mpi == 'fram': 
+         print txt + "on Fram@UiT with SLURM "
     elif is_mpi: 
         print txt + 'K-computer/FX10 with PJM. '
     else: 
@@ -807,6 +812,19 @@ export FORT90L=-Wl,-Lu
 '''  + outsh 
                     # + 'cd ' + os.getcwd() +'\n\n' \
             print "\n Finish. edit and pjsub ./"+fn_run+"\n"
+        elif is_mpi == 'fram': # This option added by JEM.
+             outsh = '#!/bin/bash \n' \
+                     + '#SBATCH --job-name=' + fn_run[:-3] + ' \n' \
+                     + '#SBATCH --account=<insert account> \n' \
+                     + '#SBATCH --time=02-00:00:00 \n' \
+                     + '#SBATCH --nodes='+ str(n_nodes) + '\n' \
+                     + '#SBATCH --ntasks-per-node=1 \n' \
+                     + '#SBATCH --cpus-per-task=32 \n' \
+                     + 'module purge  \n' \
+                     + 'module load intel/2017b \n' \
+                     + 'set -o errexit  \n' \
+                     + 'set -o nounset \n' \
+                     + outsh
         else: # FX10
             outsh = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=debug"\n' \
