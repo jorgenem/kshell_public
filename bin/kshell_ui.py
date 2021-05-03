@@ -642,13 +642,13 @@ def main():
     if ans.split(",")[0] == "fram":
         while True:
             """
-            Fetch Fram Slurm input parameters.
+            Fetch Fram Slurm input parameters. Added by jonkd.
             """
             print("Please input expected program runtime:")
             try:
-                fram_n_minutes = raw_input_save("minutes: ")
-                fram_n_hours = raw_input_save("hours: ")
-                fram_n_days = raw_input_save("days: ")
+                fram_n_minutes = int(raw_input_save("minutes: "))
+                fram_n_hours = int(raw_input_save("hours: "))
+                fram_n_days = int(raw_input_save("days: "))
             except ValueError:
                 continue
             
