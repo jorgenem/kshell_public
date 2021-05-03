@@ -605,11 +605,11 @@ def ask_yn(optype):
     return ret
 
 def main():
-    print( "\n" \
-        + "----------------------------- \n" \
-        + "  KSHELL user interface \n" \
-        + "     to generate job script. \n" \
-        + "-----------------------------\n ")
+    print("\n")
+    print("----------------------------- \n")
+    print("  KSHELL user interface \n")
+    print("     to generate job script. \n")
+    print("-----------------------------\n ")
 
     cdef = 'N'
     global is_mpi
@@ -621,8 +621,10 @@ def main():
         'n', 'Yes', 'No', ''
     ]
     list_param += ['fram']  # Added by jonkd.
+    
     readline.set_completer( SimpleCompleter(list_param).complete )
     readline.parse_and_bind("tab: complete")
+    
     while True:
         """
         Fetch MPI input from user. Valid inputs are 'Y/N/preset', and
@@ -636,6 +638,23 @@ def main():
         if arr[0] in list_param:
             if (len(arr) == 1) or (arr[1].isdigit()): break
         print("\n *** Invalid input ***")
+
+    if ans.split(",")[0] == "fram":
+        while True:
+            """
+            Fetch Fram Slurm input parameters.
+            """
+            print("Please input expected program runtime:")
+            try:
+                fram_n_minutes = raw_input_save("minutes: ")
+                fram_n_hours = raw_input_save("hours: ")
+                fram_n_days = raw_input_save("days: ")
+            except ValueError:
+                continue
+            
+            fram_project_name = raw_input_save("project name: ")
+            fram_user_email = raw_input_save("email: ")
+            break
 
     global n_nodes
     if len(arr) >= 2: n_nodes = int(arr[1])
@@ -904,14 +923,14 @@ export FORT90L=-Wl,-Lu
         elif is_mpi == 'fram': # This option added by JEM / jonkd.
             outsh_tmp = '#!/bin/bash \n'
             outsh_tmp += f'#SBATCH --job-name={fn_run[:-3]} \n'
-            outsh_tmp += '#SBATCH --account=<insert account> \n'
-            outsh_tmp += '## Run for 10 minutes, syntax is d-hh:mm:ss \n'
-            outsh_tmp += '#SBATCH --time=0-00:10:00 \n'
+            outsh_tmp += f'#SBATCH --account={fram_project_name} \n'
+            outsh_tmp += '## Syntax is d-hh:mm:ss \n'
+            outsh_tmp += f'#SBATCH --time={fram_n_days}-{fram_n_hours:02d}:{fram_n_minutes:02d}:00 \n'
             outsh_tmp += f'#SBATCH --nodes={n_nodes}\n'
             outsh_tmp += '#SBATCH --ntasks-per-node=1 \n'
             outsh_tmp += '#SBATCH --cpus-per-task=32 \n'
             outsh_tmp += '#SBATCH --mail-type=ALL \n'
-            outsh_tmp += '#SBATCH --mail-user=my.email@institution.no \n'
+            outsh_tmp += f'#SBATCH --mail-user={fram_user_email} \n'
             outsh_tmp += 'module --quiet purge  \n'
             outsh_tmp += 'module load foss/2017a \n'
             outsh_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
