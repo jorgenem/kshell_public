@@ -910,6 +910,8 @@ export FORT90L=-Wl,-Lu
             outsh_tmp += f'#SBATCH --nodes={n_nodes}\n'
             outsh_tmp += '#SBATCH --ntasks-per-node=1 \n'
             outsh_tmp += '#SBATCH --cpus-per-task=32 \n'
+            outsh_tmp += '#SBATCH --mail-type=ALL \n'
+            outsh_tmp += '#SBATCH --mail-user=my.email@institution.no \n'
             outsh_tmp += 'module --quiet purge  \n'
             outsh_tmp += 'module load foss/2017a \n'
             outsh_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
