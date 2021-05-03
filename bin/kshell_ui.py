@@ -900,20 +900,23 @@ export I_MPI_HYDRA_HOST_FILE=${PJM_O_NODEINF}
 export FORT90L=-Wl,-Lu
 '''  + outsh 
                     # + 'cd ' + os.getcwd() +'\n\n' \
-            print("\n Finish. edit and pjsub ./"+fn_run+"\n")
-        elif is_mpi == 'fram': # This option added by JEM.
-             outsh = '#!/bin/bash \n' \
-                     + '#SBATCH --job-name=' + fn_run[:-3] + ' \n' \
-                     + '#SBATCH --account=<insert account> \n' \
-                     + '#SBATCH --time=02-00:00:00 \n' \
-                     + '#SBATCH --nodes='+ str(n_nodes) + '\n' \
-                     + '#SBATCH --ntasks-per-node=1 \n' \
-                     + '#SBATCH --cpus-per-task=32 \n' \
-                     + 'module purge  \n' \
-                     + 'module load intel/2017b \n' \
-                     + 'set -o errexit  \n' \
-                     + 'set -o nounset \n' \
-                     + outsh
+            print("\n Finish. edit and pjsub ./" + fn_run + "\n")
+        elif is_mpi == 'fram': # This option added by JEM / jonkd.
+            outsh_tmp = '#!/bin/bash \n'
+            outsh_tmp += f'#SBATCH --job-name={fn_run[:-3]} \n'
+            outsh_tmp += '#SBATCH --account=<insert account> \n'
+            outsh_tmp += '## Run for 10 minutes, syntax is d-hh:mm:ss \n'
+            outsh_tmp += '#SBATCH --time=0-00:10:00 \n'
+            outsh_tmp += f'#SBATCH --nodes={n_nodes}\n'
+            outsh_tmp += '#SBATCH --ntasks-per-node=1 \n'
+            outsh_tmp += '#SBATCH --cpus-per-task=32 \n'
+            outsh_tmp += 'module --quiet purge  \n'
+            outsh_tmp += 'module load foss/2017a \n'
+            outsh_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
+            outsh_tmp += 'set -o errexit  \n'
+            outsh_tmp += 'set -o nounset \n'
+            outsh_tmp += outsh
+            outsh = outsh_tmp
         else: # FX10
             outsh = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=debug"\n' \
