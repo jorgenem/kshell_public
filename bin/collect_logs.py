@@ -4,8 +4,8 @@
 import sys
 from math import *
 
-#thrd = 1.0 # threshold to show in W.u.
-thrd = -0.001
+#wu_threshold = 1.0 # threshold to show in W.u.
+wu_threshold = -0.001
 
 e_data = {}
 n_jnp = {}
@@ -82,47 +82,76 @@ def read_file_tran(fn, asc):
         line = fp.readline()
         if not line: break
         arr = line.split()
-        if len(arr)==0: continue
+        if len(arr) == 0: continue
         if 'mass=' in line:
+            """
+            Fetch mass number.
+            """
             n = line.index('mass=')
-            mass = int( line[n+5:n+8] )
+            mass = int(line[n + 5:n + 8])
             if not mass_save:
                 mass_save = mass
             if mass_save != mass: 
                 print('ERROR  mass', mass, mass_save)
             wu, unit = weisskopf_unit(asc, mass)
+        
         if arr[0] == 'fn_load_wave_l': 
             fn_l = arr[2]
+        
         elif arr[0] == 'fn_load_wave_r': 
             fn_r = arr[2]
-        if line[:14] != " "+asc+" transition":  continue
+        
+        if line[:14] != " " + asc + " transition":  continue
         is_r = unit
         arr = line.split()
         prty1, prty2 = i2prty(int(arr[-2])), i2prty(int(arr[-1]))
-        if fn_l==fn_r: is_diag = True
-        else:          is_diag = False
+        if fn_l == fn_r: is_diag = True
+        else: is_diag = False
         line = fp.readline()
         while True:
+            """
+            Extract transition data from log_*_tr_*.txt.  (And maybe
+            other data too).
+            """
             line = fp.readline().rstrip()
             if not line: break
-            j1 = int(line[:2])
+            if line.startswith("pn="):
+                """
+                jonkd: I had to add this because 'pn' showed up in the
+                middle of the 'log_Ni56_gxpf1a_tr_m0p_m0p.txt' file
+                after trying (unsuccessfully) to run on Fram.
+
+                M1 transition  mu_N^2  gl,gs=  1.0000  0.0000  3.9100 -2.6780 parity  1  1
+                2xJf      Ef      2xJi     Ei       Ex       Mred.    B(EM )->   B(EM)<-   Mom.
+                 4(   2) -200.706 4(   2) -200.706   0.000    1.3570    0.3683    0.3683    1.0141
+                 4(   2) -200.706 6(   4) -198.842   1.864    0.0147    0.0000    0.0000    0.0000
+                pn= 1   # of mbits=            286
+                 4(   2) -200.706 6(  10) -197.559   3.147   -0.0289    0.0002    0.0001    0.0000
+                """
+                continue
+            
+            j1 = int(line[:2])      # J final.
             n1 = int(line[3:7])
-            j2 = int(line[17:19])
+            j2 = int(line[17:19])   # J initial.
             n2 = int(line[20:24])
-            if j1==j2 and n1==n2: continue
-            ex = float(line[34:42])
+            if j1 == j2 and n1 == n2: continue
+            
+            ex = float(line[34:42]) # Gamma energy.
             if is_diag and ex < 0.0: continue
-            v1 = float(line[53:62])
-            v2 = float(line[63:72])
-            E1 = float(line[8:17]) - e_gs
+            v1 = float(line[53:62]) # B(EM )->  NOTE: Why this when b1 below?
+            v2 = float(line[63:72]) # B(EM )<-
+            
+            E1 = float(line[8:17]) - e_gs   # E final.
+            E2 = float(line[25:34]) - e_gs  # E initial.
             if abs(E1) < 1.e-3: E1 = 0.
-            E2 = float(line[25:34]) - e_gs
             if abs(E2) < 1.e-3: E2 = 0.
+            
             Mred = float(line[43:52])
             b1 = float(line[52:62])
             b2 = float(line[62:72])
             wu1, wu2 = b1/wu, b2/wu
-            if max(wu1, wu2) < thrd: continue
+            if max(wu1, wu2) < wu_threshold: continue
+
             n1 = n_jnp[ (j1, prty1, n1) ]
             n2 = n_jnp[ (j2, prty2, n2) ]
             stringformat \
@@ -187,7 +216,7 @@ def main(fn_list):
 B(%s)  ( > %.1f W.u.)  mass = %d    1 W.u. = %.1f %s
                                            %s (W.u.) 
    J_i    Ex_i     J_f    Ex_f   dE        B(%s)->         B(%s)<- 
-""" % (asc, thrd,  mass, wu, unit, is_show, asc, asc)
+""" % (asc, wu_threshold,  mass, wu, unit, is_show, asc, asc)
         for e, out in sorted(output_e.items()):
             output += out        
         if is_show: print(output)
