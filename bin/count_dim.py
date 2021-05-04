@@ -149,7 +149,11 @@ def main(fn_snt, fn_ptn):
             % (m, mdim, jdim, mdim/10.**mpow, mpow, jdim/10.**jpow, jpow))
 
 if __name__ == "__main__":
-    fn_snt, fn_ptn = sys.argv[1:3]
+    try:
+        fn_snt, fn_ptn = sys.argv[1:3]
+    except ValueError:
+        fn_snt = input("Model space file (snt): ")
+        fn_ptn = input("Partition file (ptn): ")
     main(fn_snt, fn_ptn)
     
     
