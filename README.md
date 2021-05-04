@@ -1,8 +1,8 @@
 This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ### Prerequisites
-* ```Python 2.7``` (kshell_ui.py works only with version 2.x)
-* ```gfortran 10.2.0``` (tested with this version, might work with other versions)
+* ```Python 3.8``` (kshell_ui.py uses syntax specific to 3.8 and above)
+* ```gfortran 10.2.0``` (tested with this version, but does work with older versions)
 * ```openblas```
 * ```lapack```
 
@@ -33,9 +33,8 @@ To run a calculation, create an empty directory somewhere on your computer. Let'
 ```
 Here, kshell_ui.py is called as an executable, but it can be called as a regular Python script:
 ```
-python2 <kshell install directory>/bin/kshell_ui.py 
+python <kshell install directory>/bin/kshell_ui.py 
 ```
-This is useful since ```kshell_ui.py``` only supports ```Python 2.7```, and most newer installations of macOS and Linux come with ```Python 3.x```.
 
 Follow the instructions on the screen to set up your calculation. If you want to try Ne20 with USDa, and calculate 10 energy levels and transitions between them, you could do
 
