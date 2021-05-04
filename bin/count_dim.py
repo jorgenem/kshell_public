@@ -4,8 +4,8 @@
 #  count M-scheme dimension   Thanks to Y. Tsunoda
 #
 
-import sys, math
-
+import sys, math, readline, os
+from kshell_ui import SimpleCompleter
 
 def readline_sk(fp): 
     arr = fp.readline().split()
@@ -120,7 +120,7 @@ def main(fn_snt, fn_ptn):
         for i,n in enumerate(ptn):
             p = (-1)**(lorb[i]*n) 
             j = jorb[i]
-            mps.append( dict( ( (m, p), d ) for m,d in dim_jnm[j][n].iteritems() ) )
+            mps.append( dict( ( (m, p), d ) for m,d in dim_jnm[j][n].items() ) )
         dim_idp_mp.append(mps_product(mps))
 
     # dimension for neutron
@@ -130,7 +130,7 @@ def main(fn_snt, fn_ptn):
         for i,n in enumerate(ptn):
             p = (-1)**( lorb[ n_jorb[0]+i ] * n )
             j = jorb[ n_jorb[0]+i ]
-            mps.append( dict( ( (m, p), d ) for m,d in dim_jnm[j][n].iteritems() ) )
+            mps.append( dict( ( (m, p), d ) for m,d in dim_jnm[j][n].items() ) )
         dim_idn_mp.append( mps_product(mps) )
 
     # product dimensions of proton and neutron
@@ -152,6 +152,12 @@ if __name__ == "__main__":
     try:
         fn_snt, fn_ptn = sys.argv[1:3]
     except ValueError:
+        """
+        Ask for input if none is given in the command line.
+        """
+        readline.set_completer( SimpleCompleter(os.listdir()).complete )
+        readline.parse_and_bind("tab: complete")
+        print("Press tab to complete")
         fn_snt = input("Model space file (snt): ")
         fn_ptn = input("Partition file (ptn): ")
     main(fn_snt, fn_ptn)
