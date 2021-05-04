@@ -139,14 +139,14 @@ def main(fn_snt, fn_ptn):
         mp_add( dim_mp, mp_product(dim_idp_mp[idp], dim_idn_mp[idn]) )
 
 
-    print "      2*M        M-scheme dim.          J-scheme dim."
+    print("      2*M        M-scheme dim.          J-scheme dim.")
     for m in range( max([x[0] for x in dim_mp]), -1, -2 ):
         mdim = dim_mp[m, iprty]
         jdim = dim_mp[m, iprty] - dim_mp.get((m+2, iprty), 0)
         mpow = int( math.log10(mdim) ) if mdim != 0 else 0
         jpow = int( math.log10(jdim) ) if jdim != 0 else 0
-        print "dim. %5i%21i%21i   %4.2fx10^%2i  %4.2fx10^%2i" \
-            % (m, mdim, jdim, mdim/10.**mpow, mpow, jdim/10.**jpow, jpow)
+        print("dim. %5i%21i%21i   %4.2fx10^%2i  %4.2fx10^%2i"
+            % (m, mdim, jdim, mdim/10.**mpow, mpow, jdim/10.**jpow, jpow))
 
 if __name__ == "__main__":
     fn_snt, fn_ptn = sys.argv[1:3]
