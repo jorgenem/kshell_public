@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
 import gen_partition
-import sys, os, os.path, shutil
-import readline
+import sys, os, os.path, shutil, readline, re
 from gen_partition import raw_input_save
 
 bindir = os.path.dirname( __file__ )    # Full path to the directory of this file.
@@ -49,7 +48,7 @@ fn_stgout = [ 'tmp_snapshot_*']
 list_fn_base = []
 snt_parameters = {} # Parameters will be read from the .snt file and put in this dictionary.
 
-element = [
+elements = [
     'NA', 
     'H',  'He', 'Li', 'Be', 'B',  'C',  'N',  'O',  'F',  'Ne', 
     'Na', 'Mg', 'Al', 'Si', 'P',  'S',  'Cl', 'Ar', 'K',  'Ca',
@@ -112,22 +111,33 @@ def fn_element(nf, fn_snt):
     mass = Z + abs(coren)
     if coren > 0: mass +=  nf[1]
     else:         mass += -nf[1]
-    return element[Z] + str(mass) + "_" + fn_snt[:-4]
+    return elements[Z] + str(mass) + "_" + fn_snt[:-4]
 
-def element2nf(ele):
-    import re
-    isdigit = re.search(r'\d+', ele)
-    if not isdigit:
-        print('\n *** Invalid: unknown element ***', ele)
+def element2nf(input_nuclide: str) -> tuple:
+    """
+    Parameters
+    ----------
+    input_nuclide:
+
+    """
+    atomic_mass_match = re.search(r'\d+', input_nuclide)    # Match atomic mass.
+    if not atomic_mass_match:
+        """
+        Regex gave no match.
+        """
+        print('\n *** Invalid: unknown element ***', input_nuclide)
         return False
-    mass = int( isdigit.group() )
-    asc = ele[:isdigit.start()] + ele[isdigit.end():]
-    asc = asc.lower()
-    asc = asc[0].upper() + asc[1:]
-    if not asc in element: 
-        print('*** Invalid: unknown element ***', asc)
+
+    mass = int(atomic_mass_match.group()) # Extract atomic mass.
+    element_symbol = input_nuclide[:atomic_mass_match.start()] + input_nuclide[atomic_mass_match.end():]   # Extract element symbol.
+    element_symbol = element_symbol.lower()
+    element_symbol = element_symbol[0].upper() + element_symbol[1:]  # Make element symbol capitalized.
+    
+    if not element_symbol in elements:
+        print('*** Invalid: unknown element ***', element_symbol)
         return False
-    z = element.index(asc)
+    
+    z = elements.index(element_symbol)
     corep, coren = snt_parameters['ncore']
     
     if corep > 0: nf1 =  z - corep
@@ -373,31 +383,52 @@ def output_transit(fn_base, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
     return out
 
 def main_nuclide(fn_snt):
+    """
+    Prompt for nuclide, number of states to calculate, truncation, and
+    parameter adjustment.
+    """
     print()
     print()
     print('*************** specify a nuclide ********************')
     print()
+
+    main_nuclide_msg = "\n number of valence protons and neutrons\n"
+    main_nuclide_msg += "(ex.  2, 3 <CR> or 9Be <CR>)    <CR> to quit : "
     
     while True:
-        nf = raw_input_save( \
-                 '\n number of valence protons and neutrons\n'
-                             + '  (ex.  2, 3 <CR> or 9Be <CR>)    <CR> to quit : ')
-        nf = nf.replace(',', ' ').split()
-        if len(nf)==0: return ("", "", None)
-        if len(nf) == 1: 
-            if nf[0].isdigit(): 
-                nf.append( 0 )
+        input_nuclide_or_valence = raw_input_save(main_nuclide_msg)
+        input_nuclide_or_valence = input_nuclide_or_valence.replace(',', ' ').split()   # TODO: Maybe just .split(",")?
+        if len(input_nuclide_or_valence) == 0:
+            """
+            No input.
+            """
+            return ("", "", None)
+        
+        elif len(input_nuclide_or_valence) == 1:
+            """
+            Example: ['o18'], ['18o'], ['5'].
+            """
+            if input_nuclide_or_valence[0].isdigit():
+                """
+                Assume only number of valence protons is given. Append
+                the default number of valence neutrons (0).
+                Example: ['5'].
+                """
+                input_nuclide_or_valence.append(0)
             else:
-                nf = element2nf( nf[0] )
-                if not nf: continue
-        nf = [int(nf[0]), int(nf[1])]
+                """
+                Example: ['o18'], ['18o'].
+                """
+                input_nuclide_or_valence = element2nf(input_nuclide_or_valence[0])
+                if not input_nuclide_or_valence: continue
+        valence_p_n = [int(input_nuclide_or_valence[0]), int(input_nuclide_or_valence[1])]
         break
 
-    fn_base = fn_element(nf, fn_snt)
+    fn_base = fn_element(valence_p_n, fn_snt)
     while fn_base in list_fn_base: 
-        n = len(fn_snt)-3
+        n = len(fn_snt) - 3
         fn_base = fn_base[:-n] + 'x' + fn_base[-n:]
-    ans = raw_input_save("\n name for script file (default: "+fn_base+" ): ")
+    ans = raw_input_save("\n name for script file (default: " + fn_base + " ): ")
     ans = ans.strip()
     if ans: fn_base = ans
     list_fn_base.append( fn_base )
@@ -413,13 +444,13 @@ def main_nuclide(fn_snt):
     ans = ans.replace(',', ' ').split()
     if not ans: ans = ['+10', '-10']
     if len(ans) == 1 and ans[0].isdigit(): ans = ['+' + ans[0], '-' + ans[0]]
-    list_jpn = [ split_jpn(a, nf) for a in ans ]
+    list_jpn = [ split_jpn(a, valence_p_n) for a in ans ]
     
     for j, p, n, isp in list_jpn:
-        if (j + sum(nf))%2 != 0:
+        if (j + sum(valence_p_n))%2 != 0:
             print("Remove states J, prty, Num = ", j, p, n, isp)
     
-    list_jpn = [ a for a in list_jpn if (a[0] + sum(nf))%2 == 0 ]
+    list_jpn = [ a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0 ]
 
     list_prty = list( set( jpn[1] for jpn in list_jpn ) )
     fn_ptn_list = {-1:fn_base + "_n.ptn", 1:fn_base + "_p.ptn"}
@@ -432,7 +463,7 @@ def main_nuclide(fn_snt):
         else:          
             print('\n truncation for "-" parity state in ', fn_ptn)
 
-        trc_list_prty[prty] = gen_partition.main(fn_snt, fn_ptn, nf, prty)
+        trc_list_prty[prty] = gen_partition.main(fn_snt, fn_ptn, valence_p_n, prty)
 
         if os.path.exists( fn_ptn ): fn_stgin.append( fn_ptn )
 
@@ -594,7 +625,7 @@ def main_nuclide(fn_snt):
     out += 'echo "Finish computing '+fn_base+'.    See ' + fn_summary + '"\n'
     out += 'echo \n\n'
     
-    return fn_base, out, (nf, list_jpn, fn_save_list)
+    return fn_base, out, (valence_p_n, list_jpn, fn_save_list)
 
 def ask_yn(optype):
     ret = False
@@ -612,7 +643,7 @@ def main():
     print("     to generate job script. \n")
     print("-----------------------------\n ")
 
-    cdef = 'N'
+    cdef = 'N'  # Default MPI parallel value.
     n_nodes = 24    # Default value. May be overwritten.
     global is_mpi
     if is_mpi: cdef = is_mpi
@@ -772,9 +803,9 @@ def main():
         """
         Fetch model space (.snt) input from user.
         """
-        fn_snt = raw_input_save( \
-            "\n model space and interaction file name (.snt) \n" \
-            + " (e.g. w or w.snt,  TAB to complete) : " )
+        model_space_msg = "\n model space and interaction file name (.snt) \n"
+        model_space_msg += " (e.g. w or w.snt,  TAB to complete) : "
+        fn_snt = raw_input_save(model_space_msg)
         fn_snt = fn_snt.rstrip()
         
         if fn_snt[-4:] != '.snt': fn_snt = fn_snt + '.snt'
@@ -856,11 +887,10 @@ def main():
 
             fn_input = fn_base + '_' + str(m1) + '_' + str(m2) + '.input'
 
-            outsh += output_transit( fn_base, fn_input, 
-                                     fn_wp1, 
-                                     fn_wp2, 
-                                     (m1, p1, n1, isj1), 
-                                     (m2, p2, n2, isj2) )
+            outsh += output_transit(
+                fn_base, fn_input, fn_wp1, fn_wp2, (m1, p1, n1, isj1),
+                (m2, p2, n2, isj2)
+            )
         return outsh
 
 
@@ -983,28 +1013,30 @@ def main():
                     + outsh 
         elif is_mpi == 'cx400': 
             outsh = \
-'''#!/bin/sh 
-#PJM -L "rscgrp=XXXXXXXX"
-#PJM -L "vnode=''' + str(n_nodes) + '''"
-#PJM -L "vnode-core=28"
-# #PJM --mpi "rank-map-bynode"
-#PJM -P "vn-policy=abs-unpack"
-#PJM -L "elapse=01:00:00"
-#
+            '''#!/bin/sh 
+            #PJM -L "rscgrp=XXXXXXXX"
+            #PJM -L "vnode=''' + str(n_nodes) + '''"
+            #PJM -L "vnode-core=28"
+            # #PJM --mpi "rank-map-bynode"
+            #PJM -P "vn-policy=abs-unpack"
+            #PJM -L "elapse=01:00:00"
+            #
 
-source /center/local/apl/cx/intel/composerxe/bin/compilervars.sh intel64
-source /center/local/apl/cx/intel/impi/4.1.1.036/bin64/mpivars.sh
-source /center/local/apl/cx/intel/mkl/bin/mklvars.sh intel64
+            source /center/local/apl/cx/intel/composerxe/bin/compilervars.sh intel64
+            source /center/local/apl/cx/intel/impi/4.1.1.036/bin64/mpivars.sh
+            source /center/local/apl/cx/intel/mkl/bin/mklvars.sh intel64
 
-export I_MPI_PIN_DOMAIN=omp
-# export OMP_NUM_THREADS=28
-export I_MPI_HYDRA_BOOTSTRAP=rsh
-export I_MPI_HYDRA_BOOTSTRAP_EXEC=/bin/pjrsh
-export I_MPI_HYDRA_HOST_FILE=${PJM_O_NODEINF}
-export FORT90L=-Wl,-Lu
-'''  + outsh 
+            export I_MPI_PIN_DOMAIN=omp
+            # export OMP_NUM_THREADS=28
+            export I_MPI_HYDRA_BOOTSTRAP=rsh
+            export I_MPI_HYDRA_BOOTSTRAP_EXEC=/bin/pjrsh
+            export I_MPI_HYDRA_HOST_FILE=${PJM_O_NODEINF}
+            export FORT90L=-Wl,-Lu
+            '''  + outsh
                     # + 'cd ' + os.getcwd() +'\n\n' \
             print("\n Finish. edit and pjsub ./" + fn_run + "\n")
+            print("LOL")
+            print(outsh)
         elif is_mpi == 'fram': # This option added by JEM / jonkd.
             outsh_tmp = '#!/bin/bash \n'
             outsh_tmp += f'#SBATCH --job-name={fn_run[:-3]} \n'
@@ -1051,10 +1083,5 @@ export FORT90L=-Wl,-Lu
     fp.write( gen_partition.output_ans )
     fp.close()
  
-
-
 if __name__ == "__main__":
     main()
-
-
-
