@@ -24,10 +24,11 @@ is_mpi = False         # single node (w/o MPI)
 #is_mpi = 'ofp-flat'   # Oakforest-PACS at Tokyo and Tsukuba , flat mode
 # is_mpi = "fram" # Fram cluster @ UiT, Norway
 
-n_nodes = 24  # default number of MPI nodes 
+# NOTE: I (jonkd) removed global declaration of n_nodes from main.
+# n_nodes = 24  # default number of MPI nodes 
 # n_nodes = 768
 # if is_mpi in ('k', 'k-micro', 'k-large'): n_nodes = 1152
-if is_mpi in ('cx400',): n_nodes = 4
+# if is_mpi in ('cx400',): n_nodes = 4
 
 var_dict = {
     "max_lanc_vec"  : 200 , 
@@ -612,6 +613,7 @@ def main():
     print("-----------------------------\n ")
 
     cdef = 'N'
+    n_nodes = 24    # Default value. May be overwritten.
     global is_mpi
     if is_mpi: cdef = is_mpi
     if cdef == True: cdef = 'Y'
@@ -630,44 +632,112 @@ def main():
         Fetch MPI input from user. Valid inputs are 'Y/N/preset', and
         'Y/N/preset, number of nodes'.
         """
-        ans = raw_input_save( 
+        mpi_input_ans = raw_input_save( 
             '\n MPI parallel? Y/N/preset, n nodes (default: ' + cdef + ',  TAB to complete) : '
         )
-        arr = ans.replace(',', ' ').split() # Example input: y, 10.
-        if len(arr) == 0: arr = [ cdef, ]
-        if arr[0] in list_param:
-            if (len(arr) == 1) or (arr[1].isdigit()): break
+        mpi_input_arr = mpi_input_ans.replace(',', ' ').split() # Example input: 'y, 10'.
+        if not mpi_input_arr:
+            """
+            Revert to default (cdef) if no input is given.
+            """
+            mpi_input_arr = [ cdef, ]
+        if mpi_input_arr[0] in list_param:
+            if (len(mpi_input_arr) == 1) or (mpi_input_arr[1].isdigit()): break
         print("\n *** Invalid input ***")
 
-    if ans.split(",")[0] == "fram":
+    if mpi_input_ans.split(",")[0] == "fram":
+        """
+        Fetch Fram Slurm input parameters. Added by jonkd.
+        """
+        print("Please input expected program runtime:")
+        
         while True:
-            """
-            Fetch Fram Slurm input parameters. Added by jonkd.
-            """
-            print("Please input expected program runtime:")
             try:
-                fram_n_minutes = int(raw_input_save("minutes: "))
-                fram_n_hours = int(raw_input_save("hours: "))
-                fram_n_days = int(raw_input_save("days: "))
+                fram_n_minutes = raw_input_save("minutes (default 10): ")
+                if fram_n_minutes == "":
+                    fram_n_minutes = 10
+                fram_n_minutes = int(fram_n_minutes)
+                if (fram_n_minutes < 0) or (60 <= fram_n_minutes):
+                    print("Number of minutes must be 0 or larger, and lower than 60.")
+                    continue
+                break
+            
             except ValueError:
                 continue
-            
-            fram_project_name = raw_input_save("project name: ")
-            fram_user_email = raw_input_save("email: ")
-            break
 
-    global n_nodes
-    if len(arr) >= 2: n_nodes = int(arr[1])
-    ans = arr[0]
+        while True:
+            try:
+                fram_n_hours = raw_input_save("hours (default 0): ")
+                if fram_n_hours == "":
+                    fram_n_hours = 0
+                fram_n_hours = int(fram_n_hours)
+                if (fram_n_hours < 0) or (24 <= fram_n_hours):
+                    print("Number of hours must be 0 or larger, and lower than 24.")
+                    continue
+                break
+
+            except ValueError:
+                continue
+
+        while True:
+            try:
+                fram_n_days = raw_input_save("days (default 0): ")
+                if fram_n_days == "":
+                    fram_n_days = 0
+                fram_n_days = int(fram_n_days)
+                if (fram_n_days < 0):
+                    print("Number of days must be 0 or larger.")
+                    continue
+                break
+
+            except ValueError:
+                continue
+
+        fram_project_name = raw_input_save("project name (default NN9464K): ")
+        fram_user_email = raw_input_save("email (default jonkd@uio.no): ")
+
+        # Set default values if no input is given.
+        if fram_project_name == "":
+            fram_project_name = "NN9464K"
+        if fram_user_email == "":
+            fram_user_email = "jonkd@uio.no"
+
+        if len(mpi_input_arr) == 1:
+            while True:
+                try:
+                    n_nodes_input = raw_input_save(f"number of nodes (default {n_nodes}): ")
+                    if n_nodes_input == "":
+                        """
+                        Keep n_nodes default value.
+                        """
+                        break
+                    n_nodes_input = int(n_nodes_input)
+                    if n_nodes_input < 0:
+                        print("The number of nodes must be greater than 0")
+                        continue
+                    n_nodes = n_nodes_input
+                    break
+
+                except ValueError:
+                    print("Please enter an integer:")
+                    continue
+
+    if len(mpi_input_arr) >= 2:
+        """
+        Number of nodes may be given as the second argument in the MPI
+        input.
+        """
+        n_nodes = int(mpi_input_arr[1])
+    mpi_input_ans = mpi_input_arr[0]
     
     readline.parse_and_bind("tab: None")
 
-    if (ans[0] == 'Y') or (ans[0] == 'y'): 
+    if (mpi_input_ans[0] == 'Y') or (mpi_input_ans[0] == 'y'): 
         is_mpi = True
-    elif (ans[0] == 'N') or (ans[0] == 'n'): 
+    elif (mpi_input_ans[0] == 'N') or (mpi_input_ans[0] == 'n'): 
         is_mpi = False
     else: 
-        is_mpi = ans
+        is_mpi = mpi_input_ans
 
     if is_mpi == 'oakforest-pacs': is_mpi = 'ofp'
 
@@ -808,16 +878,31 @@ def main():
 
     fn_run += ".sh"
 
-    def check_copy(*fns):
-        for fn in fns:
-            binfn = bindir+'/'+fn
-            if not os.path.exists( binfn ):
-                print("\n*** WARNING: NOT found "+bindir+'/'+fn, " ***")
+    def check_copy(*fnames):
+        """
+        Copy needed files (typically 'kshell.exe', 'transit.exe',
+        'collect_logs.py') from <kshell_install_dir/bin> to the run
+        directory (the directory where this file is called from).
+
+        Print a warning message if the files do not exist and cannot be
+        copied. This happens if the source files are not yet compiled.
+        Program does not terminate by this warning.
+
+        Parameters
+        ----------
+        *fnames : strings
+            Names of files to be copied. Input filenames are gathered
+            into a tuple. Input must be individual strings of filenames.
+        """
+        for fname in fnames:
+            binfname = bindir + '/' + fname
+            if not os.path.exists( binfname ):
+                print("\n*** WARNING: NOT found " + bindir + '/' + fname, " ***")
             else:
                 try:
-                    shutil.copy( binfn, '.' )
+                    shutil.copy( binfname, '.' )
                 except IOError:
-                    print( "\n*** WARNING: copy " + binfn \
+                    print( "\n*** WARNING: copy " + binfname \
                         + " to current dir. failed ***")
     # header
     if is_mpi:
@@ -945,7 +1030,7 @@ export FORT90L=-Wl,-Lu
                     + '# #PJM -L "elapse=24:00:00"\n\n' \
                     + outsh 
                     # + 'cd ' + os.getcwd() +'\n\n' \
-            print("\n Finish. edit and pjsub ./"+fn_run+"\n")
+            print("\n Finish. edit and pjsub ./" + fn_run + "\n")
     else:
         check_copy('kshell.exe', 'transit.exe', 'collect_logs.py') 
         outsh = '#!/bin/sh \n' \
