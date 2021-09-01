@@ -42,10 +42,10 @@ var_dict = {
     "beta_cm"       : 0.0, 
 }
 
-fn_stgin  = [ 'kshell.exe', 'transit.exe', 'collect_logs.py' ]
-fn_stgout = [ 'tmp_snapshot_*']
+stgin_filenames  = [ 'kshell.exe', 'transit.exe', 'collect_logs.py' ]
+stgout_filenames = [ 'tmp_snapshot_*']
 
-list_fn_base = []
+base_filename_list = []   # If several nuclides are specified. NOTE: Might be possible to remove this from the global scope.
 snt_parameters = {} # Parameters will be read from the .snt file and put in this dictionary.
 
 elements = [
@@ -85,11 +85,18 @@ class SimpleCompleter(object):
 
 readline.set_completer_delims('')
 
-def split_jpn(jpn, nf):
+def split_jpn(jpn: str, valence_p_n: list) -> tuple:
+    """
+    tja
+    """
     idx = jpn.find("+")
     p = 1
     arr = jpn.split("+")
-    if idx == -1:
+    if idx == -1:   # NOTE: if not idx more Pythonic?
+        """
+        '+' not found, means that input is either for negative parity or
+        invalid format.
+        """
         idx = jpn.find("-")
         if idx == -1: raise "illegal format"
         p = -1
@@ -97,28 +104,53 @@ def split_jpn(jpn, nf):
     if arr[0]: is_jproj = True
     else:      is_jproj = False
     if arr[0]: j = int(float(arr[0])*2) 
-    else:      j = sum(nf)%2
+    else:      j = sum(valence_p_n)%2
     if arr[1]: n = int(arr[1]) 
     else:      n = 10
-    return j,p,n,is_jproj
     
-def fn_element(nf, fn_snt):
-    corep, coren = snt_parameters['ncore']
-    Z = abs(corep)
-    # Z +=  nf[0] if corep>0 else -nf[0]
-    if corep > 0: Z +=  nf[0]
-    else:         Z += -nf[0]
-    mass = Z + abs(coren)
-    if coren > 0: mass +=  nf[1]
-    else:         mass += -nf[1]
-    return elements[Z] + str(mass) + "_" + fn_snt[:-4]
+    return j, p, n, is_jproj
+    
+def create_base_filename(valence_p_n: tuple, model_space_filename: str) -> str:
+    """
+    Take in the number of valence protons and neutrons, along with the
+    model space filename and create base filename for output script.
+    Example output: 'O18_usda'.
+
+    Parameters
+    ----------
+    valence_p_n:
+        A tuple containing the number of valence protons and neutrons.
+
+    model_space_filename:
+        Example: 'usda.snt'.
+    """
+    core_protons, core_neutrons = snt_parameters['ncore']
+    Z = abs(core_protons)
+    # Z +=  valence_p_n[0] if core_protons>0 else -valence_p_n[0]
+    if core_protons > 0:
+        Z +=  valence_p_n[0]
+    else:
+        Z += -valence_p_n[0]
+    
+    mass = Z + abs(core_neutrons)
+    
+    if core_neutrons > 0:
+        mass +=  valence_p_n[1]
+    else:
+        mass += -valence_p_n[1]
+
+    return elements[Z] + str(mass) + "_" + model_space_filename[:-4]
 
 def element2nf(input_nuclide: str) -> tuple:
     """
+    Convert atomic mass and element symbol (example: ['o18'], ['18o'])
+    into tuple of valence protons and neutrons (example: (0, 2)).
+    
     Parameters
     ----------
     input_nuclide:
-
+        String of atomic mass + element symbol, example: ['o18'],
+        ['18o'].
     """
     atomic_mass_match = re.search(r'\d+', input_nuclide)    # Match atomic mass.
     if not atomic_mass_match:
@@ -264,7 +296,7 @@ class ExternalSyntaxError(Exception):
     """
     pass
 
-def read_snt(fn_snt):
+def read_snt(model_space_filename):
     """
     Read model space file (.snt), extract information about orbit
     properties (occupation, angular momentum, etc.) and save in snt_parameters
@@ -272,10 +304,10 @@ def read_snt(fn_snt):
 
     Parameters
     ----------
-    fn_snt : string
+    model_space_filename : string
         Path to snt file.
     """
-    fp = open( fn_snt, 'r')
+    fp = open( model_space_filename, 'r')
     np, nn, ncp, ncn  = read_comment_skip(fp)
     norb, lorb, jorb, torb = [], [], [], []
     npn = [np, nn]  # NOTE: Not in use.
@@ -284,7 +316,7 @@ def read_snt(fn_snt):
     for i in range(np + nn):
         arr = read_comment_skip(fp)
         if (i + 1) != int(arr[0]): 
-            msg = f"Syntax error in {fn_snt}. Expected {i + 1} got {arr[0]}."
+            msg = f"Syntax error in {model_space_filename}. Expected {i + 1} got {arr[0]}."
             raise ExternalSyntaxError(msg)
 
         norb.append( int(arr[1]) )
@@ -301,9 +333,8 @@ def read_snt(fn_snt):
     snt_parameters['jorb'] = jorb          # z proj. of total spin of each orbit.
     snt_parameters['torb'] = torb          # Isospin of each orbit (proton or neutron).
     snt_parameters['nfmax'] = nfmax
-    return
     
-def check_cm_snt(fn_snt):
+def check_cm_snt(model_space_filename):
     # return whether Lawson term is required or not
     is_cm = False
     nc = snt_parameters['ncore']
@@ -339,7 +370,7 @@ def exec_string(mode, fn_input, fn_log):
     else:
         return 'nice' + fn_exe + fn_input + ' > ' + fn_log + ' 2>&1 \n\n'
 
-def output_transit(fn_base, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
+def output_transit(base_filename, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
     m1, np1, ne1, isj1 = jpn1
     m2, np2, ne2, isj2 = jpn2
 
@@ -356,10 +387,10 @@ def output_transit(fn_base, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
     else:    jchar1 = '_m'
     if isj2: jchar2 = '_j'
     else:    jchar2 = '_m'
-    fn_log = 'log_' + fn_base + '_tr' \
+    fn_log = 'log_' + base_filename + '_tr' \
         + jchar1 + str(m1) + prty2str(np1) \
         + jchar2 + str(m2) + prty2str(np2) + '.txt'
-    fn_stgout.append( fn_log )
+    stgout_filenames.append( fn_log )
 
     out += 'echo "start running ' + fn_log + ' ..."\n' 
     out += 'cat > ' + fn_input + ' <<EOF\n' \
@@ -382,18 +413,21 @@ def output_transit(fn_base, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
 
     return out
 
-def main_nuclide(fn_snt):
+def main_nuclide(model_space_filename: str) -> tuple:
     """
     Prompt for nuclide, number of states to calculate, truncation, and
     parameter adjustment.
+
+    Parameters
+    ----------
+    model_space_filename:
+        Example: 'usda.snt'.
     """
-    print()
-    print()
-    print('*************** specify a nuclide ********************')
-    print()
+    print("\n\n*************** specify a nuclide ********************\n")
 
     main_nuclide_msg = "\n number of valence protons and neutrons\n"
     main_nuclide_msg += "(ex.  2, 3 <CR> or 9Be <CR>)    <CR> to quit : "
+    main_nuclide_syntax_msg = "Nuclide input must be of the syntax: '#p', '#p, #n', 'AX', 'XA'"
     
     while True:
         input_nuclide_or_valence = raw_input_save(main_nuclide_msg)
@@ -403,6 +437,8 @@ def main_nuclide(fn_snt):
             No input.
             """
             return ("", "", None)
+            # print(main_nuclide_syntax_msg)
+            # continue
         
         elif len(input_nuclide_or_valence) == 1:
             """
@@ -414,25 +450,42 @@ def main_nuclide(fn_snt):
                 the default number of valence neutrons (0).
                 Example: ['5'].
                 """
-                input_nuclide_or_valence.append(0)
+                # input_nuclide_or_valence.append(0)
+                valence_p_n = [int(input_nuclide_or_valence[0]), 0]
             else:
                 """
-                Example: ['o18'], ['18o'].
+                Example: ['o18'], ['18o'] or something else entirely,
+                like ['uptheirons!'].
                 """
-                input_nuclide_or_valence = element2nf(input_nuclide_or_valence[0])
-                if not input_nuclide_or_valence: continue
-        valence_p_n = [int(input_nuclide_or_valence[0]), int(input_nuclide_or_valence[1])]
+                valence_p_n = element2nf(input_nuclide_or_valence[0])
+                print(f"{valence_p_n=}")
+                print("AIDZ")
+                if not valence_p_n:
+                    print(main_nuclide_syntax_msg)
+                    continue
+        
+        elif len(input_nuclide_or_valence) == 2:
+            valence_p_n = [int(input_nuclide_or_valence[0]), int(input_nuclide_or_valence[1])]
+
+        else:
+            print(main_nuclide_syntax_msg)
+            continue
+        
         break
+    
+    base_filename = create_base_filename(valence_p_n, model_space_filename)
+    while base_filename in base_filename_list:
+        """
+        If the same nuclide is specified several times, an 'x' is
+        inserted into the script filename to differentiate between them.
+        """
+        n = len(model_space_filename) - 3
+        base_filename = base_filename[:-n] + 'x' + base_filename[-n:]
 
-    fn_base = fn_element(valence_p_n, fn_snt)
-    while fn_base in list_fn_base: 
-        n = len(fn_snt) - 3
-        fn_base = fn_base[:-n] + 'x' + fn_base[-n:]
-    ans = raw_input_save("\n name for script file (default: " + fn_base + " ): ")
-    ans = ans.strip()
-    if ans: fn_base = ans
-    list_fn_base.append( fn_base )
-
+    input_base_filename = raw_input_save("\n name for script file (default: " + base_filename + " ): ")
+    input_base_filename = input_base_filename.strip()
+    if input_base_filename: base_filename = input_base_filename
+    base_filename_list.append( base_filename )
 
     print("\n J, parity, number of lowest states  ")
     print("  (ex. 10           for 10 +parity, 10 -parity states w/o J-proj. (default)")
@@ -440,11 +493,23 @@ def main_nuclide(fn_snt):
     print("       0+3, 2+1     for lowest three 0+ states and one 2+ states, ")
     print("       1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :")
 
-    ans = raw_input_save()
-    ans = ans.replace(',', ' ').split()
-    if not ans: ans = ['+10', '-10']
-    if len(ans) == 1 and ans[0].isdigit(): ans = ['+' + ans[0], '-' + ans[0]]
-    list_jpn = [ split_jpn(a, valence_p_n) for a in ans ]
+    input_n_states = raw_input_save()
+    input_n_states = input_n_states.replace(',', ' ').split()   # TODO: Just use .split(",")?
+    
+    if not input_n_states:
+        """
+        If no input is given, go to default values.
+        """
+        input_n_states = ['+10', '-10']
+    
+    if (len(input_n_states) == 1) and (input_n_states[0].isdigit()):
+        """
+        If only the number of states is specified, not parity. Example:
+        '100'. Then 100 + and - states are chosen.
+        """
+        input_n_states = ['+' + input_n_states[0], '-' + input_n_states[0]]
+    
+    list_jpn = [split_jpn(state, valence_p_n) for state in input_n_states]
     
     for j, p, n, isp in list_jpn:
         if (j + sum(valence_p_n))%2 != 0:
@@ -453,8 +518,8 @@ def main_nuclide(fn_snt):
     list_jpn = [ a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0 ]
 
     list_prty = list( set( jpn[1] for jpn in list_jpn ) )
-    fn_ptn_list = {-1:fn_base + "_n.ptn", 1:fn_base + "_p.ptn"}
-    #    fn_input = fn_base + ".input"
+    fn_ptn_list = {-1:base_filename + "_n.ptn", 1:base_filename + "_p.ptn"}
+    #    fn_input = base_filename + ".input"
     trc_list_prty = {-1:None, 1:None}
     for prty in list_prty:
         fn_ptn = fn_ptn_list[prty]
@@ -463,9 +528,9 @@ def main_nuclide(fn_snt):
         else:          
             print('\n truncation for "-" parity state in ', fn_ptn)
 
-        trc_list_prty[prty] = gen_partition.main(fn_snt, fn_ptn, valence_p_n, prty)
+        trc_list_prty[prty] = gen_partition.main(model_space_filename, fn_ptn, valence_p_n, prty)
 
-        if os.path.exists( fn_ptn ): fn_stgin.append( fn_ptn )
+        if os.path.exists( fn_ptn ): stgin_filenames.append( fn_ptn )
 
     #-----------------------------------------------------
 
@@ -521,7 +586,7 @@ def main_nuclide(fn_snt):
 
     # ---------------------------------------------
 
-    out = '# ---------- ' + fn_base + ' --------------\n'
+    shell_file_content = '# ---------- ' + base_filename + ' --------------\n'
 
     list_jpn = [ jpn for jpn in list_jpn if os.path.isfile( fn_ptn_list[ jpn[1] ]) ]
 
@@ -539,13 +604,13 @@ def main_nuclide(fn_snt):
         if (trc_list_prty[nparity] is not None) and (not 'orbs_ratio' in var_dict.keys()):
             var_dict[ 'orbs_ratio' ] = trc_list_prty[nparity]
 
-        fn_save_wave = fn_base + jchar + str(mtot) \
+        fn_save_wave = base_filename + jchar + str(mtot) \
                        + prty2str(nparity) + '.wav'
-        fn_stgout.append( fn_save_wave )
+        stgout_filenames.append( fn_save_wave )
         fn_save_wave = '"' + fn_save_wave + '"'
-        fn_log = 'log_' + fn_base + jchar + str(mtot) \
+        fn_log = 'log_' + base_filename + jchar + str(mtot) \
                  + prty2str(nparity) + '.txt'
-        fn_stgout.append( fn_log )
+        stgout_filenames.append( fn_log )
         var_dict[ 'fn_save_wave' ] = fn_save_wave
         fn_save_list[ (mtot,nparity,n_eigen,is_proj) ] \
             = fn_save_wave, var_dict[ 'fn_ptn' ] 
@@ -557,23 +622,23 @@ def main_nuclide(fn_snt):
                    int(var_dict[ 'n_restart_vec' ]) + 50 )
         var_dict[ 'mtot' ] = mtot
         
-        fn_input = fn_base + '_' + str(mtot) + '.input'
+        fn_input = base_filename + '_' + str(mtot) + '.input'
 
         if 'no_save' in var_dict.keys():
             del var_dict[ 'fn_save_wave' ]
 
-        out += 'echo "start running ' + fn_log + ' ..."\n' 
-        out += 'cat > ' + fn_input + ' <<EOF\n' \
+        shell_file_content += 'echo "start running ' + fn_log + ' ..."\n' 
+        shell_file_content += 'cat > ' + fn_input + ' <<EOF\n' \
             +  '&input\n'
-        out += print_var_dict( var_dict, skip=('is_obtd', 'no_save') )
-        out += '&end\n' \
+        shell_file_content += print_var_dict( var_dict, skip=('is_obtd', 'no_save') )
+        shell_file_content += '&end\n' \
             +  'EOF\n'
         
-        out +=  exec_string('kshell', fn_input, fn_log)
+        shell_file_content +=  exec_string('kshell', fn_input, fn_log)
 
         fn_ptn = fn_ptn_list[nparity]
 
-        out += 'rm -f tmp_snapshot_' + fn_ptn + '_' + str(mtot) + '_* ' + \
+        shell_file_content += 'rm -f tmp_snapshot_' + fn_ptn + '_' + str(mtot) + '_* ' + \
                'tmp_lv_' + fn_ptn + '_' + str(mtot) + '_* ' + \
                fn_input + ' \n\n\n'
 
@@ -584,13 +649,13 @@ def main_nuclide(fn_snt):
     is_transit = False
     ans = raw_input_save( \
       "\n compute transition probabilities (E2/M1/E1) for \n    " \
-                          + fn_base +' ? Y/N (default: N) : ')
+                          + base_filename +' ? Y/N (default: N) : ')
     if len(ans) >0:
         if ans[0] == 'Y' or ans[0] == 'y': is_transit = True
         if ans[0] == 'N' or ans[0] == 'n': is_transit = False
     if is_transit: 
         is_e2m1, is_e1 = True,  True
-        out += "# --------------- transition probabilities --------------\n\n"
+        shell_file_content += "# --------------- transition probabilities --------------\n\n"
     else: 
         is_e2m1, is_e1 = False, False
 
@@ -608,24 +673,24 @@ def main_nuclide(fn_snt):
             if is_e1:
                 if abs(m1-m2) <= 2 and np1 != np2: is_skip = False
             if is_skip: continue
-            fn_input = fn_base + '_' + str(m1) + '_' + str(m2) + '.input'
-            out += output_transit(fn_base, fn_input, 
+            fn_input = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
+            shell_file_content += output_transit(base_filename, fn_input, 
                                   fn_save_list[(m1,np1,ne1,isj1)], 
                                   fn_save_list[(m2,np2,ne2,isj2)], 
                                   (m1, np1, ne1, isj1), 
                                   (m2, np2, ne2, isj2) )
-            out +='rm -f ' + fn_input + '\n\n\n'
+            shell_file_content +='rm -f ' + fn_input + '\n\n\n'
 
-    fn_summary = 'summary_' + fn_base + '.txt'
-    fn_stgout.append( fn_summary )
-    out += "./collect_logs.py log_*" + fn_base \
+    fn_summary = 'summary_' + base_filename + '.txt'
+    stgout_filenames.append( fn_summary )
+    shell_file_content += "./collect_logs.py log_*" + base_filename \
         + "* > " + fn_summary + "\n"
-    # out += 'rm -f tmp_snapshot_' + fn_base + '* tmp_lv_' + fn_base + '* ' \
+    # shell_file_content += 'rm -f tmp_snapshot_' + base_filename + '* tmp_lv_' + base_filename + '* ' \
     #       + fn_input + ' \n'
-    out += 'echo "Finish computing '+fn_base+'.    See ' + fn_summary + '"\n'
-    out += 'echo \n\n'
+    shell_file_content += 'echo "Finish computing '+base_filename+'.    See ' + fn_summary + '"\n'
+    shell_file_content += 'echo \n\n'
     
-    return fn_base, out, (valence_p_n, list_jpn, fn_save_list)
+    return base_filename, shell_file_content, (valence_p_n, list_jpn, fn_save_list)
 
 def ask_yn(optype):
     ret = False
@@ -805,55 +870,58 @@ def main():
         """
         model_space_msg = "\n model space and interaction file name (.snt) \n"
         model_space_msg += " (e.g. w or w.snt,  TAB to complete) : "
-        fn_snt = raw_input_save(model_space_msg)
-        fn_snt = fn_snt.rstrip()
+        model_space_filename = raw_input_save(model_space_msg)
+        model_space_filename = model_space_filename.rstrip()
         
-        if fn_snt[-4:] != '.snt': fn_snt = fn_snt + '.snt'
-        if os.path.isfile( fn_snt ):
+        if model_space_filename[-4:] != '.snt': model_space_filename = model_space_filename + '.snt'
+        if os.path.isfile( model_space_filename ):
             """
             Check if model space is defined.
             """
             break
-        elif os.path.isfile( bindir + "/../snt/" + fn_snt ):
+        elif os.path.isfile( bindir + "/../snt/" + model_space_filename ):
             """
             Check if model space is defined.
             """
-            shutil.copy( bindir + "/../snt/" + fn_snt, ".")
+            shutil.copy( bindir + "/../snt/" + model_space_filename, ".")
             break
         
         print("\n *** Invalid: .snt file NOT found  ***")
         
     readline.parse_and_bind("tab: None")
-    fn_stgin.append(fn_snt)
-    read_snt(fn_snt)
+    stgin_filenames.append(model_space_filename)
+    read_snt(model_space_filename)
 
-    var_dict[ 'fn_int' ] =  '"' + fn_snt + '"'
-    if (var_dict[ 'beta_cm' ] == 0.0) and check_cm_snt(fn_snt): 
+    var_dict[ 'fn_int' ] =  '"' + model_space_filename + '"'
+    if (var_dict[ 'beta_cm' ] == 0.0) and check_cm_snt(model_space_filename): 
         var_dict[ 'beta_cm' ] = 10.0
     if is_mpi: var_dict['mode_lv_hdd'] = 0
     if snt_parameters['ncore'] == (8,8): var_dict['hw_type'] = 2
 
     fn_run = ''
-    fn_snt_base = fn_snt[:-4]
+    fn_snt_base = model_space_filename[:-4]
     outsh = ''
 
     states = []
     while True:
-        fn_base, out, details = main_nuclide(fn_snt)
-        if not out: 
+        """
+        Fetch nuclide information from user.
+        """
+        base_filename, shell_file_content, details = main_nuclide(model_space_filename)
+        if not shell_file_content: 
             print 
             break
         nf, list_jpn, fn_save_list = details
-        for m,p,n,isj  in list_jpn:
-            states.append( (nf, m, p, n, isj, fn_base, fn_save_list[(m,p,n,isj)] ) )
-        outsh += out
+        for m, p, n, isj  in list_jpn:
+            states.append( (nf, m, p, n, isj, base_filename, fn_save_list[(m,p,n,isj)] ) )
+        outsh += shell_file_content
         if fn_run: 
             if len(fn_run)> len(fn_snt_base) \
                and fn_run[-len(fn_snt_base):] == fn_snt_base:
                 fn_run = fn_run[:-len(fn_snt_base)]
             else:
                 fn_run += '_'
-        fn_run += fn_base
+        fn_run += base_filename
 
     if not fn_run: 
         print("\n*** NO input ***\n")
@@ -877,18 +945,18 @@ def main():
         outsh = ''
         for (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1), \
             (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) in pair: 
-            fn_base = fn_base1
-            if len(fn_base)> len(fn_snt_base) \
-               and fn_base[-len(fn_snt_base):] == fn_snt_base:
-                fn_base = fn_base[:-len(fn_snt_base)]
+            base_filename = fn_base1
+            if len(base_filename)> len(fn_snt_base) \
+               and base_filename[-len(fn_snt_base):] == fn_snt_base:
+                base_filename = base_filename[:-len(fn_snt_base)]
             else:
-                fn_base += '_'
-            fn_base += fn_base2
+                base_filename += '_'
+            base_filename += fn_base2
 
-            fn_input = fn_base + '_' + str(m1) + '_' + str(m2) + '.input'
+            fn_input = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
 
             outsh += output_transit(
-                fn_base, fn_input, fn_wp1, fn_wp2, (m1, p1, n1, isj1),
+                base_filename, fn_input, fn_wp1, fn_wp2, (m1, p1, n1, isj1),
                 (m2, p2, n2, isj2)
             )
         return outsh
@@ -966,10 +1034,10 @@ def main():
                     # + 'cd ' + os.getcwd() +'\n\n' \
         elif is_mpi == 'k-small': 
             outstg = '#PJM --stgin "'
-            for fn in fn_stgin: outstg += './'+fn+' '
+            for fn in stgin_filenames: outstg += './'+fn+' '
             outstg += './"\n'
             outstg += '#PJM --stgout "'
-            for fn in fn_stgout: outstg += './'+fn+' '
+            for fn in stgout_filenames: outstg += './'+fn+' '
             outstg += './"\n\n'
             outsh = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=small"\n' \
@@ -981,10 +1049,10 @@ def main():
                     + outsh 
         elif is_mpi == 'k-large': 
             outstg = '#PJM --stgin "'
-            for fn in fn_stgin: outstg += './'+fn+' '
+            for fn in stgin_filenames: outstg += './'+fn+' '
             outstg += './"\n'
             outstg += '#PJM --stgout "'
-            for fn in fn_stgout: outstg += './'+fn+' '
+            for fn in stgout_filenames: outstg += './'+fn+' '
             outstg += './"\n\n'
             outsh = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=large"\n' \
@@ -1035,8 +1103,7 @@ def main():
             '''  + outsh
                     # + 'cd ' + os.getcwd() +'\n\n' \
             print("\n Finish. edit and pjsub ./" + fn_run + "\n")
-            print("LOL")
-            print(outsh)
+
         elif is_mpi == 'fram': # This option added by JEM / jonkd.
             outsh_tmp = '#!/bin/bash \n'
             outsh_tmp += f'#SBATCH --job-name={fn_run[:-3]} \n'
@@ -1070,7 +1137,7 @@ def main():
                 + 'export GFORTRAN_UNBUFFERED_PRECONNECTED=y\n' \
                 + '# ulimit -s unlimited\n\n' \
                 + outsh 
-        print("\n Finish. Run ./"+fn_run+"\n")
+        print("\n Finish. Run ./" + fn_run + "\n")
 
 
     fp_run = open( fn_run, 'w' )
