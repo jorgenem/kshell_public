@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import gen_partition
 import sys, os, os.path, shutil, readline, re
+import gen_partition
 from gen_partition import raw_input_save
 
 bindir = os.path.dirname( __file__ )    # Full path to the directory of this file.
@@ -38,7 +38,8 @@ var_dict = {
     "n_block"       : 0, 
     "eff_charge"    : [1.5, 0.5] , 
     "gl"            : [1.0, 0.0], 
-    "gs"            : [3.910, -2.678],  # [ 5.585, -3.826],
+    # "gs"            : [3.910, -2.678],
+    "gs"            : [ 5.585, -3.826],
     "beta_cm"       : 0.0, 
 }
 
@@ -458,8 +459,6 @@ def main_nuclide(model_space_filename: str) -> tuple:
                 like ['uptheirons!'].
                 """
                 valence_p_n = element2nf(input_nuclide_or_valence[0])
-                print(f"{valence_p_n=}")
-                print("AIDZ")
                 if not valence_p_n:
                     print(main_nuclide_syntax_msg)
                     continue
@@ -472,7 +471,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
             continue
         
         break
-    
+    # NOTE: This is where I left off!
     base_filename = create_base_filename(valence_p_n, model_space_filename)
     while base_filename in base_filename_list:
         """
@@ -488,7 +487,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
     base_filename_list.append( base_filename )
 
     print("\n J, parity, number of lowest states  ")
-    print("  (ex. 10           for 10 +parity, 10 -parity states w/o J-proj. (default)")
+    print("  (ex. 100          for 10 +parity, 10 -parity states w/o J-proj. (default)")
     print("       -5           for lowest five -parity states, ")
     print("       0+3, 2+1     for lowest three 0+ states and one 2+ states, ")
     print("       1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :")
@@ -500,7 +499,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
         """
         If no input is given, go to default values.
         """
-        input_n_states = ['+10', '-10']
+        input_n_states = ['+100', '-100']
     
     if (len(input_n_states) == 1) and (input_n_states[0].isdigit()):
         """
@@ -592,7 +591,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
 
     
     fn_save_list = {}
-    for mtot,nparity,n_eigen,is_proj in list_jpn:
+    for mtot, nparity, n_eigen, is_proj in list_jpn:
         if is_proj: 
             jchar = '_j'
             var_dict[ 'is_double_j' ] = '.true.'
@@ -646,11 +645,11 @@ def main_nuclide(model_space_filename: str) -> tuple:
 
 
 
-    is_transit = False
+    is_transit = True
     ans = raw_input_save( \
       "\n compute transition probabilities (E2/M1/E1) for \n    " \
-                          + base_filename +' ? Y/N (default: N) : ')
-    if len(ans) >0:
+                          + base_filename +' ? Y/N (default: Y) : ')
+    if len(ans) > 0:
         if ans[0] == 'Y' or ans[0] == 'y': is_transit = True
         if ans[0] == 'N' or ans[0] == 'n': is_transit = False
     if is_transit: 
@@ -828,9 +827,9 @@ def main():
     
     readline.parse_and_bind("tab: None")
 
-    if (mpi_input_ans[0] == 'Y') or (mpi_input_ans[0] == 'y'): 
+    if mpi_input_ans[0].lower() == 'y':
         is_mpi = True
-    elif (mpi_input_ans[0] == 'N') or (mpi_input_ans[0] == 'n'): 
+    elif mpi_input_ans[0].lower() == 'n':
         is_mpi = False
     else: 
         is_mpi = mpi_input_ans
