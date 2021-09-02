@@ -88,28 +88,44 @@ readline.set_completer_delims('')
 
 def split_jpn(jpn: str, valence_p_n: list) -> tuple:
     """
-    tja
+    list_jpn = [split_jpn(state, valence_p_n) for state in input_n_states]
+    1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states)
+    
+    Parameters
+    ----------
+    jpn:
+
+    valence_p_n:
+        Tuple containing the number of valence protons and neutrons
     """
     idx = jpn.find("+")
-    p = 1
+    parity = 1
     arr = jpn.split("+")
-    if idx == -1:   # NOTE: if not idx more Pythonic?
+    
+    if not idx:
         """
         '+' not found, means that input is either for negative parity or
         invalid format.
         """
         idx = jpn.find("-")
-        if idx == -1: raise "illegal format"
-        p = -1
+        if not idx: raise "illegal format"
+        parity = -1
         arr = jpn.split("-")
+    
     if arr[0]: is_jproj = True
     else:      is_jproj = False
     if arr[0]: j = int(float(arr[0])*2) 
     else:      j = sum(valence_p_n)%2
-    if arr[1]: n = int(arr[1]) 
-    else:      n = 10
+    if arr[1]:
+        """
+        Example: '1.5+3'.split('+') >>> ['1.5', '3'], thus arr[1] is the
+        number of states to be calculated.
+        """
+        n_states = int(arr[1]) 
+    else:
+        n_states = 10
     
-    return j, p, n, is_jproj
+    return j, parity, n_states, is_jproj
     
 def create_base_filename(valence_p_n: tuple, model_space_filename: str) -> str:
     """
@@ -440,7 +456,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
             """
             No input.
             """
-            return ("", "", None)
+            return "", "", None, None, None
         
         elif len(input_nuclide_or_valence) == 1:
             """
