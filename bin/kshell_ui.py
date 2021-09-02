@@ -142,7 +142,7 @@ def create_base_filename(valence_p_n: tuple, model_space_filename: str) -> str:
 
     return elements[Z] + str(mass) + "_" + model_space_filename[:-4]
 
-def element2nf(input_nuclide: str) -> tuple:
+def extract_valence_protons_and_neutrons(input_nuclide: str) -> tuple:
     """
     Convert atomic mass and element symbol (example: ['o18'], ['18o'])
     into tuple of valence protons and neutrons (example: (0, 2)).
@@ -431,15 +431,16 @@ def main_nuclide(model_space_filename: str) -> tuple:
     main_nuclide_syntax_msg = "Nuclide input must be of the syntax: '#p', '#p, #n', 'AX', 'XA'"
     
     while True:
+        """
+        Prompt for nuclide information.
+        """
         input_nuclide_or_valence = raw_input_save(main_nuclide_msg)
-        input_nuclide_or_valence = input_nuclide_or_valence.replace(',', ' ').split()   # TODO: Maybe just .split(",")?
+        input_nuclide_or_valence = input_nuclide_or_valence.replace(',', ' ').split()   # TODO: Maybe just .split(",")? No, then it does not support values separated by whitespace.
         if len(input_nuclide_or_valence) == 0:
             """
             No input.
             """
             return ("", "", None)
-            # print(main_nuclide_syntax_msg)
-            # continue
         
         elif len(input_nuclide_or_valence) == 1:
             """
@@ -451,14 +452,13 @@ def main_nuclide(model_space_filename: str) -> tuple:
                 the default number of valence neutrons (0).
                 Example: ['5'].
                 """
-                # input_nuclide_or_valence.append(0)
                 valence_p_n = [int(input_nuclide_or_valence[0]), 0]
             else:
                 """
                 Example: ['o18'], ['18o'] or something else entirely,
                 like ['uptheirons!'].
                 """
-                valence_p_n = element2nf(input_nuclide_or_valence[0])
+                valence_p_n = extract_valence_protons_and_neutrons(input_nuclide_or_valence[0])
                 if not valence_p_n:
                     print(main_nuclide_syntax_msg)
                     continue
@@ -487,13 +487,13 @@ def main_nuclide(model_space_filename: str) -> tuple:
     base_filename_list.append( base_filename )
 
     print("\n J, parity, number of lowest states  ")
-    print("  (ex. 100          for 10 +parity, 10 -parity states w/o J-proj. (default)")
+    print("  (ex. 100          for 100 +parity, 100 -parity states w/o J-proj. (default)")
     print("       -5           for lowest five -parity states, ")
     print("       0+3, 2+1     for lowest three 0+ states and one 2+ states, ")
     print("       1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :")
 
     input_n_states = raw_input_save()
-    input_n_states = input_n_states.replace(',', ' ').split()   # TODO: Just use .split(",")?
+    input_n_states = input_n_states.replace(',', ' ').split()
     
     if not input_n_states:
         """
@@ -689,7 +689,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
     shell_file_content += 'echo "Finish computing '+base_filename+'.    See ' + fn_summary + '"\n'
     shell_file_content += 'echo \n\n'
     
-    return base_filename, shell_file_content, (valence_p_n, list_jpn, fn_save_list)
+    return base_filename, shell_file_content, valence_p_n, list_jpn, fn_save_list
 
 def ask_yn(optype):
     ret = False
@@ -873,16 +873,16 @@ def main():
         model_space_filename = model_space_filename.rstrip()
         
         if model_space_filename[-4:] != '.snt': model_space_filename = model_space_filename + '.snt'
-        if os.path.isfile( model_space_filename ):
+        if os.path.isfile(model_space_filename):
             """
             Check if model space is defined.
             """
             break
-        elif os.path.isfile( bindir + "/../snt/" + model_space_filename ):
+        elif os.path.isfile(bindir + "/../snt/" + model_space_filename):
             """
             Check if model space is defined.
             """
-            shutil.copy( bindir + "/../snt/" + model_space_filename, ".")
+            shutil.copy(bindir + "/../snt/" + model_space_filename, ".")
             break
         
         print("\n *** Invalid: .snt file NOT found  ***")
@@ -906,13 +906,12 @@ def main():
         """
         Fetch nuclide information from user.
         """
-        base_filename, shell_file_content, details = main_nuclide(model_space_filename)
-        if not shell_file_content: 
-            print 
-            break
-        nf, list_jpn, fn_save_list = details
+        base_filename, shell_file_content, valence_p_n, list_jpn, fn_save_list = \
+            main_nuclide(model_space_filename)
+        
+        if not shell_file_content: break
         for m, p, n, isj  in list_jpn:
-            states.append( (nf, m, p, n, isj, base_filename, fn_save_list[(m,p,n,isj)] ) )
+            states.append( (valence_p_n, m, p, n, isj, base_filename, fn_save_list[(m,p,n,isj)] ) )
         outsh += shell_file_content
         if fn_run: 
             if len(fn_run)> len(fn_snt_base) \
