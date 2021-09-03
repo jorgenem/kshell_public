@@ -90,7 +90,7 @@ def split_jpn(jpn: str, valence_p_n: list) -> tuple:
     """
     list_jpn = [split_jpn(state, valence_p_n) for state in input_n_states]
     1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states)
-    
+
     Parameters
     ----------
     jpn:
@@ -102,20 +102,40 @@ def split_jpn(jpn: str, valence_p_n: list) -> tuple:
     parity = 1
     arr = jpn.split("+")
     
-    if not idx:
+    if idx == -1:
         """
         '+' not found, means that input is either for negative parity or
         invalid format.
         """
         idx = jpn.find("-")
-        if not idx: raise "illegal format"
+        if idx == -1: raise "illegal format"
         parity = -1
         arr = jpn.split("-")
     
-    if arr[0]: is_jproj = True
-    else:      is_jproj = False
-    if arr[0]: j = int(float(arr[0])*2) 
-    else:      j = sum(valence_p_n)%2
+    if arr[0]:
+        """
+        Spin is specified. Calculate the n lowest lying states with the
+        given spin.
+        
+        Example: '3.5+3'.split('+') >>> ['3.5', '3']
+        """
+        is_jproj = True
+    else:
+        """
+        Spin is not specified. Calculate the n lowest lying states.
+        
+        Example: '+10'.split('+') >>> ['', '10']
+        """
+        is_jproj = False
+
+    if arr[0]:
+        """
+        Example: '1.5+3'.split('+') >>> ['1.5', '3'], thus arr[0] is the
+        spin of the state(s) to be calculated.
+        """
+        j = int(float(arr[0])*2) 
+    else:
+        j = sum(valence_p_n)%2
     if arr[1]:
         """
         Example: '1.5+3'.split('+') >>> ['1.5', '3'], thus arr[1] is the
