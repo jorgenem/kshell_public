@@ -6,11 +6,17 @@ This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [n
 * ```openblas```
 * ```lapack```
 
-### Compilation on Fram
+### Compilation on Fram (work in progress per 2021-09-03, might not be 100% correct yet)
 ```
 module load foss/2017a
+module load Python/3.8.6-GCCcore-10.2.0
 ```
-This module contains the necessary compilers and libraries. Note that the gfortran compiler in foss/2017a does not support the ```-fallow-argument-mismatch``` compiler flag. Remove / comment this flag in the ```Makefile```.
+The following modules will be overwritten with `Python/3.8.6-GCCcore-10.2.0`:
+```
+The following have been reloaded with a version change:
+  1) GCCcore/6.3.0 => GCCcore/10.2.0     2) binutils/2.27-GCCcore-6.3.0 => binutils/2.35-GCCcore-10.2.0
+```
+`foss/2017a` contains the correct `lapack` and `blas` versions, while `Python/3.8.6-GCCcore-10.2.0` contains the correct `Fortran` compiler and `Python` versions. Note that the gfortran compiler in `foss/2017a` does not support the ```-fallow-argument-mismatch``` compiler flag and has to be removed in the ```Makefile```, but this is not a problem if you load `Python/3.8.6-GCCcore-10.2.0`.
 
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
