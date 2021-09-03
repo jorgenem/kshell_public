@@ -18,6 +18,28 @@ The following have been reloaded with a version change:
 ```
 `foss/2017a` contains the correct `lapack` and `blas` versions, while `Python/3.8.6-GCCcore-10.2.0` contains the correct `Fortran` compiler and `Python` versions. Note that the gfortran compiler in `foss/2017a` does not support the ```-fallow-argument-mismatch``` compiler flag and has to be removed in the ```Makefile```, but this is not a problem if you load `Python/3.8.6-GCCcore-10.2.0`.
 
+### Queueing job script on Fram
+The shell script grenerated by `kshell_ui.py` must begin with certain commands wich will be read by the Fram job queue system, `slurm`. The needed commands will automatically be added to the script if keyword `fram` is entered in the first prompt of `kshell_ui.py`. Following is an example of the commands for running on a single node on 32 cores:
+
+```
+#!/bin/bash
+#SBATCH --job-name=Ar28_usda
+#SBATCH --account=<enter account name here (example NN9464K)>
+## Syntax is d-hh:mm:ss
+#SBATCH --time=0-00:10:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=<your e-mail here>
+module --quiet purge
+module load foss/2017a
+module load Python/3.8.6-GCCcore-10.2.0
+set -o errexit
+set -o nounset
+```
+Note that the modules must be explicitly loaded in the script file since the modules you load in the login node does not get loaded on the compute nodes.
+
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
 ```
