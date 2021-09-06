@@ -16,7 +16,7 @@ ifneq ($(findstring ifort, $(FC)), )
 endif
 
 ifneq ($(findstring mpiifort, $(FC)), )
-  FFLAGS =  -O3 -openmp -no-ipo
+  FFLAGS =  -O3 -openmp -no-ipo -DMPI
   LIBS = -mkl # Intel Math Kernel Library for BLAS/LAPACK routines
 endif
 
