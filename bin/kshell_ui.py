@@ -108,7 +108,10 @@ def split_jpn(jpn: str, valence_p_n: list) -> tuple:
         invalid format.
         """
         idx = jpn.find("-")
-        if idx == -1: raise "illegal format"
+        if idx == -1:
+            msg = "Input state must have parity specified, but no parity was given."
+            msg += f" Got {jpn=}"
+            raise ValueError(msg)
         parity = -1
         arr = jpn.split("-")
     

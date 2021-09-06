@@ -35,8 +35,6 @@ def weisskopf_unit(asc, mass):
         raise 'weisskopf error'
     return  wu, unit
     
-
-
 def read_file_ene(fn):
     fp = open(fn, 'r')
     while True:
@@ -62,7 +60,6 @@ def read_file_ene(fn):
                     break
     fp.close()
 
-
 def str_JJ(jj):
     if jj < 0:
         return str(jj) #+'  '
@@ -71,7 +68,6 @@ def str_JJ(jj):
     else:
         return str(jj) + '/2'
         
-
 def read_file_tran(fn, asc):
     out_e = {}
     is_r = False
@@ -176,7 +172,6 @@ def read_file_tran(fn, asc):
             out_e[ky] = out
     fp.close()
     return is_r, out_e, mass_save
-
 
 def main(fn_list):
     print("\n Energy levels")
