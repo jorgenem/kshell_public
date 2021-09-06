@@ -393,18 +393,20 @@ def check_cm_snt(model_space_filename):
     return is_cm
 
 def exec_string(mode, fn_input, fn_log):
-    # mode = 'kshell' or 'transit'
+    """
+    Mode is either 'kshell' or 'transit'.
+    """
     fn_exe = ' ./' + mode + '.exe '
         
     if is_mpi in ('coma', 'cx400'): 
         return 'mpirun ' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi in ('ofp-flat', ):
-        return 'mpiexec.hydra  -n ${PJM_MPI_PROC} numactl --preferred=1 ' \
+        return r'mpiexec.hydra  -n ${PJM_MPI_PROC} numactl --preferred=1 ' \
             + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi in ('ofp', ):
-        return 'mpiexec.hydra  -n ${PJM_MPI_PROC} ' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+        return r'mpiexec.hydra  -n ${PJM_MPI_PROC} ' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi == 'fram': 
-         return 'mpirun' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+        return 'mpiexec' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi:
         return 'mpiexec -of ' + fn_log + fn_exe + fn_input + ' \n\n'
     else:
