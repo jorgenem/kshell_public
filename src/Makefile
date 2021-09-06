@@ -11,12 +11,12 @@ all: kshell.exe transit.exe count_dim.exe
 
 ifneq ($(findstring ifort, $(FC)), )
 #  FFLAGS =  -O2  -no-ipo
-  FFLAGS =  -fast -openmp -no-ipo 
+  FFLAGS =  -fast -qopenmp -no-ipo 
   LIBS = -mkl # Intel Math Kernel Library for BLAS/LAPACK routines
 endif
 
 ifneq ($(findstring mpiifort, $(FC)), )
-  FFLAGS =  -O3 -openmp -no-ipo -DMPI
+  FFLAGS =  -O3 -qopenmp -no-ipo -DMPI
   LIBS = -mkl # Intel Math Kernel Library for BLAS/LAPACK routines
 endif
 
