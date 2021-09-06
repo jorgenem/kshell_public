@@ -175,3 +175,6 @@ The folder example_nld_gsf/ contains an example of just that, using the `shellmo
 * I have modified the `transit.f90` file slightly so it prints transition strengths with more decimal precision, to facilitate the gSF calculations. I have updated `collect_logs.py` accordingly. 
 * I have modified `collect_logs.py` to ensure it does not double-count transitions. 
 * I have added some lines to kshell_ui.py so that it does an automatic backup of all the text files from the run into a folder called `KSHELL_runs` under the home path. This is mainly useful when running on a supercomputer, where the calculation is typically run on a scratch disk where files are deleted after some weeks.
+
+### Notes to self
+MPI compile wrapper mpiifort
