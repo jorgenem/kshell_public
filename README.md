@@ -6,11 +6,39 @@ This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [n
 * ```openblas```
 * ```lapack```
 
-### Compilation on Fram
+### Compilation on Fram (work in progress per 2021-09-03, might not be 100% correct yet)
 ```
 module load foss/2017a
+module load Python/3.8.6-GCCcore-10.2.0
 ```
-This module contains the necessary compilers and libraries. Note that the gfortran compiler in foss/2017a does not support the ```-fallow-argument-mismatch``` compiler flag. Remove / comment this flag in the ```Makefile```.
+The following modules will be overwritten with `Python/3.8.6-GCCcore-10.2.0`:
+```
+The following have been reloaded with a version change:
+  1) GCCcore/6.3.0 => GCCcore/10.2.0     2) binutils/2.27-GCCcore-6.3.0 => binutils/2.35-GCCcore-10.2.0
+```
+`foss/2017a` contains the correct `lapack` and `blas` versions, while `Python/3.8.6-GCCcore-10.2.0` contains the correct `Fortran` compiler and `Python` versions. Note that the gfortran compiler in `foss/2017a` does not support the ```-fallow-argument-mismatch``` compiler flag and has to be removed in the ```Makefile```, but this is not a problem if you load `Python/3.8.6-GCCcore-10.2.0`.
+
+### Queueing job script on Fram
+The shell script grenerated by `kshell_ui.py` must begin with certain commands wich will be read by the Fram job queue system, `slurm`. The needed commands will automatically be added to the script if keyword `fram` is entered in the first prompt of `kshell_ui.py`. Following is an example of the commands for running on a single node on 32 cores:
+
+```
+#!/bin/bash
+#SBATCH --job-name=Ar28_usda
+#SBATCH --account=<enter account name here (example NN9464K)>
+## Syntax is d-hh:mm:ss
+#SBATCH --time=0-00:10:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=32
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=<your e-mail here>
+module --quiet purge
+module load foss/2017a
+module load Python/3.8.6-GCCcore-10.2.0
+set -o errexit
+set -o nounset
+```
+Note that the modules must be explicitly loaded in the script file since the modules you load in the login node does not get loaded on the compute nodes.
 
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
@@ -147,3 +175,6 @@ The folder example_nld_gsf/ contains an example of just that, using the `shellmo
 * I have modified the `transit.f90` file slightly so it prints transition strengths with more decimal precision, to facilitate the gSF calculations. I have updated `collect_logs.py` accordingly. 
 * I have modified `collect_logs.py` to ensure it does not double-count transitions. 
 * I have added some lines to kshell_ui.py so that it does an automatic backup of all the text files from the run into a folder called `KSHELL_runs` under the home path. This is mainly useful when running on a supercomputer, where the calculation is typically run on a scratch disk where files are deleted after some weeks.
+
+### Notes to self
+MPI compile wrapper mpiifort
