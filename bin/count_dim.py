@@ -191,6 +191,11 @@ def main(model_space_filename: str, partition_filename: str):
     # dimension for proton
     dim_idp_mp = []
     for ptn in proton_partition:
+        """
+        Loop over all proton partitions.
+
+        Ex: proton_partition=[(2, 6, 2), (3, 5, 2), (3, 6, 1), (4, 4, 2), (4, 5, 1), (4, 6, 0)]
+        """
         mps = []
         for i,n in enumerate(ptn):
             p = (-1)**(lorb[i]*n) 
