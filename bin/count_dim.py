@@ -167,7 +167,11 @@ def set_dim_singlej( jorb ):
             dim_jnm[j][n][m] = dim_jnm[j][n].get(m,0) + 1
     return dim_jnm
 
-def main(model_space_filename: str, partition_filename: str):
+def count_dim(
+    model_space_filename: str,
+    partition_filename: str,
+    print_dimensions: bool = True
+):
     """
     Parameters
     ----------
@@ -178,6 +182,9 @@ def main(model_space_filename: str, partition_filename: str):
     partition_filename:
         The filename of the .ptn file which contains the proton and
         neutron configuration, with truncation information if applied.
+
+    print_dimensions:
+        For toggling print on / off.
     """
 
     orbits_proton_neutron, core_protons_neutrons, norb, lorb, jorb, itorb = \
@@ -217,14 +224,26 @@ def main(model_space_filename: str, partition_filename: str):
     for idp,idn in total_partition:
         mp_add( dim_mp, mp_product(dim_idp_mp[idp], dim_idn_mp[idn]) )
 
+    M, mdim, jdim, mpow, jpow = [], [], [], [], []  # Might be unnecessary to make all of these lists.
 
-    print("      2*M        M-scheme dim.          J-scheme dim.")
     for m in range( max([x[0] for x in dim_mp]), -1, -2 ):
-        mdim = dim_mp[m, parity]
-        jdim = dim_mp[m, parity] - dim_mp.get((m+2, parity), 0)
-        mpow = int( math.log10(mdim) ) if mdim != 0 else 0
-        jpow = int( math.log10(jdim) ) if jdim != 0 else 0
-        print(f"dim. {m:5d}{mdim:21d}{jdim:21d}   {mdim/(10**mpow):4.2f}x10^{mpow:2d}  {jdim/(10**jpow):4.2f}x10^{jpow:2d}")
+        M.append(m)
+        mdim_tmp = dim_mp[m, parity]
+        jdim_tmp = dim_mp[m, parity] - dim_mp.get((m+2, parity), 0)
+        mdim.append(mdim_tmp)
+        jdim.append(jdim_tmp)
+        mpow.append(int( math.log10(mdim_tmp) ) if mdim_tmp != 0 else 0)
+        jpow.append(int( math.log10(jdim_tmp) ) if jdim_tmp != 0 else 0)
+
+    if print_dimensions:
+        print("      2*M        M-scheme dim.          J-scheme dim.")
+        for i in range(len(M)):
+            msg = f"dim. {M[i]:5d}{mdim[i]:21d}{jdim[i]:21d}"
+            msg += f"   {mdim[i]/(10**mpow[i]):4.2f}x10^{mpow[i]:2d}"
+            msg += f"  {jdim[i]/(10**jpow[i]):4.2f}x10^{jpow[i]:2d}"
+            print(msg)
+
+    return M, mdim, jdim
 
 if __name__ == "__main__":
     try:
@@ -235,7 +254,5 @@ if __name__ == "__main__":
         """
         model_space_filename = input("Model space file (snt): ")
         partition_filename = input("Partition file (ptn): ")
-    main(model_space_filename, partition_filename)
     
-    
-    
+    count_dim(model_space_filename, partition_filename)
