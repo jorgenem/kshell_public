@@ -163,7 +163,22 @@ jorgenem@prior:~/gitrepos/kshell-pub/runs/Ne20$
 
 ```
 
-
+### Pitfalls
+KSHELL version 2 has undefined behavior if you request more states than the configuration and model space allows. As an example, take 28Ar in the USDA model space. By running the `count_dim.py` script we get
+```
+python <path>/count_dim.py usda.snt Ar28_usda_p.ptn
+      2*M        M-scheme dim.          J-scheme dim.
+dim.    16                    4                    4   4.00x10^ 0  4.00x10^ 0
+dim.    14                   16                   12   1.60x10^ 1  1.20x10^ 1
+dim.    12                   52                   36   5.20x10^ 1  3.60x10^ 1
+dim.    10                  116                   64   1.16x10^ 2  6.40x10^ 1
+dim.     8                  225                  109   2.25x10^ 2  1.09x10^ 2
+dim.     6                  354                  129   3.54x10^ 2  1.29x10^ 2
+dim.     4                  497                  143   4.97x10^ 2  1.43x10^ 2
+dim.     2                  594                   97   5.94x10^ 2  9.70x10^ 1
+dim.     0                  640                   46   6.40x10^ 2  4.60x10^ 1
+```
+The `J-scheme dim.` column indicates how many different states of the spin indicated in the `2*M` column that can be calculated in this model space with this configuration of protons and neutrons. 28Ar in USDA has 10 valence protons and 2 valence neutrons, and from `count_dim.py` we see that this model space and configuration allows 46 0+ states, 97 1+ states, 143 2+ states, and so on. Take the 0+ states as an example. If you request more than 46 0+ states, say 100, the best case scenario is that KSHELL gives you 46 0+ states and 54 invalid / undefined states. Worst case scenario is that KSHELL gives no output. The current best solution is to request exactly 46 0+ states if you want them all.
 
 ### Additions by jorgenem
 
