@@ -4,9 +4,8 @@
 #  count M-scheme dimension   Thanks to Y. Tsunoda
 #
 
-import sys, math, readline, os
+import sys, math
 from typing import TextIO, Tuple
-from kshell_ui import SimpleCompleter
 
 def readline_sk(fp: TextIO) -> list:
     """
@@ -235,9 +234,6 @@ if __name__ == "__main__":
         """
         Ask for input if none is given in the command line.
         """
-        readline.set_completer( SimpleCompleter(os.listdir()).complete )
-        readline.parse_and_bind("tab: complete")
-        print("Press tab to complete")
         model_space_filename = input("Model space file (snt): ")
         partition_filename = input("Partition file (ptn): ")
     main(model_space_filename, partition_filename)
