@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 import sys, os, os.path, shutil, readline, re
-from typing import Tuple
+from typing import Tuple, List, Dict
 import gen_partition
 from gen_partition import raw_input_save
+from count_dim import count_dim
 
 bindir = os.path.dirname( __file__ )    # Full path to the directory of this file.
 
@@ -108,7 +109,7 @@ def split_jpn(jpn: str, valence_p_n: Tuple[int, int]) -> Tuple[int, int, int, bo
         The spin of the state.
 
     parity:
-        The parity of the state.
+        2 times the parity of the state (2*J).
 
     n_states:
         The amount of states to be calculated with the given spin and
@@ -483,7 +484,9 @@ def output_transit(base_filename, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2
 
     return out
 
-def main_nuclide(model_space_filename: str) -> tuple:
+def main_nuclide(
+    model_space_filename: str
+) -> Tuple[str, str, Tuple[int, int], List[Tuple[int, int, int, bool]], Dict[tuple, str]]:
     """
     Prompt for nuclide, number of states to calculate, truncation, and
     parameter adjustment.
@@ -492,6 +495,27 @@ def main_nuclide(model_space_filename: str) -> tuple:
     ----------
     model_space_filename:
         Example: 'usda.snt'.
+
+    Returns
+    -------
+    base_filename:
+        The base filename used for logs, summary, main script and
+        partition files. Example: 'Ar28_usda'.
+
+    shell_file_content_single:
+        The content of the executable shell file for a single nucleon.
+
+    valence_p_n:
+        A tuple containing the number of valence protons and neutrons.
+    
+    list_jpn:
+        A list containing tuples with the spin, parity, number of
+        states, and is_jproj for each requested state to be calculated.
+
+    fn_save_dict:
+        A dictionary where the keys are each tuple from list_jpn, and
+        the values are the corresponding .wav and .ptn files.
+
     """
     print("\n\n*************** specify a nuclide ********************\n")
 
@@ -540,7 +564,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
             continue
         
         break
-    # NOTE: This is where I left off!
+
     base_filename = create_base_filename(valence_p_n, model_space_filename)
     while base_filename in base_filename_list:
         """
@@ -582,15 +606,20 @@ def main_nuclide(model_space_filename: str) -> tuple:
     
     for j, p, n, isp in list_jpn:
         if (j + sum(valence_p_n))%2 != 0:
+            """
+            If the sum of valence nucleons plus 2 times the spin of the
+            state is not divisible by 2, then it is not a valid spin for
+            this number of nucleons.
+            """
             print("Remove states J, prty, Num = ", j, p, n, isp)
     
-    list_jpn = [ a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0 ]
+    list_jpn = [a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0]    # Remove invalid states as described a few lines above.
 
-    list_prty = list( set( jpn[1] for jpn in list_jpn ) )
+    parity_list = list( set( jpn[1] for jpn in list_jpn ) )   # Extract a list of only parities.
     fn_ptn_list = {-1:base_filename + "_n.ptn", 1:base_filename + "_p.ptn"}
     #    fn_input = base_filename + ".input"
     trc_list_prty = {-1:None, 1:None}
-    for prty in list_prty:
+    for prty in parity_list:
         fn_ptn = fn_ptn_list[prty]
         if prty == 1: 
             print('\n truncation for "+" parity state in ', fn_ptn)
@@ -655,12 +684,12 @@ def main_nuclide(model_space_filename: str) -> tuple:
 
     # ---------------------------------------------
 
-    shell_file_content = '# ---------- ' + base_filename + ' --------------\n'
+    shell_file_content_single = '# ---------- ' + base_filename + ' --------------\n'
 
     list_jpn = [ jpn for jpn in list_jpn if os.path.isfile( fn_ptn_list[ jpn[1] ]) ]
 
     
-    fn_save_list = {}
+    fn_save_dict = {}
     for mtot, nparity, n_eigen, is_proj in list_jpn:
         if is_proj: 
             jchar = '_j'
@@ -681,7 +710,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
                  + prty2str(nparity) + '.txt'
         stgout_filenames.append( fn_log )
         var_dict[ 'fn_save_wave' ] = fn_save_wave
-        fn_save_list[ (mtot,nparity,n_eigen,is_proj) ] \
+        fn_save_dict[ (mtot,nparity,n_eigen,is_proj) ] \
             = fn_save_wave, var_dict[ 'fn_ptn' ] 
         var_dict[ 'n_eigen' ] = n_eigen
         var_dict[ 'n_restart_vec' ] \
@@ -696,18 +725,18 @@ def main_nuclide(model_space_filename: str) -> tuple:
         if 'no_save' in var_dict.keys():
             del var_dict[ 'fn_save_wave' ]
 
-        shell_file_content += 'echo "start running ' + fn_log + ' ..."\n' 
-        shell_file_content += 'cat > ' + fn_input + ' <<EOF\n' \
+        shell_file_content_single += 'echo "start running ' + fn_log + ' ..."\n' 
+        shell_file_content_single += 'cat > ' + fn_input + ' <<EOF\n' \
             +  '&input\n'
-        shell_file_content += print_var_dict( var_dict, skip=('is_obtd', 'no_save') )
-        shell_file_content += '&end\n' \
+        shell_file_content_single += print_var_dict( var_dict, skip=('is_obtd', 'no_save') )
+        shell_file_content_single += '&end\n' \
             +  'EOF\n'
         
-        shell_file_content +=  exec_string('kshell', fn_input, fn_log)
+        shell_file_content_single +=  exec_string('kshell', fn_input, fn_log)
 
         fn_ptn = fn_ptn_list[nparity]
 
-        shell_file_content += 'rm -f tmp_snapshot_' + fn_ptn + '_' + str(mtot) + '_* ' + \
+        shell_file_content_single += 'rm -f tmp_snapshot_' + fn_ptn + '_' + str(mtot) + '_* ' + \
                'tmp_lv_' + fn_ptn + '_' + str(mtot) + '_* ' + \
                fn_input + ' \n\n\n'
 
@@ -724,12 +753,12 @@ def main_nuclide(model_space_filename: str) -> tuple:
         if ans[0] == 'N' or ans[0] == 'n': is_transit = False
     if is_transit: 
         is_e2m1, is_e1 = True,  True
-        shell_file_content += "# --------------- transition probabilities --------------\n\n"
+        shell_file_content_single += "# --------------- transition probabilities --------------\n\n"
     else: 
         is_e2m1, is_e1 = False, False
 
-    list_prty = list( set( jpn[1] for jpn in list_jpn ) )
-    if len(list_prty)<2: is_e1 = False
+    parity_list = list( set( jpn[1] for jpn in list_jpn ) )
+    if len(parity_list)<2: is_e1 = False
 
 
     for i1, (m1, np1, ne1, isj1) in enumerate(list_jpn):
@@ -743,23 +772,23 @@ def main_nuclide(model_space_filename: str) -> tuple:
                 if abs(m1-m2) <= 2 and np1 != np2: is_skip = False
             if is_skip: continue
             fn_input = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
-            shell_file_content += output_transit(base_filename, fn_input, 
-                                  fn_save_list[(m1,np1,ne1,isj1)], 
-                                  fn_save_list[(m2,np2,ne2,isj2)], 
+            shell_file_content_single += output_transit(base_filename, fn_input, 
+                                  fn_save_dict[(m1,np1,ne1,isj1)], 
+                                  fn_save_dict[(m2,np2,ne2,isj2)], 
                                   (m1, np1, ne1, isj1), 
                                   (m2, np2, ne2, isj2) )
-            shell_file_content +='rm -f ' + fn_input + '\n\n\n'
+            shell_file_content_single +='rm -f ' + fn_input + '\n\n\n'
 
     fn_summary = 'summary_' + base_filename + '.txt'
     stgout_filenames.append( fn_summary )
-    shell_file_content += "./collect_logs.py log_*" + base_filename \
+    shell_file_content_single += "./collect_logs.py log_*" + base_filename \
         + "* > " + fn_summary + "\n"
-    # shell_file_content += 'rm -f tmp_snapshot_' + base_filename + '* tmp_lv_' + base_filename + '* ' \
+    # shell_file_content_single += 'rm -f tmp_snapshot_' + base_filename + '* tmp_lv_' + base_filename + '* ' \
     #       + fn_input + ' \n'
-    shell_file_content += 'echo "Finish computing '+base_filename+'.    See ' + fn_summary + '"\n'
-    shell_file_content += 'echo \n\n'
-    
-    return base_filename, shell_file_content, valence_p_n, list_jpn, fn_save_list
+    shell_file_content_single += 'echo "Finish computing '+base_filename+'.    See ' + fn_summary + '"\n'
+    shell_file_content_single += 'echo \n\n'
+
+    return base_filename, shell_file_content_single, valence_p_n, list_jpn, fn_save_dict
 
 def ask_yn(optype):
     ret = False
@@ -967,31 +996,39 @@ def main():
     if is_mpi: var_dict['mode_lv_hdd'] = 0
     if snt_parameters['ncore'] == (8,8): var_dict['hw_type'] = 2
 
-    fn_run = ''
+    shell_filename = ''
     fn_snt_base = model_space_filename[:-4]
-    outsh = ''
+    shell_file_content_total = ''
 
     states = []
     while True:
         """
         Fetch nuclide information from user.
         """
-        base_filename, shell_file_content, valence_p_n, list_jpn, fn_save_list = \
+        base_filename, shell_file_content_single, valence_p_n, list_jpn, fn_save_dict = \
             main_nuclide(model_space_filename)
         
-        if not shell_file_content: break
+        if not shell_file_content_single:
+            """
+            No new nuclide information specified.
+            """
+            break
+        
         for m, p, n, isj  in list_jpn:
-            states.append( (valence_p_n, m, p, n, isj, base_filename, fn_save_list[(m,p,n,isj)] ) )
-        outsh += shell_file_content
-        if fn_run: 
-            if len(fn_run)> len(fn_snt_base) \
-               and fn_run[-len(fn_snt_base):] == fn_snt_base:
-                fn_run = fn_run[:-len(fn_snt_base)]
+            states.append( (valence_p_n, m, p, n, isj, base_filename, fn_save_dict[(m,p,n,isj)] ) )
+        
+        shell_file_content_total += shell_file_content_single
+        
+        if shell_filename: 
+            if len(shell_filename)> len(fn_snt_base) \
+               and shell_filename[-len(fn_snt_base):] == fn_snt_base:
+                shell_filename = shell_filename[:-len(fn_snt_base)]
             else:
-                fn_run += '_'
-        fn_run += base_filename
+                shell_filename += '_'
+        
+        shell_filename += base_filename
 
-    if not fn_run: 
+    if not shell_filename: 
         print("\n*** NO input ***\n")
         return
 
@@ -1010,7 +1047,7 @@ def main():
                   or (nf1[0] == nf2[0]   and nf1[1] == nf2[1]+1) ]
 
     def output_transit_pair(pair):
-        outsh = ''
+        shell_file_content_total = ''
         for (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1), \
             (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) in pair: 
             base_filename = fn_base1
@@ -1023,26 +1060,26 @@ def main():
 
             fn_input = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
 
-            outsh += output_transit(
+            shell_file_content_total += output_transit(
                 base_filename, fn_input, fn_wp1, fn_wp2, (m1, p1, n1, isj1),
                 (m2, p2, n2, isj2)
             )
-        return outsh
+        return shell_file_content_total
 
 
     if gt_pair and ask_yn('Gamow-teller transition'):
-        outsh += '# ------ Gamow Teller transition ------ \n'
-        outsh += 'echo \n'
-        outsh += 'echo "Gamow Teller transition calc."\n'
-        outsh += output_transit_pair(gt_pair)
+        shell_file_content_total += '# ------ Gamow Teller transition ------ \n'
+        shell_file_content_total += 'echo \n'
+        shell_file_content_total += 'echo "Gamow Teller transition calc."\n'
+        shell_file_content_total += output_transit_pair(gt_pair)
 
     if sfac_pair and ask_yn('one-particle spectroscopic factor'):
-        outsh += '# --------- spectroscocpic factor --------- \n'
-        outsh += 'echo \n'
-        outsh += 'echo "spectroscopic factor calc."\n'
-        outsh += output_transit_pair(sfac_pair)
+        shell_file_content_total += '# --------- spectroscocpic factor --------- \n'
+        shell_file_content_total += 'echo \n'
+        shell_file_content_total += 'echo "spectroscopic factor calc."\n'
+        shell_file_content_total += output_transit_pair(sfac_pair)
 
-    fn_run += ".sh"
+    shell_filename += ".sh"
 
     def check_copy(*fnames):
         """
@@ -1074,8 +1111,8 @@ def main():
     if is_mpi:
         check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py') 
         if is_mpi == 'coma':
-            outsh = '#!/bin/sh \n' \
-                    + '#SBATCH -J ' + fn_run[:-3] + '\n' \
+            shell_file_content_total = '#!/bin/sh \n' \
+                    + '#SBATCH -J ' + shell_filename[:-3] + '\n' \
                     + '#SBATCH -p mixed\n' \
                     + '#SBATCH -N ' + str(n_nodes) + '\n' \
                     + '#SBATCH -n ' + str(n_nodes) + '\n' \
@@ -1085,20 +1122,20 @@ def main():
                     + '#SBATCH -e stderr\n\n' \
                     + 'export OMP_NUM_THREADS=20\n\n' \
                     + 'module load mkl intel intelmpi \n' \
-                    + outsh 
+                    + shell_file_content_total 
                     # + 'cd ' + os.getcwd() +'\n\n' \
                     # cd $SLURM_SUBMIT_DIR
                     # export OMP_NUM_THREADS=16
             
-            print("\n Finish. edit and sbatch ./"+fn_run+"\n")
+            print("\n Finish. edit and sbatch ./"+shell_filename+"\n")
         elif is_mpi == 'k' or is_mpi == 'k-micro': 
-            outsh = '#!/bin/sh \n' \
+            shell_file_content_total = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=micro"\n' \
                     + '#PJM -L "node=' + str(n_nodes) + '"\n' \
                     + '#PJM -L "elapse=00:30:00"\n' \
                     + '#PJM -g "XXXXXXXX"\n\n' \
                     + '. /work/system/Env_base\n\n' \
-                    + outsh 
+                    + shell_file_content_total 
                     # + 'cd ' + os.getcwd() +'\n\n' \
         elif is_mpi == 'k-small': 
             outstg = '#PJM --stgin "'
@@ -1107,14 +1144,14 @@ def main():
             outstg += '#PJM --stgout "'
             for fn in stgout_filenames: outstg += './'+fn+' '
             outstg += './"\n\n'
-            outsh = '#!/bin/sh \n' \
+            shell_file_content_total = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=small"\n' \
                     + '#PJM -L "node=' + str(n_nodes) + '"\n' \
                     + '#PJM -L "elapse=00:30:00"\n' \
                     + outstg \
                     + '. /work/system/Env_base\n\n' \
                     + 'lfs setstripe -s 100m -c 12 .\n\n' \
-                    + outsh 
+                    + shell_file_content_total 
         elif is_mpi == 'k-large': 
             outstg = '#PJM --stgin "'
             for fn in stgin_filenames: outstg += './'+fn+' '
@@ -1122,33 +1159,33 @@ def main():
             outstg += '#PJM --stgout "'
             for fn in stgout_filenames: outstg += './'+fn+' '
             outstg += './"\n\n'
-            outsh = '#!/bin/sh \n' \
+            shell_file_content_total = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=large"\n' \
                     + '#PJM -L "node=' + str(n_nodes) + '"\n' \
                     + '#PJM -L "elapse=06:00:00"\n' \
                     + outstg \
                     + '. /work/system/Env_base\n\n' \
                     + 'lfs setstripe -s 100m -c 12 .\n\n' \
-                    + outsh 
+                    + shell_file_content_total 
         elif is_mpi == 'ofp': 
-            outsh = '#!/bin/sh \n' \
+            shell_file_content_total = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=debug-cache"\n' \
                     + '#PJM -L "node=' + str(n_nodes) + '"\n' \
                     + '#PJM --omp thread=272\n' \
                     + '#PJM -L "elapse=00:30:00"\n' \
                     + '#PJM -g XXXXXXXX\n' \
-                    + outsh 
+                    + shell_file_content_total 
         elif is_mpi == 'ofp-flat': 
-            outsh = '#!/bin/sh \n' \
+            shell_file_content_total = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=debug-flat"\n' \
                     + '#PJM -L "node=' + str(n_nodes) + '"\n' \
                     + '# #PJM --mpi "proc=' + str(n_nodes) + '"\n' \
                     + '#PJM --omp thread=272\n' \
                     + '#PJM -L "elapse=00:30:00"\n' \
                     + '#PJM -g XXXXXX\n' \
-                    + outsh 
+                    + shell_file_content_total 
         elif is_mpi == 'cx400': 
-            outsh = \
+            shell_file_content_total = \
             '''#!/bin/sh 
             #PJM -L "rscgrp=XXXXXXXX"
             #PJM -L "vnode=''' + str(n_nodes) + '''"
@@ -1168,56 +1205,94 @@ def main():
             export I_MPI_HYDRA_BOOTSTRAP_EXEC=/bin/pjrsh
             export I_MPI_HYDRA_HOST_FILE=${PJM_O_NODEINF}
             export FORT90L=-Wl,-Lu
-            '''  + outsh
+            '''  + shell_file_content_total
                     # + 'cd ' + os.getcwd() +'\n\n' \
-            print("\n Finish. edit and pjsub ./" + fn_run + "\n")
+            print("\n Finish. edit and pjsub ./" + shell_filename + "\n")
 
         elif is_mpi == 'fram': # This option added by JEM / jonkd.
-            outsh_tmp = '#!/bin/bash \n'
-            outsh_tmp += f'#SBATCH --job-name={fn_run[:-3]} \n'
-            outsh_tmp += f'#SBATCH --account={fram_project_name} \n'
-            outsh_tmp += '## Syntax is d-hh:mm:ss \n'
-            outsh_tmp += f'#SBATCH --time={fram_n_days}-{fram_n_hours:02d}:{fram_n_minutes:02d}:00 \n'
-            outsh_tmp += f'#SBATCH --nodes={n_nodes}\n'
-            outsh_tmp += '#SBATCH --ntasks-per-node=1 \n'
-            outsh_tmp += '#SBATCH --cpus-per-task=32 \n'
-            outsh_tmp += '#SBATCH --mail-type=ALL \n'
-            outsh_tmp += f'#SBATCH --mail-user={fram_user_email} \n'
-            outsh_tmp += 'module --quiet purge  \n'
-            # outsh_tmp += 'module load foss/2017a \n'
-            outsh_tmp += 'module load intel/2020b \n'
-            outsh_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
-            outsh_tmp += 'set -o errexit  \n'
-            outsh_tmp += 'set -o nounset \n'
-            outsh_tmp += outsh
-            outsh = outsh_tmp
+            shell_file_content_tmp = '#!/bin/bash \n'
+            shell_file_content_tmp += f'#SBATCH --job-name={shell_filename[:-3]} \n'
+            shell_file_content_tmp += f'#SBATCH --account={fram_project_name} \n'
+            shell_file_content_tmp += '## Syntax is d-hh:mm:ss \n'
+            shell_file_content_tmp += f'#SBATCH --time={fram_n_days}-{fram_n_hours:02d}:{fram_n_minutes:02d}:00 \n'
+            shell_file_content_tmp += f'#SBATCH --nodes={n_nodes}\n'
+            shell_file_content_tmp += '#SBATCH --ntasks-per-node=1 \n'
+            shell_file_content_tmp += '#SBATCH --cpus-per-task=32 \n'
+            shell_file_content_tmp += '#SBATCH --mail-type=ALL \n'
+            shell_file_content_tmp += f'#SBATCH --mail-user={fram_user_email} \n'
+            shell_file_content_tmp += 'module --quiet purge  \n'
+            # shell_file_content_tmp += 'module load foss/2017a \n'
+            shell_file_content_tmp += 'module load intel/2020b \n'
+            shell_file_content_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
+            shell_file_content_tmp += 'set -o errexit  \n'
+            shell_file_content_tmp += 'set -o nounset \n'
+            shell_file_content_tmp += shell_file_content_total
+            shell_file_content_total = shell_file_content_tmp
         else: # FX10
-            outsh = '#!/bin/sh \n' \
+            shell_file_content_total = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=debug"\n' \
                     + '#PJM -L "node=' + str(n_nodes) + '"\n' \
                     + '# #PJM -L "elapse=24:00:00"\n\n' \
-                    + outsh 
+                    + shell_file_content_total 
                     # + 'cd ' + os.getcwd() +'\n\n' \
-            print("\n Finish. edit and pjsub ./" + fn_run + "\n")
+            print("\n Finish. edit and pjsub ./" + shell_filename + "\n")
     else:
         check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py') 
-        outsh = '#!/bin/sh \n' \
+        shell_file_content_total = '#!/bin/sh \n' \
                 + '# export OMP_STACKSIZE=1g\n' \
                 + 'export GFORTRAN_UNBUFFERED_PRECONNECTED=y\n' \
                 + '# ulimit -s unlimited\n\n' \
-                + outsh 
-        print("\n Finish. Run ./" + fn_run + "\n")
+                + shell_file_content_total 
+        print("\n Finish. Run ./" + shell_filename + "\n")
 
+    fp_save_input = open('save_input_ui.txt', 'w')
+    fp_save_input.write( gen_partition.output_ans )
+    fp_save_input.close()
 
-    fp_run = open( fn_run, 'w' )
-    fp_run.write(outsh)
+    """
+    Check that the requested amount of states does not exceed the
+    J-scheme dimensionality.
+    """
+    partition_filename = states[0][6][1].replace('"', '')
+    M, _, jdim = count_dim(
+        model_space_filename = model_space_filename,
+        partition_filename = partition_filename,
+        print_dimensions = False
+    )
+    
+    for state in states:
+        """
+        Loop over all the requested states.
+        """
+        _, spin, parity, n_states, is_jproj, _, _ = state
+        parity = "+" if parity == +1 else "-"
+
+        for i in range(len(M)):
+            if (M[i] == spin) and (n_states > jdim[i]):
+                """
+                If 'n_states' is greater than 'jdim[i]' then the number
+                of requested states exceeds the J-scheme dimensionality.
+                In that case, the first occurrence of 'j{spin}p' is
+                located and the first occurrence of 'n_eigen' after this
+                is changed to the maximum allowed number of states for
+                the given spin. 'j{spin}p' is located first since the
+                first occurrence of 'n_eigen' after this must be the
+                correct occurence of 'n_eigen' to change.
+                """
+                msg = f"Requested number of {spin/2:.0f}{parity} states exceeds"
+                msg += " the J-scheme dimensionality!"
+                msg += f" Adjusting from {n_states} to {jdim[i]}."
+                idx = shell_file_content_total.find(f"j{spin}p")
+                shell_file_content_total = \
+                    shell_file_content_total[:idx] + \
+                    shell_file_content_total[idx:].replace(f"n_eigen = {n_states}", f"n_eigen = {jdim[i]}", 1)
+                print(msg)
+
+    fp_run = open(shell_filename, 'w')
+    fp_run.write(shell_file_content_total)
     fp_run.close()
 
-    if not is_mpi: os.chmod(fn_run, 0o755)
-
-    fp = open('save_input_ui.txt', 'w')
-    fp.write( gen_partition.output_ans )
-    fp.close()
+    if not is_mpi: os.chmod(shell_filename, 0o755)
  
 if __name__ == "__main__":
     main()
