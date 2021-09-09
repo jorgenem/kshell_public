@@ -224,8 +224,7 @@ def main(model_space_filename: str, partition_filename: str):
         jdim = dim_mp[m, parity] - dim_mp.get((m+2, parity), 0)
         mpow = int( math.log10(mdim) ) if mdim != 0 else 0
         jpow = int( math.log10(jdim) ) if jdim != 0 else 0
-        print("dim. %5i%21i%21i   %4.2fx10^%2i  %4.2fx10^%2i"
-            % (m, mdim, jdim, mdim/10.**mpow, mpow, jdim/10.**jpow, jpow))
+        print(f"dim. {m:5d}{mdim:21d}{jdim:21d}   {mdim/(10**mpow):4.2f}x10^{mpow:2d}  {jdim/(10**jpow):4.2f}x10^{jpow:2d}")
 
 if __name__ == "__main__":
     try:
