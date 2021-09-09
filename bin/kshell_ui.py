@@ -336,7 +336,7 @@ class ExternalSyntaxError(Exception):
     """
     pass
 
-def read_snt(model_space_filename):
+def read_snt(model_space_filename: str):
     """
     Read model space file (.snt), extract information about orbit
     properties (occupation, angular momentum, etc.) and save in snt_parameters
@@ -344,7 +344,7 @@ def read_snt(model_space_filename):
 
     Parameters
     ----------
-    model_space_filename : string
+    model_space_filename:
         Path to snt file.
     """
     fp = open( model_space_filename, 'r')
