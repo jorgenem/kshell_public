@@ -370,7 +370,12 @@ class ModelSpace:
 
 def main(fn_snt, fn_ptn, nf, nparity):
     
-    fp = open(fn_snt, 'r')
+    try:
+        fp = open(fn_snt, 'r')
+    except FileNotFoundError:
+        print("File not found")
+        print(f"{fn_snt=}")
+        sys.exit()
     
     n_jorb, n_core = [0,0], [0,0]
     n_jorb[0], n_jorb[1], n_core[0], n_core[1]  = read_comment_skip(fp)
