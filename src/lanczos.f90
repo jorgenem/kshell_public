@@ -198,7 +198,8 @@ contains
              if (myrank==0 .and. mod(iv-1, nskip_time)==0 .and. .not. present(is_inner)) &
                   write(*,'(a,f10.3,a)') "time diag",t," sec"
              if (present(is_inner) .and. .not. is_first_inner .and. &
-                  abs(teval(1) - eval_jj) > 0.5d0) then 
+                  ! abs(teval(1) - eval_jj) > 0.5d0) then 
+                  abs(teval(1) - eval_jj) > 20d0) then
                 if (myrank==0) write(*,*) &
                      "possible JJ collapse : check bn converge condition, try is_addrand", &
                      teval(1), eval_jj
