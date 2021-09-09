@@ -373,8 +373,7 @@ def main(fn_snt, fn_ptn, nf, nparity):
     try:
         fp = open(fn_snt, 'r')
     except FileNotFoundError:
-        print("File not found")
-        print(f"{fn_snt=}")
+        print(f"File '{fn_snt=}' not found")
         sys.exit()
     
     n_jorb, n_core = [0,0], [0,0]
