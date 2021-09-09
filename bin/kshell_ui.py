@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys, os, os.path, shutil, readline, re
+from typing import Tuple
 import gen_partition
 from gen_partition import raw_input_save
 
@@ -43,7 +44,7 @@ var_dict = {
     "beta_cm"       : 0.0, 
 }
 
-stgin_filenames  = [ 'kshell.exe', 'transit.exe', 'collect_logs.py' ]
+stgin_filenames  = [ 'kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py' ]
 stgout_filenames = [ 'tmp_snapshot_*']
 
 base_filename_list = []   # If several nuclides are specified. NOTE: Might be possible to remove this from the global scope.
@@ -86,17 +87,41 @@ class SimpleCompleter(object):
 
 readline.set_completer_delims('')
 
-def split_jpn(jpn: str, valence_p_n: list) -> tuple:
+def split_jpn(jpn: str, valence_p_n: Tuple[int, int]) -> Tuple[int, int, int, bool]:
     """
-    list_jpn = [split_jpn(state, valence_p_n) for state in input_n_states]
-    1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states)
+    Take user input parity and number of states, along with the number
+    of valence protons and neutrons and return a tuple of (spin, parity,
+    number of states, is_jproj).
 
     Parameters
     ----------
     jpn:
+        User input number of states, parity, and spins. Examples:
+        '+100', '1.5-30'.
 
     valence_p_n:
-        Tuple containing the number of valence protons and neutrons
+        Tuple containing the number of valence protons and neutrons.
+
+    Returns
+    -------
+    spin:
+        The spin of the state.
+
+    parity:
+        The parity of the state.
+
+    n_states:
+        The amount of states to be calculated with the given spin and
+        parity.
+
+    is_jproj:
+        True if the spin is specified (ex: '1.5-30'), False if no spin
+        is specified (ex: '+100').
+
+    Examples
+    --------
+    list_jpn = [split_jpn(state, valence_p_n) for state in input_n_states]
+    1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states)
     """
     idx = jpn.find("+")
     parity = 1
@@ -136,9 +161,12 @@ def split_jpn(jpn: str, valence_p_n: list) -> tuple:
         Example: '1.5+3'.split('+') >>> ['1.5', '3'], thus arr[0] is the
         spin of the state(s) to be calculated.
         """
-        j = int(float(arr[0])*2) 
+        spin = int(float(arr[0])*2) # Convert spin to 2*J.
     else:
-        j = sum(valence_p_n)%2
+        """
+        Here, spin is always 0 or 1. TODO: Why?
+        """
+        spin = sum(valence_p_n)%2
     if arr[1]:
         """
         Example: '1.5+3'.split('+') >>> ['1.5', '3'], thus arr[1] is the
@@ -146,9 +174,9 @@ def split_jpn(jpn: str, valence_p_n: list) -> tuple:
         """
         n_states = int(arr[1]) 
     else:
-        n_states = 10
+        n_states = 10   # NOTE: Is this in use?
     
-    return j, parity, n_states, is_jproj
+    return spin, parity, n_states, is_jproj
     
 def create_base_filename(valence_p_n: tuple, model_space_filename: str) -> str:
     """
@@ -527,8 +555,9 @@ def main_nuclide(model_space_filename: str) -> tuple:
     if input_base_filename: base_filename = input_base_filename
     base_filename_list.append( base_filename )
 
+    default_states = 100
     print("\n J, parity, number of lowest states  ")
-    print("  (ex. 100          for 100 +parity, 100 -parity states w/o J-proj. (default)")
+    print(f"  (ex. {default_states:d}          for {default_states:d} +parity, {default_states:d} -parity states w/o J-proj. (default)")
     print("       -5           for lowest five -parity states, ")
     print("       0+3, 2+1     for lowest three 0+ states and one 2+ states, ")
     print("       1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :")
@@ -540,7 +569,7 @@ def main_nuclide(model_space_filename: str) -> tuple:
         """
         If no input is given, go to default values.
         """
-        input_n_states = ['+100', '-100']
+        input_n_states = [f'+{default_states:d}', f'-{default_states:d}']
     
     if (len(input_n_states) == 1) and (input_n_states[0].isdigit()):
         """
@@ -1043,7 +1072,7 @@ def main():
                         + " to current dir. failed ***")
     # header
     if is_mpi:
-        check_copy('kshell.exe', 'transit.exe', 'collect_logs.py') 
+        check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py') 
         if is_mpi == 'coma':
             outsh = '#!/bin/sh \n' \
                     + '#SBATCH -J ' + fn_run[:-3] + '\n' \
@@ -1171,7 +1200,7 @@ def main():
                     # + 'cd ' + os.getcwd() +'\n\n' \
             print("\n Finish. edit and pjsub ./" + fn_run + "\n")
     else:
-        check_copy('kshell.exe', 'transit.exe', 'collect_logs.py') 
+        check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py') 
         outsh = '#!/bin/sh \n' \
                 + '# export OMP_STACKSIZE=1g\n' \
                 + 'export GFORTRAN_UNBUFFERED_PRECONNECTED=y\n' \
