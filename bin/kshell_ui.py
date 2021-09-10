@@ -611,24 +611,27 @@ def main_nuclide(
             state is not divisible by 2, then it is not a valid spin for
             this number of nucleons.
             """
-            print("Remove states J, prty, Num = ", j, p, n, isp)
+            print("Remove states J, parity, Num = ", j, p, n, isp)
     
     list_jpn = [a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0]    # Remove invalid states as described a few lines above.
 
     parity_list = list( set( jpn[1] for jpn in list_jpn ) )   # Extract a list of only parities.
     fn_ptn_list = {-1:base_filename + "_n.ptn", 1:base_filename + "_p.ptn"}
-    #    fn_input = base_filename + ".input"
     trc_list_prty = {-1:None, 1:None}
-    for prty in parity_list:
-        fn_ptn = fn_ptn_list[prty]
-        if prty == 1: 
-            print('\n truncation for "+" parity state in ', fn_ptn)
+
+    for parity in parity_list:
+        """
+        Generate partition file(s).
+        """
+        partition_filename = fn_ptn_list[parity]
+        if parity == 1: 
+            print('\n truncation for "+" parity state in ', partition_filename)
         else:          
-            print('\n truncation for "-" parity state in ', fn_ptn)
+            print('\n truncation for "-" parity state in ', partition_filename)
 
-        trc_list_prty[prty] = gen_partition.main(model_space_filename, fn_ptn, valence_p_n, prty)
+        trc_list_prty[parity] = gen_partition.main(model_space_filename, partition_filename, valence_p_n, parity)
 
-        if os.path.exists( fn_ptn ): stgin_filenames.append( fn_ptn )
+        if os.path.exists( partition_filename ): stgin_filenames.append( partition_filename )
 
     #-----------------------------------------------------
 
@@ -639,7 +642,7 @@ def main_nuclide(
         print(print_var_dict(
             var_dict,
             skip = (
-                'fn_int', 'fn_save_wave', 'n_eigen', 'fn_ptn', 'is_double_j',
+                'fn_int', 'fn_save_wave', 'n_eigen', 'partition_filename', 'is_double_j',
                 'mtot'
             )
         ))
@@ -697,7 +700,7 @@ def main_nuclide(
         else: 
             jchar =  '_m'
             var_dict[ 'is_double_j' ] = '.false.'
-        var_dict[ 'fn_ptn' ] = '"' + fn_ptn_list[nparity] + '"'
+        var_dict[ 'partition_filename' ] = '"' + fn_ptn_list[nparity] + '"'
 
         if (trc_list_prty[nparity] is not None) and (not 'orbs_ratio' in var_dict.keys()):
             var_dict[ 'orbs_ratio' ] = trc_list_prty[nparity]
@@ -711,7 +714,7 @@ def main_nuclide(
         stgout_filenames.append( fn_log )
         var_dict[ 'fn_save_wave' ] = fn_save_wave
         fn_save_dict[ (mtot,nparity,n_eigen,is_proj) ] \
-            = fn_save_wave, var_dict[ 'fn_ptn' ] 
+            = fn_save_wave, var_dict[ 'partition_filename' ] 
         var_dict[ 'n_eigen' ] = n_eigen
         var_dict[ 'n_restart_vec' ] \
             = max( int(n_eigen * 1.5) , int(var_dict[ 'n_restart_vec' ]) )
@@ -734,10 +737,10 @@ def main_nuclide(
         
         shell_file_content_single +=  exec_string('kshell', fn_input, fn_log)
 
-        fn_ptn = fn_ptn_list[nparity]
+        partition_filename = fn_ptn_list[nparity]
 
-        shell_file_content_single += 'rm -f tmp_snapshot_' + fn_ptn + '_' + str(mtot) + '_* ' + \
-               'tmp_lv_' + fn_ptn + '_' + str(mtot) + '_* ' + \
+        shell_file_content_single += 'rm -f tmp_snapshot_' + partition_filename + '_' + str(mtot) + '_* ' + \
+               'tmp_lv_' + partition_filename + '_' + str(mtot) + '_* ' + \
                fn_input + ' \n\n\n'
 
         # if var_dict.has_key('orbs_ratio'): del var_dict[ 'orbs_ratio' ]
@@ -1253,17 +1256,19 @@ def main():
     Check that the requested amount of states does not exceed the
     J-scheme dimensionality.
     """
-    partition_filename = states[0][6][1].replace('"', '')
-    M, _, jdim = count_dim(
-        model_space_filename = model_space_filename,
-        partition_filename = partition_filename,
-        print_dimensions = False
-    )
-    
+    # print(f"{states=}")
     for state in states:
         """
-        Loop over all the requested states.
+        Loop over all the requested states. Correct the number of
+        requested states, if needed.
         """
+        partition_filename = state[6][1].replace('"', '')
+        wave_filename = state[6][0].replace('"', '')
+        M, _, jdim = count_dim(
+            model_space_filename = model_space_filename,
+            partition_filename = partition_filename,
+            print_dimensions = False
+        )
         _, spin, parity, n_states, is_jproj, _, _ = state
         parity = "+" if parity == +1 else "-"
 
@@ -1272,17 +1277,18 @@ def main():
                 """
                 If 'n_states' is greater than 'jdim[i]' then the number
                 of requested states exceeds the J-scheme dimensionality.
-                In that case, the first occurrence of 'j{spin}p' is
+                In that case, the first occurrence of .wav filename is
                 located and the first occurrence of 'n_eigen' after this
                 is changed to the maximum allowed number of states for
-                the given spin. 'j{spin}p' is located first since the
+                the given spin. .wav filename is located first since the
                 first occurrence of 'n_eigen' after this must be the
                 correct occurence of 'n_eigen' to change.
                 """
                 msg = f"Requested number of {spin/2:.0f}{parity} states exceeds"
                 msg += " the J-scheme dimensionality!"
                 msg += f" Adjusting from {n_states} to {jdim[i]}."
-                idx = shell_file_content_total.find(f"j{spin}p")
+                # idx = shell_file_content_total.find(f"j{spin}p")
+                idx = shell_file_content_total.find(wave_filename)
                 shell_file_content_total = \
                     shell_file_content_total[:idx] + \
                     shell_file_content_total[idx:].replace(f"n_eigen = {n_states}", f"n_eigen = {jdim[i]}", 1)
