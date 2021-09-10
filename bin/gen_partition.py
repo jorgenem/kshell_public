@@ -40,8 +40,8 @@ def orb2char(n, l, j, tz):
     return "%c_%d%c%d/2" % (tz2c[tz], n, lorb2c[l], j)
 
 class ModelSpace:
-    def __init__(self, nf, norb, lorb, jorb, itorb):
-        self.nferm = nf
+    def __init__(self, valence_p_n, norb, lorb, jorb, itorb):
+        self.nferm = valence_p_n
         self.norb = norb
         self.lorb = lorb
         self.jorb = jorb
@@ -135,10 +135,10 @@ class ModelSpace:
         #           max( self.phtrunc_t[i][0] - highest_pn[i][0], 
         #                lowest_pn[i][1] ) ) )
 
-    def set_monopole_truncation(self, fn_snt, thd_energy):
+    def set_monopole_truncation(self, model_space_filename, thd_energy):
         self.is_monopole_trunc = True
         from espe import SMInt
-        self.SMInt = SMInt(fn_snt)
+        self.SMInt = SMInt(model_space_filename)
         self.monopole_e_thd = thd_energy
 
         
@@ -197,7 +197,7 @@ class ModelSpace:
             self.ptn_pn[tz].sort()
 
 
-    def ptn_combined(self, nparity):
+    def ptn_combined(self, parity):
         # parity
         self.ptn_pn_parity = [
             [ reduce(operator.mul, 
@@ -233,7 +233,7 @@ class ModelSpace:
         def check_trunc(i_p, i_n):
             # parity
             if self.ptn_pn_parity[0][i_p] * self.ptn_pn_parity[1][i_n] \
-               != nparity: return False
+               != parity: return False
             # hw excitation
             hw = self.ptn_pn_hw[0][i_p] + self.ptn_pn_hw[1][i_n]
             if not self.minhw <= hw <= self.maxhw: return False
@@ -301,11 +301,11 @@ class ModelSpace:
 
         
 
-    def write_ptn_pn(self, fp, nparity, fn_snt):
+    def write_ptn_pn(self, fp, parity, model_space_filename):
         # output partition of proton and neutron separately
         fp.write( "# partition file of %s  Z=%d  N=%d  parity=%+d\n" 
-                  % (fn_snt, self.nferm[0], self.nferm[1], nparity ) )
-        fp.write( " %d %d %d\n" % (self.nferm[0], self.nferm[1], nparity) )
+                  % (model_space_filename, self.nferm[0], self.nferm[1], parity ) )
+        fp.write( " %d %d %d\n" % (self.nferm[0], self.nferm[1], parity) )
         fp.write( "# num. of  proton partition, neutron partition\n" )
         fp.write( " %d %d\n" % (len(self.ptn_pn[0]), len(self.ptn_pn[1]) ))
         for tz in range(2):
@@ -331,17 +331,17 @@ class ModelSpace:
             sys.stdout.write( "\n *** WARNING NO PARTITION *** \n" )
 
 
-    def cal_hw_low_high_pn(self, nf):
+    def cal_hw_low_high_pn(self, valence_p_n):
         # total hw excitation of the lowest and highest configuration
         nhw = [ [], [] ]
         for tz in range(2):
             for i in range(len(self.jorb_pn[tz])):
                 nhw[tz] += [ self.hworb_pn[tz][i], ]*(self.jorb_pn[tz][i]+1) 
         for tz in range(2): nhw[tz].sort()
-        return ( sum(nhw[0][:nf[0]]), sum(nhw[1][:nf[1]]) ), \
-            ( sum(nhw[0][-nf[0]:]), sum(nhw[1][-nf[1]:]) )
+        return ( sum(nhw[0][:valence_p_n[0]]), sum(nhw[1][:valence_p_n[1]]) ), \
+            ( sum(nhw[0][-valence_p_n[0]:]), sum(nhw[1][-valence_p_n[1]:]) )
 
-    def cal_phtrunc_t_low_high_pn(self, nf):
+    def cal_phtrunc_t_low_high_pn(self, valence_p_n):
         lowest_pn = []
         highest_pn = []
         for mask_pn in self.phtrunc_mask_pn:
@@ -350,30 +350,51 @@ class ModelSpace:
                 for i in range(len(self.jorb_pn[tz])):
                     nhw[tz] += [ mask_pn[tz][i], ]*(self.jorb_pn[tz][i]+1) 
             for tz in range(2): nhw[tz].sort()
-            lowest_pn.append((sum(nhw[0][:nf[0]]),sum(nhw[1][:nf[1]])))
-            highest_pn.append((sum(nhw[0][-nf[0]:]),sum(nhw[1][-nf[1]:])))
+            lowest_pn.append((sum(nhw[0][:valence_p_n[0]]),sum(nhw[1][:valence_p_n[1]])))
+            highest_pn.append((sum(nhw[0][-valence_p_n[0]:]),sum(nhw[1][-valence_p_n[1]:])))
         return lowest_pn, highest_pn
 
 
-    def gen_nocc(self, nlist, nf):
-        if nf==0: 
+    def gen_nocc(self, nlist, valence_p_n):
+        if valence_p_n==0: 
             yield (0,)*len(nlist)
             return
         if len(nlist)==1:
-            yield (nf,)
+            yield (valence_p_n,)
             return
         ns, nrest = nlist[0], nlist[1:]
-        # for i in range(max(0, nf-sum(nrest)), min(ns, nf)+1): 
-        for i in range(min(ns, nf), max(0, nf-sum(nrest))-1, -1): 
-            for j in self.gen_nocc(nrest, nf-i):
+        # for i in range(max(0, valence_p_n-sum(nrest)), min(ns, valence_p_n)+1): 
+        for i in range(min(ns, valence_p_n), max(0, valence_p_n-sum(nrest))-1, -1): 
+            for j in self.gen_nocc(nrest, valence_p_n-i):
                 yield (i,) + j
 
-def main(fn_snt, fn_ptn, nf, nparity):
+def main(
+    model_space_filename: str,
+    partition_filename: str,
+    valence_p_n: tuple,
+    parity: int
+):
+    """
+    Parameters
+    ----------
+    model_space_filename:
+        The filename of the model space (.snt) file.
+
+    partition_filename:
+        The filename of the partition (.ptn) file.
+
+    valence_p_n:
+        Tuple containing the number of valence protons and neutrons.
+        Example: (#p, #n).
+    
+    parity:
+        The parity of the current partition.
+    """
     
     try:
-        fp = open(fn_snt, 'r')
+        fp = open(model_space_filename, 'r')
     except FileNotFoundError:
-        print(f"File '{fn_snt=}' not found")
+        print(f"File '{model_space_filename=}' not found")
         sys.exit()
     
     n_jorb, n_core = [0,0], [0,0]
@@ -400,22 +421,22 @@ def main(fn_snt, fn_ptn, nf, nparity):
 
     
     
-    class_ms = ModelSpace( nf, norb, lorb, jorb, itorb )
+    class_ms = ModelSpace( valence_p_n, norb, lorb, jorb, itorb )
 
     # parity check
     prty_list = [ set(ip) for ip in class_ms.iporb_pn ]
     for i in range(2): 
-        if nf[i] % 2 == 0 and prty_list[i] == set([-1]): 
+        if valence_p_n[i] % 2 == 0 and prty_list[i] == set([-1]): 
             prty_list[i] = set( [1] )
-        if nf[i] == 0: prty_list[i] = set( [1] )
+        if valence_p_n[i] == 0: prty_list[i] = set( [1] )
 
-    if nparity == 1:
+    if parity == 1:
         if not (1 in prty_list[0] and 1 in prty_list[1] ) \
                 and not (-1 in prty_list[0] and -1 in prty_list[1] ):
             print("No states in  positive parity")
             return
             # sys.exit()
-    elif nparity == -1:
+    elif parity == -1:
         if not (1 in prty_list[0] and -1 in prty_list[1] ) \
                 and not (-1 in prty_list[0] and 1 in prty_list[1] ):
             print("No states in negative parity")
@@ -424,7 +445,7 @@ def main(fn_snt, fn_ptn, nf, nparity):
     else:
         raise "illegal input"
 
-    fpout = open(fn_ptn, 'w')
+    fpout = open(partition_filename, 'w')
 
     print(" truncation scheme ?\n" \
         + "      0 : No truncation (default) \n" \
@@ -491,7 +512,7 @@ def main(fn_snt, fn_ptn, nf, nparity):
         thd = float(ans)
         fpout.write( "# monopole-based partition truncation, thd= %10.5f\n"
                      %  thd)
-        class_ms.set_monopole_truncation(fn_snt, thd)
+        class_ms.set_monopole_truncation(model_space_filename, thd)
 
     sys.stdout.write( "generating partition file ..." )
     sys.stdout.flush()
@@ -502,7 +523,7 @@ def main(fn_snt, fn_ptn, nf, nparity):
     if class_ms.is_monopole_trunc:     sys.stdout.write( "\n" )
     sys.stdout.flush()
 
-    class_ms.ptn_combined(nparity)
+    class_ms.ptn_combined(parity)
 
     sys.stdout.write( "..." )
     sys.stdout.flush()
@@ -512,7 +533,7 @@ def main(fn_snt, fn_ptn, nf, nparity):
     sys.stdout.write( "..." )
     sys.stdout.flush()
 
-    class_ms.write_ptn_pn(fpout, nparity, fn_snt)
+    class_ms.write_ptn_pn(fpout, parity, model_space_filename)
     class_ms.write_ptn_combined(fpout)
 
     sys.stdout.write( " done.\n" )
@@ -538,14 +559,14 @@ if __name__ == "__main__":
     import os.path
     if os.path.exists(sys.argv[2]): raise "partition file exists"
 
-    fn_snt, fn_out = sys.argv[1], sys.argv[2]
-    nf = (int(sys.argv[3]), int(sys.argv[4]))
-    nparity = 1
+    model_space_filename, fn_out = sys.argv[1], sys.argv[2]
+    valence_p_n = (int(sys.argv[3]), int(sys.argv[4]))
+    parity = 1
     if len(sys.argv) > 5: 
-        if   sys.argv[5] == "+": nparity =  1
-        elif sys.argv[5] == "-": nparity = -1
-        else: nparity = int(sys.argv[5])
+        if   sys.argv[5] == "+": parity =  1
+        elif sys.argv[5] == "-": parity = -1
+        else: parity = int(sys.argv[5])
 
-    if not nparity in (1, -1): raise "parity error"
+    if not parity in (1, -1): raise "parity error"
 
-    main(fn_snt, fn_out, nf, nparity)
+    main(model_space_filename, fn_out, valence_p_n, parity)
