@@ -1256,11 +1256,10 @@ def main():
     Check that the requested amount of states does not exceed the
     J-scheme dimensionality.
     """
-    # print(f"{states=}")
     for state in states:
         """
         Loop over all the requested states. Correct the number of
-        requested states, if needed.
+        requested energy eigenstates, if needed.
         """
         partition_filename = state[6][1].replace('"', '')
         wave_filename = state[6][0].replace('"', '')
@@ -1287,7 +1286,6 @@ def main():
                 msg = f"Requested number of {spin/2:.0f}{parity} states exceeds"
                 msg += " the J-scheme dimensionality!"
                 msg += f" Adjusting from {n_states} to {jdim[i]}."
-                # idx = shell_file_content_total.find(f"j{spin}p")
                 idx = shell_file_content_total.find(wave_filename)
                 shell_file_content_total = \
                     shell_file_content_total[:idx] + \
