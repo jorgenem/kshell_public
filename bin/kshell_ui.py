@@ -641,8 +641,8 @@ def main_nuclide(
         print("\n --- input parameter --- ")
         print(print_var_dict(
             var_dict,
-            skip = (
-                'fn_int', 'fn_save_wave', 'n_eigen', 'partition_filename', 'is_double_j',
+            skip = (    # NOTE: 'fn_ptn' and 'partition_filename' mixup.
+                'fn_int', 'fn_save_wave', 'n_eigen', 'fn_ptn', 'is_double_j',
                 'mtot'
             )
         ))
@@ -700,7 +700,7 @@ def main_nuclide(
         else: 
             jchar =  '_m'
             var_dict[ 'is_double_j' ] = '.false.'
-        var_dict[ 'partition_filename' ] = '"' + fn_ptn_list[nparity] + '"'
+        var_dict[ 'fn_ptn' ] = '"' + fn_ptn_list[nparity] + '"' # NOTE: 'fn_ptn' and 'partition_filename' mixup.
 
         if (trc_list_prty[nparity] is not None) and (not 'orbs_ratio' in var_dict.keys()):
             var_dict[ 'orbs_ratio' ] = trc_list_prty[nparity]
@@ -714,7 +714,7 @@ def main_nuclide(
         stgout_filenames.append( fn_log )
         var_dict[ 'fn_save_wave' ] = fn_save_wave
         fn_save_dict[ (mtot,nparity,n_eigen,is_proj) ] \
-            = fn_save_wave, var_dict[ 'partition_filename' ] 
+            = fn_save_wave, var_dict[ 'fn_ptn' ]    # NOTE: 'fn_ptn' and 'partition_filename' mixup.
         var_dict[ 'n_eigen' ] = n_eigen
         var_dict[ 'n_restart_vec' ] \
             = max( int(n_eigen * 1.5) , int(var_dict[ 'n_restart_vec' ]) )
