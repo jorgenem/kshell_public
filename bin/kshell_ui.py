@@ -1256,11 +1256,15 @@ def main():
     Check that the requested amount of states does not exceed the
     J-scheme dimensionality.
     """
+    msg = "Checking whether the requested number of energy eigenstates"
+    msg += " exceeds the J-scheme dimensionality."
+    print(msg)
     for state in states:
         """
         Loop over all the requested states. Correct the number of
         requested energy eigenstates, if needed.
         """
+        message_printed = False
         partition_filename = state[6][1].replace('"', '')
         wave_filename = state[6][0].replace('"', '')
         M, _, jdim = count_dim(
@@ -1283,13 +1287,22 @@ def main():
                 first occurrence of 'n_eigen' after this must be the
                 correct occurence of 'n_eigen' to change.
                 """
-                msg = f"Requested number of {spin/2:.0f}{parity} states exceeds"
-                msg += " the J-scheme dimensionality!"
-                msg += f" Adjusting from {n_states} to {jdim[i]}."
+                if not message_printed:
+                    msg = f"Adjusting {partition_filename.split('_')[0]}"
+                    print(msg)
+                    message_printed = True
+                # msg = f"Requested number of {spin/2:.0f}{parity} states exceeds"
+                # msg += " the J-scheme dimensionality!"
+                msg = f"{spin/2:.0f}{parity}: "
+                msg += f" Changing from {n_states} to {jdim[i]}."
                 idx = shell_file_content_total.find(wave_filename)
                 shell_file_content_total = \
                     shell_file_content_total[:idx] + \
-                    shell_file_content_total[idx:].replace(f"n_eigen = {n_states}", f"n_eigen = {jdim[i]}", 1)
+                    shell_file_content_total[idx:].replace(
+                        f"n_eigen = {n_states}",
+                        f"n_eigen = {jdim[i]}",
+                        1
+                    )
                 print(msg)
 
     fp_run = open(shell_filename, 'w')
