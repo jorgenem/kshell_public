@@ -918,6 +918,27 @@ def main():
                 except ValueError:
                     print("Please enter an integer:")
                     continue
+        
+        type_of_fram_jobs_list = ["normal", "short", "devel"]
+        fram_job_description = {
+            "normal": "Normal. Nodes: 1 to 32, priority: normal, maximum walltime: 7 days",
+            "short": "Short. Nodes: 1 to 10, priority: high (slightly lower than devel), maximum walltime: 2 hours",
+            "devel": "Devel. Nodes: 1 to 8, priority: high, maximum walltime: 30 minutes"
+        }
+        while True:
+            type_of_fram_job = raw_input_save("type of job (default 'normal'): ")
+            
+            if type_of_fram_job == "":
+                type_of_fram_job = "normal"
+
+            if type_of_fram_job not in type_of_fram_jobs_list:
+                print("Allowed job types are: ", type_of_fram_jobs_list)
+                continue
+            
+            else:
+                print(fram_job_description[type_of_fram_job])
+                break
+
 
     if len(mpi_input_arr) >= 2:
         """
@@ -1223,6 +1244,8 @@ def main():
             shell_file_content_tmp += '#SBATCH --cpus-per-task=32 \n'
             shell_file_content_tmp += '#SBATCH --mail-type=ALL \n'
             shell_file_content_tmp += f'#SBATCH --mail-user={fram_user_email} \n'
+            if type_of_fram_job != "normal":
+                shell_file_content_tmp += f'#SBATCH --qos={type_of_fram_job} \n'
             shell_file_content_tmp += 'module --quiet purge  \n'
             # shell_file_content_tmp += 'module load foss/2017a \n'
             shell_file_content_tmp += 'module load intel/2020b \n'
