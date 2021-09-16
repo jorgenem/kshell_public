@@ -2,21 +2,54 @@ This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [n
 
 ### Prerequisites
 * ```Python 3.8``` (kshell_ui.py uses syntax specific to 3.8 and above)
-* ```gfortran 10.2.0``` (tested with this version, but does work with older versions)
+* ```gfortran 10.2.0``` (Tested with this version, but does work with older versions.)
+* ```ifort 19.1.3.304``` (Alternative to gfortran. Tested with this version, might work with other versions.)
 * ```openblas```
 * ```lapack```
 
-### Compilation on Fram (work in progress per 2021-09-03, might not be 100% correct yet)
+### Compilation on Fram with MPI
+Start by loading the necessary modules which contain the correct additional software to run `KSHELL`. The `intel/2020b` module contains the correct `ifort` version as well as `blas` and `lapack` (double check this), and the module `Python/3.8.6-GCCcore-10.2.0` gives us the correct `Python` version. Load the modules in this order:
 ```
-module load foss/2017a
+module load intel/2020b
 module load Python/3.8.6-GCCcore-10.2.0
 ```
-The following modules will be overwritten with `Python/3.8.6-GCCcore-10.2.0`:
+Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile KSHELL, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make`.
+
+<details>
+<summary>I could use some help...</summary>
+<p>
+
 ```
-The following have been reloaded with a version change:
-  1) GCCcore/6.3.0 => GCCcore/10.2.0     2) binutils/2.27-GCCcore-6.3.0 => binutils/2.35-GCCcore-10.2.0
+[jonkd@login-2.FRAM ~/tmp_delete_anytime/kshell_public/src]$ make
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c constant.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c model_space.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lib_matrix.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c class_stopwatch.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c partition.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c wavefunction.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c rotation_group.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c harmonic_oscillator.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_jscheme.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_mscheme.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bridge_partitions.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c sp_matrix_element.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c interaction.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_io.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lanczos.f90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_expc_val.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_block.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c block_lanczos.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c kshell.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+mpiifort -O3 -qopenmp -no-ipo -DMPI  -c transit.F90
+mpiifort -O3 -qopenmp -no-ipo -DMPI -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+mpiifort -O3 -qopenmp -no-ipo -DMPI -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+cp kshell.exe transit.exe count_dim.exe ../bin/
 ```
-`foss/2017a` contains the correct `lapack` and `blas` versions, while `Python/3.8.6-GCCcore-10.2.0` contains the correct `Fortran` compiler and `Python` versions. Note that the gfortran compiler in `foss/2017a` does not support the ```-fallow-argument-mismatch``` compiler flag and has to be removed in the ```Makefile```, but this is not a problem if you load `Python/3.8.6-GCCcore-10.2.0`.
+  
+</p>
+</details>
+
 
 ### Queueing job script on Fram
 The shell script grenerated by `kshell_ui.py` must begin with certain commands wich will be read by the Fram job queue system, `slurm`. The needed commands will automatically be added to the script if keyword `fram` is entered in the first prompt of `kshell_ui.py`. Following is an example of the commands for running on a single node on 32 cores:
