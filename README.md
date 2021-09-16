@@ -7,20 +7,21 @@ This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [n
 * ```openblas```
 * ```lapack```
 
+#### KSHELL on Fram
 ### Compilation on Fram with MPI
 Start by loading the necessary modules which contain the correct additional software to run `KSHELL`. The `intel/2020b` module contains the correct `ifort` version as well as `blas` and `lapack` (double check this), and the module `Python/3.8.6-GCCcore-10.2.0` gives us the correct `Python` version. Load the modules in this order:
 ```
 module load intel/2020b
 module load Python/3.8.6-GCCcore-10.2.0
 ```
-Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile KSHELL, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make`.
+Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile KSHELL, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make` and KSHELL will be compiled.
 
 <details>
-<summary>I could use some help...</summary>
+<summary>Click here to see the terminal output from the compilation process</summary>
 <p>
 
 ```
-[jonkd@login-2.FRAM ~/tmp_delete_anytime/kshell_public/src]$ make
+[user ~/kshell_public/src]$ make
 mpiifort -O3 -qopenmp -no-ipo -DMPI  -c constant.f90
 mpiifort -O3 -qopenmp -no-ipo -DMPI  -c model_space.f90
 mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lib_matrix.F90
@@ -50,6 +51,7 @@ cp kshell.exe transit.exe count_dim.exe ../bin/
 </p>
 </details>
 
+`KSHELL` is now compiled! To remove the compiled files and revert back to the starting point, run `make clean` in the `src/` directory.
 
 ### Queueing job script on Fram
 The shell script grenerated by `kshell_ui.py` must begin with certain commands wich will be read by the Fram job queue system, `slurm`. The needed commands will automatically be added to the script if keyword `fram` is entered in the first prompt of `kshell_ui.py`. Following is an example of the commands for running on a single node on 32 cores:
