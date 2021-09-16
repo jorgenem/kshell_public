@@ -1,11 +1,15 @@
 This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
-### Prerequisites
+## Prerequisites
 * ```Python 3.8``` (kshell_ui.py uses syntax specific to 3.8 and above)
 * ```gfortran 10.2.0``` (Tested with this version, but does work with older versions.)
 * ```ifort 19.1.3.304``` (Alternative to gfortran. Tested with this version, might work with other versions.)
 * ```openblas```
 * ```lapack```
+
+## General usage
+### Installation
+
 
 ## KSHELL on Fram
 ### Compilation on Fram with MPI
@@ -14,7 +18,7 @@ Start by loading the necessary modules which contain the correct additional soft
 module load intel/2020b
 module load Python/3.8.6-GCCcore-10.2.0
 ```
-Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile `KSHELL`, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make` and `KSHELL` will be compiled.
+Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile `KSHELL`, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make`, and `KSHELL` will be compiled.
 
 <details>
 <summary>Click here to see the terminal output from the compilation process</summary>
@@ -100,7 +104,7 @@ set -o nounset
 </p>
 </details>
 
-Note that the modules must be explicitly loaded in the script file since the modules you load to the login node does not get loaded on the compute nodes. The login node is the computer you control when you SSH to `<username>@fram.sigma2.no` and the compute nodes are other computers which you control via the `slurm` queue system. If you need any other modules loaded, you must add these to the executable shell script.
+Note that the modules must be explicitly loaded in the script file since the modules you load to the login node does not get loaded on the compute nodes. The login node is the computer you control when you SSH to `<username>@fram.sigma2.no` and the compute nodes are other computers which you control via the `slurm` queue system. If you need any other modules loaded, you must add these to the executable shell script. Now, just wait for the program to run its course!
 
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
