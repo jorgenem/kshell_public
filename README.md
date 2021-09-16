@@ -194,3 +194,4 @@ The folder example_nld_gsf/ contains an example of just that, using the `shellmo
 ### Notes to self
 MPI compile wrapper mpiifort
 intel/2020b og Python/3.8.6-GCCcore-10.2.0
+100 lowest states for spins 0 to 14 took 39 minutes on Fram with 32 nodes
