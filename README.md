@@ -7,7 +7,7 @@ This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [n
 * ```openblas```
 * ```lapack```
 
-#### KSHELL on Fram
+## KSHELL on Fram
 ### Compilation on Fram with MPI
 Start by loading the necessary modules which contain the correct additional software to run `KSHELL`. The `intel/2020b` module contains the correct `ifort` version as well as `blas` and `lapack` (double check this), and the module `Python/3.8.6-GCCcore-10.2.0` gives us the correct `Python` version. Load the modules in this order:
 ```
