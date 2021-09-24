@@ -1279,8 +1279,8 @@ def main():
     Check that the requested amount of states does not exceed the
     J-scheme dimensionality.
     """
-    msg = "Checking whether the requested number of energy eigenstates"
-    msg += " exceeds the J-scheme dimensionality."
+    msg = "\nChecking whether the requested number of energy eigenstates"
+    msg += " exceeds the J-scheme dimensionality..."
     print(msg)
     for state in states:
         """
@@ -1320,6 +1320,8 @@ def main():
                         1
                     )
                 print(msg)
+
+    print("Done!\n")
 
     fp_run = open(shell_filename, 'w')
     fp_run.write(shell_file_content_total)
