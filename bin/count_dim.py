@@ -4,7 +4,7 @@
 #  count M-scheme dimension   Thanks to Y. Tsunoda
 #
 
-import sys, math
+import sys, math, os, time
 from typing import TextIO, Tuple
 
 def readline_sk(fp: TextIO) -> list:
@@ -171,7 +171,7 @@ def count_dim(
     model_space_filename: str,
     partition_filename: str,
     print_dimensions: bool = True
-):
+    ):
     """
     Parameters
     ----------
@@ -186,14 +186,22 @@ def count_dim(
     print_dimensions:
         For toggling print on / off.
     """
-
+    timing_total = time.time()
+    timing_read_snt = time.time()
     orbits_proton_neutron, core_protons_neutrons, norb, lorb, jorb, itorb = \
         read_snt(model_space_filename)
+    timing_read_snt = time.time() - timing_read_snt
+    
+    timing_read_ptn = time.time()
     valence_protons_neutrons, parity, proton_partition, neutron_partition, total_partition = \
         read_ptn(partition_filename)
+    timing_read_ptn = time.time() - timing_read_ptn
 
+    timing_set_dim_singlej = time.time()
     dim_jnm = set_dim_singlej( jorb )
+    timing_set_dim_singlej = time.time() - timing_set_dim_singlej
 
+    timing_proton_partition_loop = time.time()
     # dimension for proton
     dim_idp_mp = []
     for ptn in proton_partition:
@@ -209,6 +217,9 @@ def count_dim(
             mps.append( dict( ( (m, p), d ) for m,d in dim_jnm[j][n].items() ) )
         dim_idp_mp.append(mps_product(mps))
 
+    timing_proton_partition_loop = time.time() - timing_proton_partition_loop
+
+    timing_neutron_partition_loop = time.time()
     # dimension for neutron
     dim_idn_mp = []
     for ptn in neutron_partition:
@@ -219,11 +230,17 @@ def count_dim(
             mps.append( dict( ( (m, p), d ) for m,d in dim_jnm[j][n].items() ) )
         dim_idn_mp.append( mps_product(mps) )
 
+    timing_neutron_partition_loop = time.time() - timing_neutron_partition_loop
+
+    timing_product_dimension = time.time()
     # product dimensions of proton and neutron
     dim_mp = {}
-    for idp,idn in total_partition:
+    for idp, idn in total_partition:
         mp_add( dim_mp, mp_product(dim_idp_mp[idp], dim_idn_mp[idn]) )
 
+    timing_product_dimension = time.time() - timing_product_dimension
+
+    timing_data_gather = time.time()
     M, mdim, jdim, mpow, jpow = [], [], [], [], []  # Might be unnecessary to make all of these lists.
 
     for m in range( max([x[0] for x in dim_mp]), -1, -2 ):
@@ -242,6 +259,20 @@ def count_dim(
             msg += f"   {mdim[i]/(10**mpow[i]):4.2f}x10^{mpow[i]:2d}"
             msg += f"  {jdim[i]/(10**jpow[i]):4.2f}x10^{jpow[i]:2d}"
             print(msg)
+    timing_data_gather = time.time() - timing_data_gather
+    timing_total = time.time() - timing_total
+
+    print("TIMING:")
+    print("-------")
+    print("where                         abs. time  rel. time")
+    print(f"timing_read_ptn               {timing_read_ptn:.4f}s    {timing_read_ptn/timing_total:.4f}")
+    print(f"timing_read_snt               {timing_read_snt:.4f}s    {timing_read_snt/timing_total:.4f}")
+    print(f"timing_set_dim_singlej        {timing_set_dim_singlej:.4f}s    {timing_set_dim_singlej/timing_total:.4f}")
+    print(f"timing_proton_partition_loop  {timing_proton_partition_loop:.4f}s    {timing_proton_partition_loop/timing_total:.4f}")
+    print(f"timing_neutron_partition_loop {timing_neutron_partition_loop:.4f}s    {timing_neutron_partition_loop/timing_total:.4f}")
+    print(f"timing_product_dimension      {timing_product_dimension:.4f}s    {timing_product_dimension/timing_total:.4f}")
+    print(f"timing_data_gather            {timing_data_gather:.4f}s    {timing_data_gather/timing_total:.4f}")
+    print(f"timing_total                  {timing_total:.4f}s    {timing_total/timing_total:.4f}")
 
     return M, mdim, jdim
 
@@ -252,6 +283,7 @@ if __name__ == "__main__":
         """
         Ask for input if none is given in the command line.
         """
+        print(os.listdir())
         model_space_filename = input("Model space file (snt): ")
         partition_filename = input("Partition file (ptn): ")
     
