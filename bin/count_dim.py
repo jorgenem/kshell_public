@@ -186,6 +186,33 @@ def count_dim(
     debug: bool = False
     ):
     """
+    Product dimension calculation is parallelized. Some timing data for
+    a .ptn file of approximately 1 million lines:
+    
+    TIMING (parallel):
+    -------
+    where                         abs. time  rel. time
+    timing_read_ptn               0.7270s    0.0326
+    timing_read_snt               0.0005s    0.0000
+    timing_set_dim_singlej        0.0016s    0.0001
+    timing_proton_partition_loop  0.0004s    0.0000
+    timing_neutron_partition_loop 0.0040s    0.0002
+    timing_product_dimension      21.5805s    0.9671
+    timing_data_gather            0.0002s    0.0000
+    timing_total                  22.3142s    1.0000
+
+    TIMING (serial):
+    -------
+    where                         abs. time  rel. time
+    timing_read_ptn               0.7295s    0.0108
+    timing_read_snt               0.0004s    0.0000
+    timing_set_dim_singlej        0.0016s    0.0000
+    timing_proton_partition_loop  0.0004s    0.0000
+    timing_neutron_partition_loop 0.0035s    0.0001
+    timing_product_dimension      67.0947s    0.9892
+    timing_data_gather            0.0003s    0.0000
+    timing_total                  67.8304s    1.0000
+
     Parameters
     ----------
     model_space_filename:
