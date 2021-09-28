@@ -4,10 +4,13 @@
 #  count M-scheme dimension   Thanks to Y. Tsunoda
 #
 
-import sys, math, os, time
+import sys, math, os, time, multiprocessing
 from typing import TextIO, Tuple
+import numba
 
-def readline_sk(fp: TextIO) -> list:
+def readline_sk(
+    fp: TextIO,
+    ) -> list:
     """
     Skips lines starting with '#' or '!'. Splits and returns all other
     lines.
@@ -33,7 +36,9 @@ def jj2str(jj):
 def jjp2str(jj, parity):
     return ( str(jj/2) if jj%2==0 else str(jj)+"/2" ) + "- +"[parity+1]
     
-def read_snt(model_space_filename: str) -> Tuple[list, list, list, list, list, list]:
+def read_snt(
+    model_space_filename: str
+    ) -> Tuple[list, list, list, list, list, list]:
     """
     Parameters
     ----------
@@ -77,7 +82,9 @@ def read_snt(model_space_filename: str) -> Tuple[list, list, list, list, list, l
     fp.close()
     return orbits_proton_neutron, core_protons_neutrons, norb, lorb, jorb, itorb
 
-def read_ptn(partition_filename: str) -> Tuple[tuple, int, list, list, list]:
+def read_ptn(
+    partition_filename: str
+    ) -> Tuple[tuple, int, list, list, list]:
     """
     Read partition file (.ptn) and extract information.
 
@@ -105,7 +112,6 @@ def read_ptn(partition_filename: str) -> Tuple[tuple, int, list, list, list]:
     total_partition:
         The total proton and neutron configuration (?).
     """
-
     fp = open(partition_filename, 'r')
     arr = readline_sk(fp)
     valence_protons_neutrons, parity = (int(arr[0]), int(arr[1])),  int(arr[2])
@@ -141,7 +147,7 @@ def mp_add(mp1,mp2):
         mp1[m,p] = mp1.get((m,p), 0) + v
 
 def mp_product(mp1,mp2):
-    mp = dict()
+    mp = {}
     for (m1, p1), v1 in mp1.items():
         for (m2, p2), v2 in mp2.items():
             mp[m1+m2, p1*p2] = mp.get((m1+m2, p1*p2), 0) + v1*v2
@@ -167,10 +173,17 @@ def set_dim_singlej( jorb ):
             dim_jnm[j][n][m] = dim_jnm[j][n].get(m,0) + 1
     return dim_jnm
 
+def _parallel(args):
+    dim_mp_parallel = {}
+    dim_idp_mp, dim_idn_mp = args
+    mp_add( dim_mp_parallel, mp_product(dim_idp_mp, dim_idn_mp) )
+    return dim_mp_parallel
+
 def count_dim(
     model_space_filename: str,
     partition_filename: str,
-    print_dimensions: bool = True
+    print_dimensions: bool = True,
+    debug: bool = False
     ):
     """
     Parameters
@@ -185,6 +198,9 @@ def count_dim(
 
     print_dimensions:
         For toggling print on / off.
+
+    debug:
+        For toggling debug print on / off.
     """
     timing_total = time.time()
     timing_read_snt = time.time()
@@ -232,14 +248,31 @@ def count_dim(
 
     timing_neutron_partition_loop = time.time() - timing_neutron_partition_loop
 
+    """
+    Product dimensions of protons and neutrons. Parallelization gives
+    some penalty for small partition files, but a large speed-up for
+    huge partition files.
+    """
     timing_product_dimension = time.time()
-    # product dimensions of proton and neutron
+    pool = multiprocessing.Pool()
     dim_mp = {}
-    for idp, idn in total_partition:
-        mp_add( dim_mp, mp_product(dim_idp_mp[idp], dim_idn_mp[idn]) )
-
+    list_of_dicts = pool.map(
+        _parallel,
+        [(dim_idp_mp[idp], dim_idn_mp[idn]) for idp, idn in total_partition]
+    )
+    for dict_ in list_of_dicts:
+        for key in dict_:
+            try:
+                dim_mp[key] += dict_[key]
+            except KeyError:
+                dim_mp[key] = dict_[key]
+    
+    # dim_mp = {}
+    # for idp, idn in total_partition:
+    #     mp_add( dim_mp, mp_product(dim_idp_mp[idp], dim_idn_mp[idn]) )
+    
     timing_product_dimension = time.time() - timing_product_dimension
-
+    
     timing_data_gather = time.time()
     M, mdim, jdim, mpow, jpow = [], [], [], [], []  # Might be unnecessary to make all of these lists.
 
