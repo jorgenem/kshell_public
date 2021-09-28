@@ -322,17 +322,18 @@ def count_dim(
     timing_data_gather = time.time() - timing_data_gather
     timing_total = time.time() - timing_total
 
-    print("TIMING:")
-    print("-------")
-    print("where                         abs. time  rel. time")
-    print(f"timing_read_ptn               {timing_read_ptn:.4f}s    {timing_read_ptn/timing_total:.4f}")
-    print(f"timing_read_snt               {timing_read_snt:.4f}s    {timing_read_snt/timing_total:.4f}")
-    print(f"timing_set_dim_singlej        {timing_set_dim_singlej:.4f}s    {timing_set_dim_singlej/timing_total:.4f}")
-    print(f"timing_proton_partition_loop  {timing_proton_partition_loop:.4f}s    {timing_proton_partition_loop/timing_total:.4f}")
-    print(f"timing_neutron_partition_loop {timing_neutron_partition_loop:.4f}s    {timing_neutron_partition_loop/timing_total:.4f}")
-    print(f"timing_product_dimension      {timing_product_dimension:.4f}s    {timing_product_dimension/timing_total:.4f}")
-    print(f"timing_data_gather            {timing_data_gather:.4f}s    {timing_data_gather/timing_total:.4f}")
-    print(f"timing_total                  {timing_total:.4f}s    {timing_total/timing_total:.4f}")
+    if debug:
+        print("TIMING:")
+        print("-------")
+        print("where                         abs. time  rel. time")
+        print(f"timing_read_ptn               {timing_read_ptn:.4f}s    {timing_read_ptn/timing_total:.4f}")
+        print(f"timing_read_snt               {timing_read_snt:.4f}s    {timing_read_snt/timing_total:.4f}")
+        print(f"timing_set_dim_singlej        {timing_set_dim_singlej:.4f}s    {timing_set_dim_singlej/timing_total:.4f}")
+        print(f"timing_proton_partition_loop  {timing_proton_partition_loop:.4f}s    {timing_proton_partition_loop/timing_total:.4f}")
+        print(f"timing_neutron_partition_loop {timing_neutron_partition_loop:.4f}s    {timing_neutron_partition_loop/timing_total:.4f}")
+        print(f"timing_product_dimension      {timing_product_dimension:.4f}s    {timing_product_dimension/timing_total:.4f}")
+        print(f"timing_data_gather            {timing_data_gather:.4f}s    {timing_data_gather/timing_total:.4f}")
+        print(f"timing_total                  {timing_total:.4f}s    {timing_total/timing_total:.4f}")
 
     return M, mdim, jdim
 
