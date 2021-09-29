@@ -496,7 +496,7 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   ```
   Run `KSHELL` with these parameters by:
   ```
-  > ./Ne20_usda.sh
+  ./Ne20_usda.sh
   ```
   If the program runs successfully, you will see:
   ```
