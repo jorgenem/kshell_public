@@ -37,6 +37,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ## Prerequisites
 * ```Python 3.8``` or newer (kshell_ui.py uses syntax specific to 3.8 and above)
+  * lolz
 * ```gfortran 10.2.0``` or newer (Tested with this version, might work with older versions)
 * ```ifort 19.1.3.304``` (Alternative to gfortran. Tested with this version, might work with other versions.)
 * ```openblas```
