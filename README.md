@@ -1,8 +1,8 @@
 This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ## Prerequisites
-* ```Python 3.8``` (kshell_ui.py uses syntax specific to 3.8 and above)
-* ```gfortran 10.2.0``` (Tested with this version, but does work with older versions.)
+* ```Python 3.8``` or newer (kshell_ui.py uses syntax specific to 3.8 and above)
+* ```gfortran 10.2.0``` or newer (Tested with this version, might work with older versions)
 * ```ifort 19.1.3.304``` (Alternative to gfortran. Tested with this version, might work with other versions.)
 * ```openblas```
 * ```lapack```
@@ -123,8 +123,19 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
     <summary>Click here for Linux</summary>
     <p>
 
-      
-      
+    We start by installing a compatible version of `gfortran`. To get a version newer than 9, we must first add the Ubuntu Toolchain repository:
+    ```
+    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    ```
+    Then, install `gfortran` version 10 with:
+    ```
+    sudo apt install gfortran-10
+    ```
+    And check that the newly installed Fortran compiler is of version 10.2.0 or above:
+    ```
+    gfortran-10 --version
+    ```
+    
     </p>
     </details>
   
