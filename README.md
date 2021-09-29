@@ -161,6 +161,7 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
 
   KSHELL probably works fine on any Linux distro as long as you install the correct versions of Fortran and Python. Following is a recipe for installing and compiling on Ubuntu 20.04.2 LTS.
 
+  #### Fortran compiler
   We start by installing a compatible version of `gfortran`. To get a version newer than 9, we must first add the Ubuntu Toolchain repository:
   ```
   sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
@@ -175,6 +176,7 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   ```
   If the version is incorrect, try installing `gfortran` version 11 instead.
 
+  #### Python
   For installing the correct version of Python, it is highly recommended to install an environment management system like `miniconda` as to not mess up any other Python dependencies your system has, and to easily download the exact version needed. Start by downloading the latest release of `miniconda` ([alternative downloads here](https://docs.conda.io/en/latest/miniconda.html)):
   ```
   wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
@@ -201,6 +203,8 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   conda activate kshell
   ```
   Note that any additional Python package can be installed normally with `pip`. The `kshell` environment is only active within your terminal session and does not interfere with any other Python dependencies on your system.
+
+  Alternatively, download `Python 3.8` with the Ubuntu packet manager.
     
   </p>
   </details>
