@@ -7,9 +7,11 @@ This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [n
 * ```openblas```
 * ```lapack```
 
-## General usage
-### Installation
+Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal computer and use `ifort` for the Fram supercomputer.
 
+<details>
+<summary>KSHELL on Fram</summary>
+<p>
 
 ## KSHELL on Fram
 ### Compilation on Fram with MPI
@@ -106,6 +108,9 @@ set -o nounset
 
 Note that the modules must be explicitly loaded in the script file since the modules you load to the login node does not get loaded on the compute nodes. The login node is the computer you control when you SSH to `<username>@fram.sigma2.no` and the compute nodes are other computers which you control via the `slurm` queue system. If you need any other modules loaded, you must add these to the executable shell script. Now, just wait for the program to run its course!
 
+</p>
+</details>
+  
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
 ```
