@@ -11,106 +11,106 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
 
 ## KSHELL on Fram
 
-<details>
-<summary>Click here for KSHELL on Fram</summary>
-<p>
+  <details>
+  <summary>Click here for KSHELL on Fram</summary>
+  <p>
 
-### Compilation on Fram with MPI
-Start by loading the necessary modules which contain the correct additional software to run `KSHELL`. The `intel/2020b` module contains the correct `ifort` version as well as `blas` and `lapack` (double check this), and the module `Python/3.8.6-GCCcore-10.2.0` gives us the correct `Python` version. Load the modules in this order:
-```
-module load intel/2020b
-module load Python/3.8.6-GCCcore-10.2.0
-```
-Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile `KSHELL`, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make`, and `KSHELL` will be compiled.
+    ### Compilation on Fram with MPI
+    Start by loading the necessary modules which contain the correct additional software to run `KSHELL`. The `intel/2020b` module contains the correct `ifort` version as well as `blas` and `lapack` (double check this), and the module `Python/3.8.6-GCCcore-10.2.0` gives us the correct `Python` version. Load the modules in this order:
+    ```
+    module load intel/2020b
+    module load Python/3.8.6-GCCcore-10.2.0
+    ```
+    Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile `KSHELL`, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make`, and `KSHELL` will be compiled.
 
-<details>
-<summary>Click here to see the terminal output from the compilation process</summary>
-<p>
+    <details>
+    <summary>Click here to see the terminal output from the compilation process</summary>
+    <p>
 
-```
-[user ~/kshell_public/src]$ make
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c constant.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c model_space.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lib_matrix.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c class_stopwatch.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c partition.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c wavefunction.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c rotation_group.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c harmonic_oscillator.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_jscheme.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_mscheme.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bridge_partitions.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c sp_matrix_element.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c interaction.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_io.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lanczos.f90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_expc_val.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_block.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c block_lanczos.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c kshell.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
-mpiifort -O3 -qopenmp -no-ipo -DMPI  -c transit.F90
-mpiifort -O3 -qopenmp -no-ipo -DMPI -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
-mpiifort -O3 -qopenmp -no-ipo -DMPI -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
-cp kshell.exe transit.exe count_dim.exe ../bin/
-```
-  
-</p>
-</details>
+      ```
+      [user ~/kshell_public/src]$ make
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c constant.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c model_space.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lib_matrix.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c class_stopwatch.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c partition.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c wavefunction.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c rotation_group.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c harmonic_oscillator.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_jscheme.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_mscheme.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bridge_partitions.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c sp_matrix_element.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c interaction.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_io.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lanczos.f90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_expc_val.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_block.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c block_lanczos.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c kshell.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c transit.F90
+      mpiifort -O3 -qopenmp -no-ipo -DMPI -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+      mpiifort -O3 -qopenmp -no-ipo -DMPI -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+      cp kshell.exe transit.exe count_dim.exe ../bin/
+      ```
 
-`KSHELL` is now compiled! To remove the compiled files and revert back to the starting point, run `make clean` in the `src/` directory.
+    </p>
+    </details>
 
-### Queueing job script on Fram
-Create a directory in which to store the output from `KSHELL`. In this directory, run `python <install_location>/bin/kshell_ui.py` and follow the instructions on screen. The shell script grenerated by `kshell_ui.py` must begin with certain commands wich will be read by the Fram job queue system, `slurm`. The needed commands will automatically be added to the executable shell script if the keyword `fram` is entered in the first prompt of `kshell_ui.py`. See a section further down in this document for general instructions on how to use `kshell_ui.py`. When the executable shell script has been created, put it in the queue by
+    `KSHELL` is now compiled! To remove the compiled files and revert back to the starting point, run `make clean` in the `src/` directory.
 
-```
-sbatch executable.sh
-```
+    ### Queueing job script on Fram
+    Create a directory in which to store the output from `KSHELL`. In this directory, run `python <install_location>/bin/kshell_ui.py` and follow the instructions on screen. The shell script grenerated by `kshell_ui.py` must begin with certain commands wich will be read by the Fram job queue system, `slurm`. The needed commands will automatically be added to the executable shell script if the keyword `fram` is entered in the first prompt of `kshell_ui.py`. See a section further down in this document for general instructions on how to use `kshell_ui.py`. When the executable shell script has been created, put it in the queue by
 
-To see the entire queue, or to filter the queue by username, use
+    ```
+    sbatch executable.sh
+    ```
 
-```
-squeue
-squeue -u <username>
-```
+    To see the entire queue, or to filter the queue by username, use
 
-The terminal output from the compute nodes is written to a file, `slurm-*.out`, which is placed in the `KSHELL` output directory you created. Use
+    ```
+    squeue
+    squeue -u <username>
+    ```
 
-```
-watch -n 10 cat slurm-*.out
-```
+    The terminal output from the compute nodes is written to a file, `slurm-*.out`, which is placed in the `KSHELL` output directory you created. Use
 
-to get a 10 second interval live update on the terminal output from the compute nodes. If you put in your e-mail address in the executable shell script, you will get an e-mail when the program starts and when it ends. Following is an example of the commands which must be in the first line of the executable shell script which is generated by `kshell_ui.py`. For running 10 nodes with 32 cores each with an estimated calculation time of 10 minutes:
+    ```
+    watch -n 10 cat slurm-*.out
+    ```
 
-<details>
-<summary>Click here to see the commands</summary>
-<p>
+    to get a 10 second interval live update on the terminal output from the compute nodes. If you put in your e-mail address in the executable shell script, you will get an e-mail when the program starts and when it ends. Following is an example of the commands which must be in the first line of the executable shell script which is generated by `kshell_ui.py`. For running 10 nodes with 32 cores each with an estimated calculation time of 10 minutes:
 
-```
-#!/bin/bash
-#SBATCH --job-name=Ar28_usda
-#SBATCH --account=<enter account name here (example NN9464K)>
-## Syntax is d-hh:mm:ss
-#SBATCH --time=0-00:10:00
-#SBATCH --nodes=10
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=32
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=<your e-mail here>
-module --quiet purge
-module load intel/2020b
-module load Python/3.8.6-GCCcore-10.2.0
-set -o errexit
-set -o nounset
-```
-  
-</p>
-</details>
+    <details>
+    <summary>Click here to see the commands</summary>
+    <p>
 
-Note that the modules must be explicitly loaded in the script file since the modules you load to the login node does not get loaded on the compute nodes. The login node is the computer you control when you SSH to `<username>@fram.sigma2.no` and the compute nodes are other computers which you control via the `slurm` queue system. If you need any other modules loaded, you must add these to the executable shell script. Now, just wait for the program to run its course!
+      ```
+      #!/bin/bash
+      #SBATCH --job-name=Ar28_usda
+      #SBATCH --account=<enter account name here (example NN9464K)>
+      ## Syntax is d-hh:mm:ss
+      #SBATCH --time=0-00:10:00
+      #SBATCH --nodes=10
+      #SBATCH --ntasks-per-node=1
+      #SBATCH --cpus-per-task=32
+      #SBATCH --mail-type=ALL
+      #SBATCH --mail-user=<your e-mail here>
+      module --quiet purge
+      module load intel/2020b
+      module load Python/3.8.6-GCCcore-10.2.0
+      set -o errexit
+      set -o nounset
+      ```
 
-</p>
-</details>
+    </p>
+    </details>
+
+    Note that the modules must be explicitly loaded in the script file since the modules you load to the login node does not get loaded on the compute nodes. The login node is the computer you control when you SSH to `<username>@fram.sigma2.no` and the compute nodes are other computers which you control via the `slurm` queue system. If you need any other modules loaded, you must add these to the executable shell script. Now, just wait for the program to run its course!
+
+  </p>
+  </details>
 
 ## KSHELL on your PC
   
@@ -118,129 +118,16 @@ Note that the modules must be explicitly loaded in the script file since the mod
 <summary>Click here for KSHELL on your PC</summary>
 <p>
   
-### Installation
-KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
-```
-cd <kshell install directory>/src
-make
-```
+  ### Installation on Linux
+    <details>
+    <summary>Click here for Linux</summary>
+    <p>
 
-Given that you have all the prerequisite software installed (notably gfortran, lapack and blas), it should compile. If successful, it ends with the message
-
-```
-cp kshell.exe transit.exe count_dim.exe ../bin/
-```
-
-### Running a calculation
-
-To run a calculation, create an empty directory somewhere on your computer. Let's say you name it Ne20_usda. Navigate into that directory, and from there execute the following command:
-```
-<kshell install directory>/bin/kshell_ui.py 
-```
-Here, kshell_ui.py is called as an executable, but it can be called as a regular Python script:
-```
-python <kshell install directory>/bin/kshell_ui.py 
-```
-
-Follow the instructions on the screen to set up your calculation. If you want to try Ne20 with USDa, and calculate 10 energy levels and transitions between them, you could do
-
-```
-jorgenem@prior:~/gitrepos/kshell-pub/runs/Ne20$ ../../bin/kshell_ui.py
-
------------------------------ 
-  KSHELL user interface 
-     to generate job script. 
------------------------------
- 
-
- MPI parallel? Y/N (default: N) : 
-  ... generate shell script for a single node.
-
- model space and interaction file name (.snt) 
- (e.g. w or w.snt,  TAB key to complete) : usda.snt
-
-
-*************** specify a nuclide ********************
-
-
- number of valence protons and neutrons
-  (ex.  2, 3 <CR>)    <CR> to quit : 2,2
-
- name for script file (default: Ne20_usda ): 
-
- J, parity, number of lowest states  
-  (ex. 10           for 10 +parity, 10 -parity states w/o J-proj. (default)
-       -5           for lowest five -parity states, 
-       0+3, 2+1     for lowest three 0+ states and one 2+ states, 
-       1.5-, 3.5+3  for lowest one 3/2- states and three 7/2+ states) :
-10
-
- truncation for "+" parity state in  Ne20_usda_p.ptn
- truncation scheme ?
-      0 : No trucation (default) 
-      1 : particle-hole truncation for orbit(s) 
-      2 : hw truncation 
-      3 : Both (1) and (2) 
-
-generating partition file ............ done.
-
- truncation for "-" parity state in  Ne20_usda_n.ptn
-No states in negative parity
-
- --- input parameter --- 
-  beta_cm = 0.d0
-  eff_charge = 1.5, 0.5, 
-  gl = 1.0, 0.0, 
-  gs = 5.0271, -3.4435, 
-  hw_type = 2
-  max_lanc_vec = 200
-  maxiter = 300
-  mode_lv_hdd = 1
-  n_restart_vec = 10
-
-modify parameter? 
- (e.g.  maxiter = 300 for parameter change
-        <CR>          for no more modification ) :
-
-
- compute transition probabilities (E2/M1/E1) for 
-    Ne20_usda ? Y/N (default: N) : y
-
-
-*************** specify a nuclide ********************
-
-
- number of valence protons and neutrons
-  (ex.  2, 3 <CR>)    <CR> to quit : 
-
- Finish. Execute ./Ne20_usda.sh
-
-jorgenem@prior:~/gitrepos/kshell-pub/runs/Ne20$ 
-```
-
-You may then proceed to run the actual KSHELL calculation by executing the .sh file:
-
-```
-jorgenem@prior:~/gitrepos/kshell-pub/runs/Ne20$ ./Ne20_usda.sh 
-start running log_Ne20_usda_m0p.txt ...
-start running log_Ne20_usda_tr_m0p_m0p.txt ...
-Compressing all text files from run into logs_Ne20_usda.tar.gz 
-
-log_Ne20_usda_m0p.txt
-log_Ne20_usda_tr_m0p_m0p.txt
-save_input_ui.txt
-summary_Ne20_usda.txt
-usda.snt
-Ne20_usda_p.ptn
-Ne20_usda.sh
-Copying logs_Ne20_usda.tar.gz to ~/KSHELL_jobs/Ne20_usda-20181121 
-
-Finish computing Ne20_usda. See summary_Ne20_usda.txt
-
-jorgenem@prior:~/gitrepos/kshell-pub/runs/Ne20$ 
-
-```
-
+      
+      
+    </p>
+    </details>
+  
 </p>
 </details>
           
