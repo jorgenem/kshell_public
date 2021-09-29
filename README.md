@@ -50,99 +50,99 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   <summary>Click here for KSHELL on Fram</summary>
   <p>
 
-    ### Compilation on Fram with MPI
-    Start by loading the necessary modules which contain the correct additional software to run `KSHELL`. The `intel/2020b` module contains the correct `ifort` version as well as `blas` and `lapack` (double check this), and the module `Python/3.8.6-GCCcore-10.2.0` gives us the correct `Python` version. Load the modules in this order:
+  ### Compilation on Fram with MPI
+  Start by loading the necessary modules which contain the correct additional software to run `KSHELL`. The `intel/2020b` module contains the correct `ifort` version as well as `blas` and `lapack` (double check this), and the module `Python/3.8.6-GCCcore-10.2.0` gives us the correct `Python` version. Load the modules in this order:
+  ```
+  module load intel/2020b
+  module load Python/3.8.6-GCCcore-10.2.0
+  ```
+  Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile `KSHELL`, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make`, and `KSHELL` will be compiled.
+
+  <details>
+  <summary>Click here to see the terminal output from the compilation process</summary>
+  <p>
+
     ```
+    [user ~/kshell_public/src]$ make
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c constant.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c model_space.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lib_matrix.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c class_stopwatch.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c partition.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c wavefunction.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c rotation_group.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c harmonic_oscillator.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_jscheme.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_mscheme.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bridge_partitions.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c sp_matrix_element.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c interaction.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_io.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lanczos.f90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_expc_val.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_block.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c block_lanczos.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c kshell.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+    mpiifort -O3 -qopenmp -no-ipo -DMPI  -c transit.F90
+    mpiifort -O3 -qopenmp -no-ipo -DMPI -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+    mpiifort -O3 -qopenmp -no-ipo -DMPI -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
+    cp kshell.exe transit.exe count_dim.exe ../bin/
+    ```
+
+  </p>
+  </details>
+
+  `KSHELL` is now compiled! To remove the compiled files and revert back to the starting point, run `make clean` in the `src/` directory.
+
+  ### Queueing job script on Fram
+  Create a directory in which to store the output from `KSHELL`. In this directory, run `python <install_location>/bin/kshell_ui.py` and follow the instructions on screen. The shell script grenerated by `kshell_ui.py` must begin with certain commands wich will be read by the Fram job queue system, `slurm`. The needed commands will automatically be added to the executable shell script if the keyword `fram` is entered in the first prompt of `kshell_ui.py`. See a section further down in this document for general instructions on how to use `kshell_ui.py`. When the executable shell script has been created, put it in the queue by
+
+  ```
+  sbatch executable.sh
+  ```
+
+  To see the entire queue, or to filter the queue by username, use
+
+  ```
+  squeue
+  squeue -u <username>
+  ```
+
+  The terminal output from the compute nodes is written to a file, `slurm-*.out`, which is placed in the `KSHELL` output directory you created. Use
+
+  ```
+  watch -n 10 cat slurm-*.out
+  ```
+
+  to get a 10 second interval live update on the terminal output from the compute nodes. If you put in your e-mail address in the executable shell script, you will get an e-mail when the program starts and when it ends. Following is an example of the commands which must be in the first line of the executable shell script which is generated by `kshell_ui.py`. For running 10 nodes with 32 cores each with an estimated calculation time of 10 minutes:
+
+  <details>
+  <summary>Click here to see the commands</summary>
+  <p>
+
+    ```
+    #!/bin/bash
+    #SBATCH --job-name=Ar28_usda
+    #SBATCH --account=<enter account name here (example NN9464K)>
+    ## Syntax is d-hh:mm:ss
+    #SBATCH --time=0-00:10:00
+    #SBATCH --nodes=10
+    #SBATCH --ntasks-per-node=1
+    #SBATCH --cpus-per-task=32
+    #SBATCH --mail-type=ALL
+    #SBATCH --mail-user=<your e-mail here>
+    module --quiet purge
     module load intel/2020b
     module load Python/3.8.6-GCCcore-10.2.0
-    ```
-    Now, clone this repository to the desired install location. Navigate to the `<install_location>/src/` directory and edit the `Makefile`. We will use the MPI ifort wrapper `mpiifort` to compile `KSHELL`, so make sure that `FC = mpiifort` is un-commented and that all other `FC = ` lines are commented. Comment with `#`. Remember to save the file. Still in the `<install_location>/src/` directory, run the command `make`, and `KSHELL` will be compiled.
-
-    <details>
-    <summary>Click here to see the terminal output from the compilation process</summary>
-    <p>
-
-      ```
-      [user ~/kshell_public/src]$ make
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c constant.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c model_space.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lib_matrix.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c class_stopwatch.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c partition.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c wavefunction.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c rotation_group.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c harmonic_oscillator.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_jscheme.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c operator_mscheme.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bridge_partitions.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c sp_matrix_element.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c interaction.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_io.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lanczos.f90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_expc_val.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c bp_block.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c block_lanczos.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c kshell.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
-      mpiifort -O3 -qopenmp -no-ipo -DMPI  -c transit.F90
-      mpiifort -O3 -qopenmp -no-ipo -DMPI -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
-      mpiifort -O3 -qopenmp -no-ipo -DMPI -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -mkl
-      cp kshell.exe transit.exe count_dim.exe ../bin/
-      ```
-
-    </p>
-    </details>
-
-    `KSHELL` is now compiled! To remove the compiled files and revert back to the starting point, run `make clean` in the `src/` directory.
-
-    ### Queueing job script on Fram
-    Create a directory in which to store the output from `KSHELL`. In this directory, run `python <install_location>/bin/kshell_ui.py` and follow the instructions on screen. The shell script grenerated by `kshell_ui.py` must begin with certain commands wich will be read by the Fram job queue system, `slurm`. The needed commands will automatically be added to the executable shell script if the keyword `fram` is entered in the first prompt of `kshell_ui.py`. See a section further down in this document for general instructions on how to use `kshell_ui.py`. When the executable shell script has been created, put it in the queue by
-
-    ```
-    sbatch executable.sh
+    set -o errexit
+    set -o nounset
     ```
 
-    To see the entire queue, or to filter the queue by username, use
+  </p>
+  </details>
 
-    ```
-    squeue
-    squeue -u <username>
-    ```
-
-    The terminal output from the compute nodes is written to a file, `slurm-*.out`, which is placed in the `KSHELL` output directory you created. Use
-
-    ```
-    watch -n 10 cat slurm-*.out
-    ```
-
-    to get a 10 second interval live update on the terminal output from the compute nodes. If you put in your e-mail address in the executable shell script, you will get an e-mail when the program starts and when it ends. Following is an example of the commands which must be in the first line of the executable shell script which is generated by `kshell_ui.py`. For running 10 nodes with 32 cores each with an estimated calculation time of 10 minutes:
-
-    <details>
-    <summary>Click here to see the commands</summary>
-    <p>
-
-      ```
-      #!/bin/bash
-      #SBATCH --job-name=Ar28_usda
-      #SBATCH --account=<enter account name here (example NN9464K)>
-      ## Syntax is d-hh:mm:ss
-      #SBATCH --time=0-00:10:00
-      #SBATCH --nodes=10
-      #SBATCH --ntasks-per-node=1
-      #SBATCH --cpus-per-task=32
-      #SBATCH --mail-type=ALL
-      #SBATCH --mail-user=<your e-mail here>
-      module --quiet purge
-      module load intel/2020b
-      module load Python/3.8.6-GCCcore-10.2.0
-      set -o errexit
-      set -o nounset
-      ```
-
-    </p>
-    </details>
-
-    Note that the modules must be explicitly loaded in the script file since the modules you load to the login node does not get loaded on the compute nodes. The login node is the computer you control when you SSH to `<username>@fram.sigma2.no` and the compute nodes are other computers which you control via the `slurm` queue system. If you need any other modules loaded, you must add these to the executable shell script. Now, just wait for the program to run its course!
+  Note that the modules must be explicitly loaded in the script file since the modules you load to the login node does not get loaded on the compute nodes. The login node is the computer you control when you SSH to `<username>@fram.sigma2.no` and the compute nodes are other computers which you control via the `slurm` queue system. If you need any other modules loaded, you must add these to the executable shell script. Now, just wait for the program to run its course!
 
   </p>
   </details>
@@ -350,9 +350,9 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
 
   ```
   > make
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c constant.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c model_space.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c lib_matrix.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c constant.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c model_space.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c lib_matrix.F90
   lib_matrix.F90:304:29:
 
     304 |     call dlarnv(1, iseed, 1, r )
@@ -361,21 +361,21 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
     312 |     call dlarnv(1, iseed, n, r)
         |                             2
   Warning: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c class_stopwatch.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c partition.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c wavefunction.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c rotation_group.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c harmonic_oscillator.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c operator_jscheme.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c operator_mscheme.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bridge_partitions.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c sp_matrix_element.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c interaction.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_io.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c lanczos.f90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_expc_val.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_block.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c block_lanczos.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c class_stopwatch.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c partition.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c wavefunction.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c rotation_group.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c harmonic_oscillator.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c operator_jscheme.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c operator_mscheme.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c bridge_partitions.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c sp_matrix_element.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c interaction.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c bp_io.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c lanczos.f90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c bp_expc_val.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c bp_block.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c block_lanczos.F90
   block_lanczos.F90:548:12:
 
     548 |             vr(i*nb+1,1), size(vr,1), &
@@ -392,11 +392,11 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
     577 |             -1.d0, vin(i*nb+1, 1), size(vin,1), an, size(an,1), &
         |                   2
   Warning: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-2)
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c kshell.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c transit.F90
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
-  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c kshell.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  gfortran -O3 -fopenmp -fallow-argument-mismatch  -c transit.F90
+  gfortran -O3 -fopenmp -fallow-argument-mismatch -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  gfortran -O3 -fopenmp -fallow-argument-mismatch -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
   cp kshell.exe transit.exe count_dim.exe ../bin/
   ```
 
