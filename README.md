@@ -287,11 +287,123 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   <summary>Click here for macOS</summary>
   <p>
 
-  #### Install Homebrew
+  #### Homebrew
   `Homebrew` is a packet manager for macOS similar to `apt` for Ubuntu and frankly, every (soon to be) scientist using macOS should have `Homebrew` installed. Install with ([see detailed install instructions here](https://brew.sh)):
   ```
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   ```
+
+  #### Fortran
+  Install the newest Fortran compiler with (per 2021-09-29 version 11.2.0 will be installed):
+  ```
+  brew install gfortran
+  ```
+  and check that the version is equal to or greater than 10.2.0 by:
+  ```
+  gfortran --version
+  ```
+
+  #### Python
+  For installing the correct version of Python, it is highly recommended to install an environment management system like `miniconda` as to not mess up any other Python dependencies your system has, and to easily download the exact version needed. Start by downloading the latest release of `miniconda` ([alternative downloads here](https://docs.conda.io/en/latest/miniconda.html)):
+  ```
+  wget https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+  ```
+  Run the installer:
+  ```
+  bash Miniconda3-latest-MacOSX-x86_64.sh
+  ```
+  Accept the ToS. Choose all default settings except when the installer asks if it should initialize by running conda init. Choose yes. If you have trouble with initializing conda, for example
+  ```
+  > conda
+  conda: command not found
+  ```
+  cd to `<install_location>/anaconda3/bin` and initialize conda from there. If you for example use `fish` instead of `bash` (you should!), then initialize with
+  ```
+  ./conda init fish
+  ```
+  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy` and `matplotlib` with:
+  ```
+  conda create --name kshell python=3.8 numpy matplotlib
+  ```
+  Activate the environment with:
+  ```
+  conda activate kshell
+  ```
+  Note that any additional Python package can be installed normally with `pip`. The `kshell` environment is only active within your terminal session and does not interfere with any other Python dependencies on your system.
+
+  Alternatively, download `Python 3.8` with `brew`.
+
+  #### Compile KSHELL
+  We are now ready to actually install `KSHELL`. Navigate to the directory where you want to install `KSHELL` and clone this repository:
+  ```
+  git clone https://github.com/GaffaSnobb/kshell_public.git
+  ```
+  Navigate to the `src/` directory and run
+  ```
+  make
+  ```
+  to compile. The output should be something like this (mismatch warnings are normal):
+  
+  <details>
+  <summary>Click to see normal terminal output</summary>
+  <p>
+
+  ```
+  > make
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c constant.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c model_space.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c lib_matrix.F90
+  lib_matrix.F90:304:29:
+
+    304 |     call dlarnv(1, iseed, 1, r )
+        |                             1
+  ......
+    312 |     call dlarnv(1, iseed, n, r)
+        |                             2
+  Warning: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c class_stopwatch.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c partition.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c wavefunction.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c rotation_group.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c harmonic_oscillator.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c operator_jscheme.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c operator_mscheme.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bridge_partitions.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c sp_matrix_element.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c interaction.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_io.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c lanczos.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_expc_val.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_block.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c block_lanczos.F90
+  block_lanczos.F90:548:12:
+
+    548 |             vr(i*nb+1,1), size(vr,1), &
+        |            1
+  ......
+    577 |             -1.d0, vin(i*nb+1, 1), size(vin,1), an, size(an,1), &
+        |                                                2
+  Warning: Element of assumed-shape or pointer array as actual argument at (1) cannot correspond to actual argument at (2)
+  block_lanczos.F90:250:20:
+
+    250 |               1.d0, vi, nc, &
+        |                    1
+  ......
+    577 |             -1.d0, vin(i*nb+1, 1), size(vin,1), an, size(an,1), &
+        |                   2
+  Warning: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-2)
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c kshell.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c transit.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  cp kshell.exe transit.exe count_dim.exe ../bin/
+  ```
+
+  </p>
+  </details>
+
+  `KSHELL` is now compiled and ready to use. See a section further down in this readme for instructions on how to run `KSHELL`.
 
   </p>
   </details>
