@@ -482,7 +482,28 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   compute transition probabilities (E2/M1/E1) for
       Ne20_usda ? Y/N (default: Y) :
   ```
-  Now you may repeat the process and input parameters for another nuclide. Press return to skip this step and to finish the script setup process.
+  Now you may repeat the process and input parameters for another nuclide. Press return to skip this step and to finish the script setup process. The directory should now include these files:
+
+  ```
+  Ne20_usda.sh
+  Ne20_usda_p.ptn
+  collect_logs.py
+  count_dim.py
+  kshell.exe
+  save_input_ui.txt
+  transit.exe
+  usda.snt
+  ```
+  Run `KSHELL` with these parameters by:
+  ```
+  > ./Ne20_usda.sh
+  ```
+  If the program runs successfully, you will see:
+  ```
+  start running log_Ne20_usda_m0p.txt ...
+  start running log_Ne20_usda_tr_m0p_m0p.txt ...
+  Finish computing Ne20_usda.    See summary_Ne20_usda.txt
+  ```
 
 </p>
 </details>
