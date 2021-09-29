@@ -173,6 +173,26 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   ```
   gfortran-10 --version
   ```
+  If the version is incorrect, try installing `gfortran` version 11 instead.
+
+  For installing the correct version of Python, it is highly recommended to install an environment management system like `miniconda` as to not mess up any other Python dependencies your system has, and to easily download the exact version needed. Start by downloading the latest release of `miniconda` ([alternative downloads here](https://docs.conda.io/en/latest/miniconda.html)):
+  ```
+  wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+  ```
+  Run the installer:
+  ```
+  bash Miniconda3-latest-Linux-x86_64.sh
+  ```
+  Accept the ToS. Choose all default settings except when the installer asks if it should initialize by running conda init. Choose yes. If you have trouble with initializing conda, for example
+  ```
+  > conda
+  conda: command not found
+  ```
+  cd to `<install_location>/anaconda3/bin` and initialize conda from there. If you for example use `fish` instead of `bash` (you should!), then initialize with
+  ```
+  ./conda init fish
+  ```
+
     
   </p>
   </details>
