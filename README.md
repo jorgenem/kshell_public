@@ -192,7 +192,15 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   ```
   ./conda init fish
   ```
-
+  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy` and `matplotlib` with:
+  ```
+  conda create --name kshell python=3.8 numpy matplotlib
+  ```
+  Activate the environment with:
+  ```
+  conda activate kshell
+  ```
+  Note that any additional Python package can be installed normally with `pip`. The `kshell` environment is only active within your terminal session and does not interfere with any other Python dependencies on your system.
     
   </p>
   </details>
