@@ -1,4 +1,3 @@
-This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 # KSHELL - Thick-restart block Lanczos method for large-scale shell-model calculations
 
 Noritaka Shimizu, Takahiro Mizusaki, Yutaka Utsuno, Yusuke Tsunoda
@@ -6,6 +5,9 @@ Noritaka Shimizu, Takahiro Mizusaki, Yutaka Utsuno, Yusuke Tsunoda
 Center for Nuclear Study, The University of Tokyo, 7-3-1 Hongo, Bunkyo-ku, Tokyo 113-0033, Japan
 Institute of Natural Sciences, Senshu University, 3-8-1 Kanda-Jinbocho, Chiyoda-ku, Tokyo 101-8425, Japan
 Advanced Science Research Center, Japan Atomic Energy Agency, Tokai, Ibaraki 319-1195, Japan
+
+https://doi.org/10.1016/j.cpc.2019.06.011
+Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 <details>
 <summary>Abstract</summary>
