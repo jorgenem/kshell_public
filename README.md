@@ -205,7 +205,77 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   Note that any additional Python package can be installed normally with `pip`. The `kshell` environment is only active within your terminal session and does not interfere with any other Python dependencies on your system.
 
   Alternatively, download `Python 3.8` with the Ubuntu packet manager.
-    
+
+  #### Compile KSHELL
+  We are now ready to actually install `KSHELL`. Navigate to the directory where you want to install `KSHELL` and clone this repository:
+  ```
+  git clone https://github.com/GaffaSnobb/kshell_public.git
+  ```
+  Navigate to the `src/` directory and edit the `Makefile` with your favorite editor. Change `FC = gfortran` to `FC = gfortran-10` (or `-11` if you installed version 11) and make sure that line is un-commented. All other `FC` declarations should be commented. Save the changes. Still in the `src/` directory, run
+  ```
+  make
+  ```
+  to compile. The output should be something like this:
+  
+  <details>
+  <summary>Click to see normal terminal output</summary>
+  <p>
+
+  ```
+  > make
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c constant.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c model_space.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c lib_matrix.F90
+  lib_matrix.F90:304:29:
+
+    304 |     call dlarnv(1, iseed, 1, r )
+        |                             1
+  ......
+    312 |     call dlarnv(1, iseed, n, r)
+        |                             2
+  Warning: Rank mismatch between actual argument at (1) and actual argument at (2) (rank-1 and scalar)
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c class_stopwatch.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c partition.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c wavefunction.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c rotation_group.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c harmonic_oscillator.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c operator_jscheme.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c operator_mscheme.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bridge_partitions.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c sp_matrix_element.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c interaction.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_io.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c lanczos.f90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_expc_val.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c bp_block.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c block_lanczos.F90
+  block_lanczos.F90:548:12:
+
+    548 |             vr(i*nb+1,1), size(vr,1), &
+        |            1
+  ......
+    577 |             -1.d0, vin(i*nb+1, 1), size(vin,1), an, size(an,1), &
+        |                                                2
+  Warning: Element of assumed-shape or pointer array as actual argument at (1) cannot correspond to actual argument at (2)
+  block_lanczos.F90:250:20:
+
+    250 |               1.d0, vi, nc, &
+        |                    1
+  ......
+    577 |             -1.d0, vin(i*nb+1, 1), size(vin,1), an, size(an,1), &
+        |                   2
+  Warning: Rank mismatch between actual argument at (1) and actual argument at (2) (scalar and rank-2)
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c kshell.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o kshell.exe kshell.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch  -c transit.F90
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o transit.exe transit.o model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  gfortran-10 -O3 -fopenmp -fallow-argument-mismatch -o count_dim.exe count_dim.f90 model_space.o interaction.o harmonic_oscillator.o constant.o rotation_group.o sp_matrix_element.o operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o partition.o  wavefunction.o  bridge_partitions.o bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o -llapack -lblas -lm
+  cp kshell.exe transit.exe count_dim.exe ../bin/
+  ```
+
+  </p>
+  </details>
+
   </p>
   </details>
   
