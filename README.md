@@ -215,7 +215,7 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   ```
   make
   ```
-  to compile. The output should be something like this:
+  to compile. The output should be something like this (mismatch warnings are normal):
   
   <details>
   <summary>Click to see normal terminal output</summary>
@@ -276,9 +276,26 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   </p>
   </details>
 
+  `KSHELL` is now compiled and ready to use. See a section further down in this readme for instructions on how to run `KSHELL`.
+
   </p>
   </details>
-  
+
+  ### Installation on macOS
+    
+  <details>
+  <summary>Click here for macOS</summary>
+  <p>
+
+  #### Install Homebrew
+  `Homebrew` is a packet manager for macOS similar to `apt` for Ubuntu and frankly, every (soon to be) scientist using macOS should have `Homebrew` installed. Install with ([see detailed install instructions here](https://brew.sh)):
+  ```
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  ```
+
+  </p>
+  </details>
+
 </p>
 </details>
           
