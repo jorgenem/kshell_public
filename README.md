@@ -1,4 +1,6 @@
 This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
+# KSHELL - Thick-restart block Lanczos method for large-scale shell-model calculations
+
 
 ## Prerequisites
 * ```Python 3.8``` or newer (kshell_ui.py uses syntax specific to 3.8 and above)
