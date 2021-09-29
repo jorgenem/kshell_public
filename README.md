@@ -416,10 +416,73 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
 ## Usage
 
 <details>
-<summary>Click here for usage</summary>
+<summary>Click here for general usage</summary>
 <p>
 
-  tjohei!
+  We will here use 20Ne as an example. Create a directory where you want to place the output from `KSHELL`. cd to that directory and run
+  ```
+  python <kshell_install_directory>/bin/kshell_ui.py
+  ```
+  You will now be asked whether you want to use `MPI` or not. `MPI` is used for parallelization over multiple nodes. The parallelization over several cores per CPU is administered by `OpenMP` and is active even though you do not choose `MPI` here. For a regular PC, choose `n`. For running on the Fram supercomputer, choose `fram`:
+  ```
+  MPI parallel? Y/N/preset, n nodes (default: N,  TAB to complete) : n
+  ```
+  You are now asked to choose the model space. 20Ne has 10 protons and 10 neutrons which makes the doubly magic 8p 8n core suitable for the inert core. 1d5/2, 2s1/2 and 1d3/2 will then be the model space where the valence nucleons can move about. This is the `USD` model space. Take a look at [this figure](https://periodic-table.org/wp-content/uploads/2019/05/Shell-model-of-nucleus.png) and see if you agree. We choose `usda.snt` for this input.
+  ```
+  model space and interaction file name (.snt)
+  (e.g. w or w.snt,  TAB to complete) : usda.snt
+  ```
+  Now we specify the nuclide. Here you may enter either the number of valence protons and neutrons or the isotope abbreviation (20ne or ne20). 20Ne has 2 valence protons and 2 valence neutrons outside the 8p 8n core, so the input may either be `2, 2` or `20ne`:
+  ```
+  number of valence protons and neutrons
+  (ex.  2, 3 <CR> or 9Be <CR>)    <CR> to quit : 2,2
+  ```
+  We are now prompted for the name of the executable shell script. Press the return key for the default name:
+  ```
+  name for script file (default: Ne20_usda ):
+  ```
+  Choose which spin states you want to calculate and how many. The default value is to calculate the 100 lowest lying states. See a section later in this document on details:
+  ```
+  J, parity, number of lowest states
+    (ex. 100          for 100 +parity, 100 -parity states w/o J-proj. (default)
+        -5           for lowest five -parity states,
+        0+3, 2+1     for lowest three 0+ states and one 2+ states,
+        1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :
+  ```
+  We are now asked for truncation information. The model space is small and the number of nucleos is low, so we dont need to truncate this system. The default is no truncation. 20Ne in the `USD` model space only allows positive parity states, so we are only asked for truncation of the positive parity states. See a section later in this document for truncation details:
+  ```
+  truncation for "+" parity state in  Ne20_usda_p.ptn
+  truncation scheme ?
+        0 : No truncation (default)
+        1 : particle-hole truncation for orbit(s)
+        2 : hw truncation
+        3 : Both (1) and (2)
+
+  ```
+  At this point we are asked whether we want to edit any other parameters, like the proton and neutron effective charges, the gyroscopic spin factor and the number of Lanczos iterations. Leave this to the default values:
+  ```
+  --- input parameter ---
+    beta_cm = 0.0
+    eff_charge = 1.5, 0.5,
+    gl = 1.0, 0.0,
+    gs = 5.585, -3.826,
+    hw_type = 2
+    max_lanc_vec = 200
+    maxiter = 300
+    mode_lv_hdd = 0
+    n_block = 0
+    n_restart_vec = 10
+
+  modify parameter?
+  (e.g.  maxiter = 300 for parameter change
+          <CR>          for no more modification ) :
+  ```
+  Then, the transition probabilities are calculated by default, but you can omit these calculations here. Choose the default value:
+  ```
+  compute transition probabilities (E2/M1/E1) for
+      Ne20_usda ? Y/N (default: Y) :
+  ```
+  Now you may repeat the process and input parameters for another nuclide. Press return to skip this step and to finish the script setup process.
 
 </p>
 </details>
