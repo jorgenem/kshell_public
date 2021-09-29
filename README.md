@@ -9,11 +9,12 @@ This repository contains N. Shimizu's code KSHELL version 2 ([arXiv:1310.5431 [n
 
 Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal computer and use `ifort` for the Fram supercomputer.
 
+## KSHELL on Fram
+
 <details>
-<summary>KSHELL on Fram</summary>
+<summary>Click here for KSHELL on Fram</summary>
 <p>
 
-## KSHELL on Fram
 ### Compilation on Fram with MPI
 Start by loading the necessary modules which contain the correct additional software to run `KSHELL`. The `intel/2020b` module contains the correct `ifort` version as well as `blas` and `lapack` (double check this), and the module `Python/3.8.6-GCCcore-10.2.0` gives us the correct `Python` version. Load the modules in this order:
 ```
@@ -110,6 +111,12 @@ Note that the modules must be explicitly loaded in the script file since the mod
 
 </p>
 </details>
+
+## KSHELL on your PC
+  
+<details>
+<summary>Click here for KSHELL on your PC</summary>
+<p>
   
 ### Installation
 KSHELL can be run on your own laptop or on a multi-node supercomputer. To compile it for your own laptop, just clone or download this repository to your computer and do the following:
@@ -234,6 +241,9 @@ jorgenem@prior:~/gitrepos/kshell-pub/runs/Ne20$
 
 ```
 
+</p>
+</details>
+          
 ### Pitfalls
 KSHELL version 2 has undefined behavior if you request more states than the configuration and model space allows. As an example, take 28Ar in the USDA model space. By running the `count_dim.py` script we get
 ```
