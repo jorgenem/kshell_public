@@ -39,6 +39,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 * ```Python 3.8``` or newer (kshell_ui.py uses syntax specific to 3.8 and above)
   * `numpy`
   * `matplotlib`
+  * `kshell-utilities` (not required but recommended)
 * ```gfortran 10.2.0``` or newer (Tested with this version, might work with older versions)
 * ```ifort 19.1.3.304``` (Alternative to gfortran. Tested with this version, might work with other versions.)
 * ```openblas```
@@ -196,9 +197,9 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   ```
   ./conda init fish
   ```
-  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy` and `matplotlib` with:
+  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy`, `matplotlib` and `kshell-utilities` with:
   ```
-  conda create --name kshell python=3.8 numpy matplotlib
+  conda create --name kshell python=3.8 numpy matplotlib kshell-utilities
   ```
   Activate the environment with:
   ```
@@ -323,9 +324,9 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   ```
   ./conda init fish
   ```
-  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy` and `matplotlib` with:
+  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy`, `matplotlib` and `kshell-utilities` with:
   ```
-  conda create --name kshell python=3.8 numpy matplotlib
+  conda create --name kshell python=3.8 numpy matplotlib kshell-utilities
   ```
   Activate the environment with:
   ```
