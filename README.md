@@ -119,25 +119,26 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
 <p>
   
   ### Installation on Linux
-    <details>
-    <summary>Click here for Linux</summary>
-    <p>
-
-    We start by installing a compatible version of `gfortran`. To get a version newer than 9, we must first add the Ubuntu Toolchain repository:
-    ```
-    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-    ```
-    Then, install `gfortran` version 10 with:
-    ```
-    sudo apt install gfortran-10
-    ```
-    And check that the newly installed Fortran compiler is of version 10.2.0 or above:
-    ```
-    gfortran-10 --version
-    ```
     
-    </p>
-    </details>
+  <details>
+  <summary>Click here for Linux</summary>
+  <p>
+
+  We start by installing a compatible version of `gfortran`. To get a version newer than 9, we must first add the Ubuntu Toolchain repository:
+  ```
+  sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+  ```
+  Then, install `gfortran` version 10 with:
+  ```
+  sudo apt install gfortran-10
+  ```
+  And check that the newly installed Fortran compiler is of version 10.2.0 or above:
+  ```
+  gfortran-10 --version
+  ```
+    
+  </p>
+  </details>
   
 </p>
 </details>
