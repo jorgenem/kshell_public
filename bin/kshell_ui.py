@@ -1282,6 +1282,7 @@ def main():
     msg = "\nChecking whether the requested number of energy eigenstates"
     msg += " exceeds the J-scheme dimensionality..."
     print(msg)
+    # print(f"{states=}")
     for state in states:
         """
         Loop over all the requested states. Correct the number of
