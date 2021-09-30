@@ -874,11 +874,27 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   <summary>Click to see level plot</summary>
   <p>
 
-  ![level_density_plot](https://github.com/GaffaSnobb/kshell-utilities/blob/main/doc/level_plot_ne20.png)
+  ![level_plot](https://github.com/GaffaSnobb/kshell-utilities/blob/main/doc/level_plot_ne20.png)
 
   </p>
   </details>
 
+  Both ways of generating the level plot supports selecting what spins to include in the plot, and how many levels per spin:
+  ``` python
+  ne20.level_plot(
+      max_spin_states = 3,
+      filter_spins = [0, 3, 5]
+  )
+  ```
+
+  <details>
+  <summary>Click to see filtered level plot</summary>
+  <p>
+
+  ![filtered_level_plot](https://github.com/GaffaSnobb/kshell-utilities/blob/main/doc/level_plot_filtered_ne20.png)
+
+  </p>
+  </details>
 
   </p>
   </details>
