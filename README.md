@@ -815,8 +815,39 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   [0.0000e+00 1.0000e+00 1.4126e+01 ... 1.4638e+01 5.1200e-01 2.0000e-02]
   [2.0000e+00 1.0000e+00 1.4336e+01 ... 1.4638e+01 3.0200e-01 0.0000e+00]]
   ```
+  You can easily create a level density plot by
+  ``` python
+  ne20.level_density_plot(bin_size=1)
+  ```
+  or by
+  ``` python
+  ksutil.level_density(
+      energy_levels = ne20.levels[:, 0],
+      bin_size = 1,
+      plot = True
+  )
+  ```
+  or by
+  ``` python
+  import matplotlib.pyplot as plt
+  
+  bins, density = ksutil.level_density(
+      energy_levels = ne20.levels[:, 0],
+      bin_size = 1
+  )
+  plt.step(bins, density)
+  plt.show()
+  ```
+  Choose an appropriate bin size. The two latter ways of generating the plot does not require that the data comes from `KSHELL`. Use any energy level data. The plot will look like this:
+  
+  <details>
+  <summary>Click to see level density plot</summary>
+  <p>
 
-  ![lolz](https://github.com/GaffaSnobb/kshell-utilities/blob/main/doc/level_density_plot_ne20.png)
+  ![level_density_plot](https://github.com/GaffaSnobb/kshell-utilities/blob/main/doc/level_density_plot_ne20.png)
+
+  </p>
+  </details>
 
   </p>
   </details>
