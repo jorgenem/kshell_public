@@ -417,8 +417,14 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
 ## Usage
 
 <details>
-<summary>Click here for general usage</summary>
+<summary>Click here usage</summary>
 <p>
+
+  #### General usage
+
+  <details>
+  <summary>Click here for general usage</summary>
+  <p>
 
   We will here use 20Ne as an example. Create a directory where you want to place the output from `KSHELL`. cd to that directory and run
   ```
@@ -505,6 +511,31 @@ Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal c
   start running log_Ne20_usda_tr_m0p_m0p.txt ...
   Finish computing Ne20_usda.    See summary_Ne20_usda.txt
   ```
+
+  </p>
+  </details>
+
+  #### How to choose spin and parity states
+
+  <details>
+  <summary>Click here for how to choose spin and parity states</summary>
+  <p>
+  
+  `KSHELL` prompts you for choosing spin and parity states:
+  ```
+  J, parity, number of lowest states
+    (ex. 100          for 100 +parity, 100 -parity states w/o J-proj. (default)
+        -5           for lowest five -parity states,
+        0+3, 2+1     for lowest three 0+ states and one 2+ states,
+        1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :
+  ```
+  * Entering an integer `N` will ask `KSHELL` to produce the `N` lowest lying energy levels, regardless of spin and parity. Example: Inputting `1337` will produce the 1337 lowest lying energy levels.
+  * Prepending a plus sign (`+`) or a minus sign (`-`) to the integer will specify which parity you want to calculate the levels for. Note that your chosen nuclide and model space might only be able to produce either positive or negative parity states. Example: `+1337` will produce the 1337 lowest lying positive parity levels.
+  * You can request the `N` lowest lying levels of a specific spin and parity. Example: `0+3` will produce the three lowest lying levels with spin 0 and positive parity.
+  * You can request several different specific spin and parity states. Example: `1.5-1, 3.5+3` will produce the lowest lying state of spin 3/2 and negative parity, as well as the three lowest lying states of spin 7/2 and positive parity.
+
+  </p>
+  </details>
 
 </p>
 </details>
