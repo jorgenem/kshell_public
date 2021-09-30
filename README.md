@@ -50,10 +50,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   * ```openblas```
   * ```lapack```
 
+  Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal computer and use `ifort` for the Fram supercomputer.
 </p>
 </details>
 
-Use `gfortran` Fortran compiler if you plan on running KSHELL on your personal computer and use `ifort` for the Fram supercomputer.
 
 ## KSHELL on Fram
 
