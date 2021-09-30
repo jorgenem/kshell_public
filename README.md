@@ -770,9 +770,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
   ne20 = ksutil.loadtxt("summary_Ne20_usda.txt")[0]
   ```
-  `ne20` is an instance containing several useful attributes. To see the available attributes, run:
-  ```
-  > ne20.help
+  `ne20` is an instance containing several useful attributes. To see the available attributes:
+  ``` python
+  > print(ne20.help)
   ['BE2',
   'BM1',
   'Ex',
@@ -790,8 +790,8 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   'truncation']
   ```
   To see the energy, 2\*spin and parity of each level:
-  ```
-  > ne20.levels
+  ``` python
+  > print(ne20.levels)
   [[-40.467   0.      1.   ]
    [-38.771   4.      1.   ]
    [-36.376   8.      1.   ]
