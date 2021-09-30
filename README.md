@@ -442,7 +442,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ```
   MPI parallel? Y/N/preset, n nodes (default: N,  TAB to complete) : n
   ```
-  You are now asked to choose the model space. 20Ne has 10 protons and 10 neutrons which makes the doubly magic 8p 8n core suitable for the inert core. 1d5/2, 2s1/2 and 1d3/2 will then be the model space where the valence nucleons can move about. This is the `USD` model space. Take a look at [this figure](https://periodic-table.org/wp-content/uploads/2019/05/Shell-model-of-nucleus.png) and see if you agree. We choose `usda.snt` for this input.
+  You are now asked to choose the model space. 20Ne has 10 protons and 10 neutrons which makes the doubly magic 8p 8n core suitable for the inert core. 0d5/2, 1s1/2 and 0d3/2 will then be the model space where the valence nucleons can move about. This is the `USD` model space. Take a look at [this figure](https://periodic-table.org/wp-content/uploads/2019/05/Shell-model-of-nucleus.png) and see if you agree (note the different notation conventions, nlj and (n+1)lj (N = 2n + l)). We choose `usda.snt` for this input.
   ```
   model space and interaction file name (.snt)
   (e.g. w or w.snt,  TAB to complete) : usda.snt
@@ -612,7 +612,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   dim.     2              6886407               383932   6.89x10^ 6  3.84x10^ 5
   dim.     0              7019100               132693   7.02x10^ 6  1.33x10^ 5
   ```
-  The `GXPF` model space uses the 1f7/2, 2p3/2, 1f5/2 and 2p1/2 orbitals for the valence nucleons. V50 has 3 valence protons and 7 valence neutrons free to move about in the model space. Compared to 20Ne in the `USD` model space, V50 has both more valence nucleons and more states for them to be in, thus the larger M- and J-scheme dimensionalities. The V50 `GXPF` configuration might be possible to run on a multicore laptop for a small number of requested states. Running the configuration for the 100 lowest lying states for spins 0 to 14 takes approximately 1-2 hours on the Fram supercomputer using 32 nodes.
+  The `GXPF` model space uses the 0f7/2, 1p3/2, 0f5/2 and 1p1/2 orbitals for the valence nucleons. V50 has 3 valence protons and 7 valence neutrons free to move about in the model space. Compared to 20Ne in the `USD` model space, V50 has both more valence nucleons and more states for them to be in, thus the larger M- and J-scheme dimensionalities. The V50 `GXPF` configuration might be possible to run on a multicore laptop for a small number of requested states. Running the configuration for the 100 lowest lying states for spins 0 to 14 takes approximately 1-2 hours on the Fram supercomputer using 32 nodes.
 
   </p>
   </details>
@@ -623,17 +623,89 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   <summary>Click here for how to truncate</summary>
   <p>
 
-  `kshell_ui.py` asks you if you want to truncate the model space:
+  `kshell_ui.py` asks you if you want to truncate the model space. For large configurations (many valence nucleons and many shells for them to occupy) truncation might be necessary for `KSHELL` to actually complete the calculations. We use V50 in the `GXPF` model space as an example. This configuration has a dimensionality of (see above section on how to calculate the dimensionality):
   ```
-  truncation for "+" parity state in  Ne20_usda_p.ptn
+        2*M        M-scheme dim.          J-scheme dim.
+  dim.    44                    4                    4   4.00x10^ 0  4.00x10^ 0
+  dim.    42                   46                   42   4.60x10^ 1  4.20x10^ 1
+  dim.    40                  263                  217   2.63x10^ 2  2.17x10^ 2
+  dim.    38                 1069                  806   1.07x10^ 3  8.06x10^ 2
+  dim.    36                 3489                 2420   3.49x10^ 3  2.42x10^ 3
+  dim.    34                 9737                 6248   9.74x10^ 3  6.25x10^ 3
+  dim.    32                23975                14238   2.40x10^ 4  1.42x10^ 4
+  dim.    30                53304                29329   5.33x10^ 4  2.93x10^ 4
+  dim.    28               108622                55318   1.09x10^ 5  5.53x10^ 4
+  dim.    26               205136                96514   2.05x10^ 5  9.65x10^ 4
+  dim.    24               362005               156869   3.62x10^ 5  1.57x10^ 5
+  dim.    22               600850               238845   6.01x10^ 5  2.39x10^ 5
+  dim.    20               942669               341819   9.43x10^ 5  3.42x10^ 5
+  dim.    18              1403670               461001   1.40x10^ 6  4.61x10^ 5
+  dim.    16              1990227               586557   1.99x10^ 6  5.87x10^ 5
+  dim.    14              2694122               703895   2.69x10^ 6  7.04x10^ 5
+  dim.    12              3489341               795219   3.49x10^ 6  7.95x10^ 5
+  dim.    10              4331494               842153   4.33x10^ 6  8.42x10^ 5
+  dim.     8              5160580               829086   5.16x10^ 6  8.29x10^ 5
+  dim.     6              5907365               746785   5.91x10^ 6  7.47x10^ 5
+  dim.     4              6502475               595110   6.50x10^ 6  5.95x10^ 5
+  dim.     2              6886407               383932   6.89x10^ 6  3.84x10^ 5
+  dim.     0              7019100               132693   7.02x10^ 6  1.33x10^ 5
+  ```
+  which is too large to run on a regular computer for any decent amount of requested states. Lets see how the dimensionality changes with truncation. When `kshell_ui.py` asks for truncation, enter `1` to apply particle-hole truncation:
+
+  ```
+  truncation for "+" parity state in  V50_gxpf1a_p.ptn
   truncation scheme ?
         0 : No truncation (default)
         1 : particle-hole truncation for orbit(s)
         2 : hw truncation
         3 : Both (1) and (2)
-  ```
-  For large configurations (many valence nucleons and many shells for them to occupy) truncation might be necessary for `KSHELL` to actually complete the calculations. For 
 
+  1
+  ```
+  which outputs:
+  ```
+    #    n,  l,  j, tz,    spe
+    1    0   3   7  -1    -8.624     p_0f7/2
+    2    1   1   3  -1    -5.679     p_1p3/2
+    3    0   3   5  -1    -1.383     p_0f5/2
+    4    1   1   1  -1    -4.137     p_1p1/2
+    5    0   3   7   1    -8.624     n_0f7/2
+    6    1   1   3   1    -5.679     n_1p3/2
+    7    0   3   5   1    -1.383     n_0f5/2
+    8    1   1   1   1    -4.137     n_1p1/2
+  specify # of orbit(s) and min., max. occupation numbers for restriction
+
+  # of orbit(s) for restriction?  (<CR> to quit):
+  ```
+  Here we see the valence orbitals 0f7/2, 1p3/2, 0f5/2 and 1p1/2, for both protons and neutrons. The `l` column denotes the angular momentum of the orbital, `j` the total angular momentum of the orbital, and `tz` the isospin. Let us now restrict the number of protons and neutrons allowed in the 0f7/2 orbital. In the above table we can see that the 0f7/2 orbitals are labeled 1 (protons) and 5 (neutrons). Set the maximum number of protons and neutrons to 2 in those orbitals by:
+  ```
+  # of orbit(s) for restriction?  (<CR> to quit): 1,5
+  min., max. restricted occupation numbersfor the orbit(s) (or max only) : 2
+  ```
+  We now check the dimensionality of the truncated configuration:
+  ```
+        2*M        M-scheme dim.          J-scheme dim.
+  dim.    36                    5                    5   5.00x10^ 0  5.00x10^ 0
+  dim.    34                   58                   53   5.80x10^ 1  5.30x10^ 1
+  dim.    32                  303                  245   3.03x10^ 2  2.45x10^ 2
+  dim.    30                 1148                  845   1.15x10^ 3  8.45x10^ 2
+  dim.    28                 3474                 2326   3.47x10^ 3  2.33x10^ 3
+  dim.    26                 8930                 5456   8.93x10^ 3  5.46x10^ 3
+  dim.    24                20129                11199   2.01x10^ 4  1.12x10^ 4
+  dim.    22                40732                20603   4.07x10^ 4  2.06x10^ 4
+  dim.    20                75106                34374   7.51x10^ 4  3.44x10^ 4
+  dim.    18               127691                52585   1.28x10^ 5  5.26x10^ 4
+  dim.    16               201896                74205   2.02x10^ 5  7.42x10^ 4
+  dim.    14               298865                96969   2.99x10^ 5  9.70x10^ 4
+  dim.    12               416333               117468   4.16x10^ 5  1.17x10^ 5
+  dim.    10               547983               131650   5.48x10^ 5  1.32x10^ 5
+  dim.     8               683573               135590   6.84x10^ 5  1.36x10^ 5
+  dim.     6               810023               126450   8.10x10^ 5  1.26x10^ 5
+  dim.     4               913390               103367   9.13x10^ 5  1.03x10^ 5
+  dim.     2               981186                67796   9.81x10^ 5  6.78x10^ 4
+  dim.     0              1004814                23628   1.00x10^ 6  2.36x10^ 4
+  ```
+  where we see that the dimensionality has been reduced by up to an order of magnitude for some spins.
   </p>
   </details>
 
