@@ -201,9 +201,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ```
   ./conda init fish
   ```
-  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy`, `matplotlib` and `kshell-utilities` with:
+  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy` and `matplotlib`:
   ```
-  conda create --name kshell python=3.8 numpy matplotlib kshell-utilities
+  conda create --name kshell python=3.8 numpy matplotlib
   ```
   Activate the environment with:
   ```
@@ -328,9 +328,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ```
   ./conda init fish
   ```
-  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy`, `matplotlib` and `kshell-utilities` with:
+  When the initialization is complete, create an environment named `kshell` with `Python 3.8` along with `numpy` and `matplotlib`:
   ```
-  conda create --name kshell python=3.8 numpy matplotlib kshell-utilities
+  conda create --name kshell python=3.8 numpy matplotlib
   ```
   Activate the environment with:
   ```
