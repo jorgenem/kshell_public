@@ -141,7 +141,6 @@ class ModelSpace:
         self.SMInt = SMInt(model_space_filename)
         self.monopole_e_thd = thd_energy
 
-        
     def gen_ptn_pn(self):
         nocc_orb_pn = [ [ j+1 for j,t in zip(self.jorb, self.itorb) 
                           if t==-1], 
@@ -195,7 +194,6 @@ class ModelSpace:
                     if check_trunc_pn( arr ):
                         self.ptn_pn[tz].append( arr )
             self.ptn_pn[tz].sort()
-
 
     def ptn_combined(self, parity):
         # parity
@@ -272,7 +270,6 @@ class ModelSpace:
                           for j in range(len(self.ptn_pn[1]))
                           if check_trunc(i, j) ]
 
-
     def strip_ptn_pn(self):
         is_ptn_pn = [ [False,]*len(self.ptn_pn[0]),  
                       [False,]*len(self.ptn_pn[1]) ]
@@ -298,9 +295,6 @@ class ModelSpace:
             ptn_list.append( (ni, nj) )
         self.ptn_list = ptn_list
                                   
-
-        
-
     def write_ptn_pn(self, fp, parity, model_space_filename):
         # output partition of proton and neutron separately
         fp.write( "# partition file of %s  Z=%d  N=%d  parity=%+d\n" 
@@ -330,7 +324,6 @@ class ModelSpace:
         if len(self.ptn_list)==0: 
             sys.stdout.write( "\n *** WARNING NO PARTITION *** \n" )
 
-
     def cal_hw_low_high_pn(self, valence_p_n):
         # total hw excitation of the lowest and highest configuration
         nhw = [ [], [] ]
@@ -354,7 +347,6 @@ class ModelSpace:
             highest_pn.append((sum(nhw[0][-valence_p_n[0]:]),sum(nhw[1][-valence_p_n[1]:])))
         return lowest_pn, highest_pn
 
-
     def gen_nocc(self, nlist, valence_p_n):
         if valence_p_n==0: 
             yield (0,)*len(nlist)
@@ -373,7 +365,7 @@ def main(
     partition_filename: str,
     valence_p_n: tuple,
     parity: int
-):
+    ):
     """
     Parameters
     ----------
