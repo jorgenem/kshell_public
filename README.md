@@ -698,6 +698,71 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
+  #### How to use the output from KSHELL
+
+  <details>
+  <summary>Click here for how to use the output from KSHELL</summary>
+  <p>
+
+  After running `KSHELL`, your work directory will look similar to this:
+  ```
+  Ne20_usda.sh
+  Ne20_usda_m0p.wav
+  Ne20_usda_p.ptn
+  collect_logs.py
+  count_dim.py
+  kshell.exe
+  log_Ne20_usda_m0p.txt
+  log_Ne20_usda_tr_m0p_m0p.txt
+  save_input_ui.txt
+  summary_Ne20_usda.txt
+  transit.exe
+  usda.snt
+  ```
+  All the level and transition data are located in the summary file, `summary_Ne20_usda.txt`. Heres a selection of the summary:
+  
+  <details>
+  <summary>Click here for summary example</summary>
+  <p>
+  
+  ```
+
+  Energy levels
+
+  N    J prty N_Jp    T     E(MeV)  Ex(MeV)  log-file
+
+  1   0.0 +     1   0.0    -40.467    0.000  log_Ne20_usda_m0p.txt 
+  2   2.0 +     1   0.0    -38.771    1.696  log_Ne20_usda_m0p.txt 
+  3   4.0 +     1   0.0    -36.376    4.091  log_Ne20_usda_m0p.txt 
+  4   0.0 +     2   0.0    -33.919    6.548  log_Ne20_usda_m0p.txt 
+  5   2.0 +     2   0.0    -32.882    7.585  log_Ne20_usda_m0p.txt
+  ...
+
+  B(E2)  ( > -0.0 W.u.)  mass = 20    1 W.u. = 3.2 e^2 fm^4
+                                            e^2 fm^4 (W.u.) 
+    J_i    Ex_i     J_f    Ex_f   dE        B(E2)->         B(E2)<- 
+  2.0+( 1)  1.696  0.0+( 1)  0.000  1.696     59.7( 18.5)    298.5( 92.5)
+  4.0+( 1)  4.091  2.0+( 1)  1.696  2.395     71.3( 22.1)    128.4( 39.8)
+  0.0+( 2)  6.548  2.0+( 1)  1.696  4.852     11.5(  3.6)      2.3(  0.7)
+  2.0+( 2)  7.585  0.0+( 1)  0.000  7.585      0.0(  0.0)      0.2(  0.0)
+  ...
+
+  B(M1)  ( > -0.0 W.u.)  mass = 20    1 W.u. = 1.8 mu_N^2  
+                                            mu_N^2   (W.u.) 
+    J_i    Ex_i     J_f    Ex_f   dE        B(M1)->         B(M1)<- 
+  2.0+( 2)  7.585  2.0+( 1)  1.696  5.889    0.000( 0.00)    0.000( 0.00)
+  2.0+( 3)  9.977  2.0+( 1)  1.696  8.281    0.482( 0.27)    0.482( 0.27)
+  2.0+( 3)  9.977  2.0+( 2)  7.585  2.392    1.104( 0.62)    1.104( 0.62)
+  4.0+( 2)  9.996  4.0+( 1)  4.091  5.905    0.001( 0.00)    0.001( 0.00)
+  ...
+  ```
+  
+  </p>
+  </details>
+
+  </p>
+  </details>
+
           
 ## Pitfalls
 
