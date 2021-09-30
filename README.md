@@ -722,7 +722,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   All the level and transition data are located in the summary file, `summary_Ne20_usda.txt`. Heres a selection of the summary:
   
   <details>
-  <summary>Click here for summary example</summary>
+  <summary>Click here for summary selection</summary>
   <p>
   
   ```
@@ -760,6 +760,60 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
+  The summary file is easily read with the `kshell-utilities` package. See the docstrings in the [kshell-utilities repository](https://github.com/GaffaSnobb/kshell-utilities) for documentation. Install the package with `pip`:
+  ```
+  pip install kshell-utilities
+  ```
+  To read a summary file:
+  ``` python
+  import kshell_utilities as ksutil
+
+  ne20 = ksutil.loadtxt("summary_Ne20_usda.txt")[0]
+  ```
+  `ne20` is an instance containing several useful attributes. To see the available attributes, run:
+  ```
+  > ne20.help
+  ['BE2',
+  'BM1',
+  'Ex',
+  'help',
+  'level_plot',
+  'levels',
+  'model_space',
+  'neutron_partition',
+  'nucleus',
+  'proton_partition',
+  'transitions',
+  'transitions_BE2',
+  'transitions_BM1',
+  'truncation']
+  ```
+  To see the energy, 2\*spin and parity of each level:
+  ```
+  > ne20.levels
+  [[-40.467   0.      1.   ]
+   [-38.771   4.      1.   ]
+   [-36.376   8.      1.   ]
+   [-33.919   0.      1.   ]
+   [-32.882   4.      1.   ]
+   [-32.107  12.      1.   ]
+   ...
+   [-25.978  12.      1.   ]
+   [-25.904  10.      1.   ]
+   [-25.834   8.      1.   ]
+   [-25.829   2.      1.   ]]
+  ```
+  Slice the array to get only selected values, if needed (ne20.levels[:, 0] for only the energies). To see 2\*spin_final, parity_initial, Ex_final, 2\*spin_initial, parity_initial, Ex_initial, E_gamma, B(.., i->f) for the M1 transitions:
+  ```
+  > ne20.transitions_BM1
+  [[4.0000e+00 1.0000e+00 1.6960e+00 ... 7.5850e+00 5.8890e+00 0.0000e+00]
+  [4.0000e+00 1.0000e+00 1.6960e+00 ... 9.9770e+00 8.2810e+00 4.8200e-01]
+  [4.0000e+00 1.0000e+00 7.5850e+00 ... 9.9770e+00 2.3920e+00 1.1040e+00]
+  ...
+  [4.0000e+00 1.0000e+00 1.3971e+01 ... 1.4638e+01 6.6700e-01 6.0000e-03]
+  [0.0000e+00 1.0000e+00 1.4126e+01 ... 1.4638e+01 5.1200e-01 2.0000e-02]
+  [2.0000e+00 1.0000e+00 1.4336e+01 ... 1.4638e+01 3.0200e-01 0.0000e+00]]
+  ```
   </p>
   </details>
 
