@@ -760,6 +760,8 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
+  #### Load and view data from KSHELL
+
   The summary file is easily read with the `kshell-utilities` package. See the docstrings in the [kshell-utilities repository](https://github.com/GaffaSnobb/kshell-utilities) for documentation. Install the package with `pip`:
   ```
   pip install kshell-utilities
@@ -805,8 +807,8 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
    [-25.829   2.      1.   ]]
   ```
   Slice the array to get only selected values, if needed (`ne20.levels[:, 0]` for only the energies). To see 2\*spin_final, parity_initial, Ex_final, 2\*spin_initial, parity_initial, Ex_initial, E_gamma, B(.., i->f) for the M1 transitions:
-  ```
-  > ne20.transitions_BM1
+  ``` python
+  > print(ne20.transitions_BM1)
   [[4.0000e+00 1.0000e+00 1.6960e+00 ... 7.5850e+00 5.8890e+00 0.0000e+00]
   [4.0000e+00 1.0000e+00 1.6960e+00 ... 9.9770e+00 8.2810e+00 4.8200e-01]
   [4.0000e+00 1.0000e+00 7.5850e+00 ... 9.9770e+00 2.3920e+00 1.1040e+00]
@@ -815,6 +817,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   [0.0000e+00 1.0000e+00 1.4126e+01 ... 1.4638e+01 5.1200e-01 2.0000e-02]
   [2.0000e+00 1.0000e+00 1.4336e+01 ... 1.4638e+01 3.0200e-01 0.0000e+00]]
   ```
+
+  #### Visualise data from KSHELL 
+
   You can easily create a level density plot by
   ``` python
   ne20.level_density_plot(bin_size=1)
@@ -848,6 +853,32 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
   </p>
   </details>
+
+  To generate a level plot:
+  ``` python
+  ne20.level_plot()
+  ```
+  or
+  ``` python
+  import matplotlib.pyplot as plt
+
+  fig, ax = plt.subplots()
+  ksutil.level_plot(
+      levels = ne20.levels,
+      ax = ax
+  )
+  plt.show()
+  ```
+
+  <details>
+  <summary>Click to see level plot</summary>
+  <p>
+
+  ![level_density_plot](https://github.com/GaffaSnobb/kshell-utilities/blob/main/doc/level_plot_ne20.png)
+
+  </p>
+  </details>
+
 
   </p>
   </details>
