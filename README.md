@@ -529,7 +529,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   <summary>Click here for how to choose spin and parity states</summary>
   <p>
   
-  `KSHELL` prompts you for choosing spin and parity states:
+  `kshell_ui.py` asks you to choose what spin and parity states you want to calculate:
   ```
   J, parity, number of lowest states
     (ex. 100          for 100 +parity, 100 -parity states w/o J-proj. (default)
@@ -545,6 +545,99 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
+  #### How to calculate the dimensionality
+
+  <details>
+  <summary>Click here for how to calculate the dimensionality</summary>
+  <p>
+
+  After answering all the questions from `kshell_ui.py` it might be reasonable to check the dimensionality of the configuration to see if your computer will actually manage to solve the calculations. At this point, the work folder will look something like this:
+  ```
+  Ne20_usda.sh
+  Ne20_usda_p.ptn
+  collect_logs.py
+  count_dim.py
+  kshell.exe
+  save_input_ui.txt
+  transit.exe
+  usda.snt
+  ```
+  The `.snt` file contains the two-body matrix elements (TBME) in the current model space (here `usda`). The `.ptn` contains the possible different proton and neutron combinations. Count the dimensionality by:
+  ```
+  python count_dim.py usda.snt Ne20_usda_p.ptn
+  ```
+  which generates the output
+  ```
+        2*M        M-scheme dim.          J-scheme dim.
+  dim.    16                    4                    4   4.00x10^ 0  4.00x10^ 0
+  dim.    14                   16                   12   1.60x10^ 1  1.20x10^ 1
+  dim.    12                   52                   36   5.20x10^ 1  3.60x10^ 1
+  dim.    10                  116                   64   1.16x10^ 2  6.40x10^ 1
+  dim.     8                  225                  109   2.25x10^ 2  1.09x10^ 2
+  dim.     6                  354                  129   3.54x10^ 2  1.29x10^ 2
+  dim.     4                  497                  143   4.97x10^ 2  1.43x10^ 2
+  dim.     2                  594                   97   5.94x10^ 2  9.70x10^ 1
+  dim.     0                  640                   46   6.40x10^ 2  4.60x10^ 1
+  ```
+  The M- and J-scheme dimensionalities are both very small in this configuration and the calculations will take only a few seconds to run on a normal laptop. The J-scheme dimensionality tells us how many levels of the different spins are available. From the above table we read that this configuration has 46 possible spin 0 states, 97 spin 1 states, 143 spin 2 states, and so on. We can also read from the table that this configuration has 640 possible M = 0 states (projection of J on the z-axis), 594 M = 1 states, and so on. The two last columns displays the M- and J-scheme dimensionalities in scientific notation.
+
+  We now look at a much larger configuration, namely V50 with the `GXPF` model space:
+  ```
+  python count_dim.py gxpf1a.snt V50_gxpf1a_p.ptn
+  ```
+  gives:
+  ```
+        2*M        M-scheme dim.          J-scheme dim.
+  dim.    44                    4                    4   4.00x10^ 0  4.00x10^ 0
+  dim.    42                   46                   42   4.60x10^ 1  4.20x10^ 1
+  dim.    40                  263                  217   2.63x10^ 2  2.17x10^ 2
+  dim.    38                 1069                  806   1.07x10^ 3  8.06x10^ 2
+  dim.    36                 3489                 2420   3.49x10^ 3  2.42x10^ 3
+  dim.    34                 9737                 6248   9.74x10^ 3  6.25x10^ 3
+  dim.    32                23975                14238   2.40x10^ 4  1.42x10^ 4
+  dim.    30                53304                29329   5.33x10^ 4  2.93x10^ 4
+  dim.    28               108622                55318   1.09x10^ 5  5.53x10^ 4
+  dim.    26               205136                96514   2.05x10^ 5  9.65x10^ 4
+  dim.    24               362005               156869   3.62x10^ 5  1.57x10^ 5
+  dim.    22               600850               238845   6.01x10^ 5  2.39x10^ 5
+  dim.    20               942669               341819   9.43x10^ 5  3.42x10^ 5
+  dim.    18              1403670               461001   1.40x10^ 6  4.61x10^ 5
+  dim.    16              1990227               586557   1.99x10^ 6  5.87x10^ 5
+  dim.    14              2694122               703895   2.69x10^ 6  7.04x10^ 5
+  dim.    12              3489341               795219   3.49x10^ 6  7.95x10^ 5
+  dim.    10              4331494               842153   4.33x10^ 6  8.42x10^ 5
+  dim.     8              5160580               829086   5.16x10^ 6  8.29x10^ 5
+  dim.     6              5907365               746785   5.91x10^ 6  7.47x10^ 5
+  dim.     4              6502475               595110   6.50x10^ 6  5.95x10^ 5
+  dim.     2              6886407               383932   6.89x10^ 6  3.84x10^ 5
+  dim.     0              7019100               132693   7.02x10^ 6  1.33x10^ 5
+  ```
+  The `GXPF` model space uses the 1f7/2, 2p3/2, 1f5/2 and 2p1/2 orbitals for the valence nucleons. V50 has 3 valence protons and 7 valence neutrons free to move about in the model space. Compared to 20Ne in the `USD` model space, V50 has both more valence nucleons and more states for them to be in, thus the larger M- and J-scheme dimensionalities. The V50 `GXPF` configuration might be possible to run on a multicore laptop for a small number of requested states. Running the configuration for the 100 lowest lying states for spins 0 to 14 takes approximately 1-2 hours on the Fram supercomputer using 32 nodes.
+
+  </p>
+  </details>
+
+  #### How to truncate
+
+  <details>
+  <summary>Click here for how to truncate</summary>
+  <p>
+
+  `kshell_ui.py` asks you if you want to truncate the model space:
+  ```
+  truncation for "+" parity state in  Ne20_usda_p.ptn
+  truncation scheme ?
+        0 : No truncation (default)
+        1 : particle-hole truncation for orbit(s)
+        2 : hw truncation
+        3 : Both (1) and (2)
+  ```
+  For large configurations (many valence nucleons and many shells for them to occupy) truncation might be necessary for `KSHELL` to actually complete the calculations. For 
+
+  </p>
+  </details>
+
+
 </p>
 </details>
 
@@ -555,7 +648,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 <summary>Click here for pitfalls</summary>
 <p>
 
-  2021-09-29 UPDATE: `kshell_ui.py` now checks if the number of requested states exceeds the maximum possible number of states for the given model space and configuration and adjusts accoringly. This error should not be a problem anymore for single PC compilation. We still do experience this issue when compiled with `-DMPI`, but running KSHELL a with a small number of possible configurations on a computer with several nodes is nonsenical.
+  2021-09-29 UPDATE: `kshell_ui.py` now checks if the number of requested states exceeds the maximum possible number of states for the given model space and configuration and adjusts accordingly. This error should not be a problem anymore for single PC compilation. We still do experience this issue when compiled with `-DMPI`, but running KSHELL a with a small number of possible configurations on a computer with several nodes is nonsenical.
 
   KSHELL version 2 has undefined behavior if you request more states than the configuration and model space allows. As an example, take 28Ar in the USDA model space. By running the `count_dim.py` script we get
   ```
