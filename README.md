@@ -74,7 +74,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   <p>
 
     ```
-    [user ~/kshell_public/src]$ make
+    $ make
     mpiifort -O3 -qopenmp -no-ipo -DMPI  -c constant.f90
     mpiifort -O3 -qopenmp -no-ipo -DMPI  -c model_space.f90
     mpiifort -O3 -qopenmp -no-ipo -DMPI  -c lib_matrix.F90
@@ -216,7 +216,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   #### Compile KSHELL
   We are now ready to actually install `KSHELL`. Navigate to the directory where you want to install `KSHELL` and clone this repository:
   ```
-  git clone https://github.com/GaffaSnobb/kshell_public.git
+  git clone https://github.com/GaffaSnobb/kshell.git
   ```
   Navigate to the `src/` directory and edit the `Makefile` with your favorite editor. Change `FC = gfortran` to `FC = gfortran-10` (or `-11` if you installed version 11) and make sure that line is un-commented. All other `FC` declarations should be commented. Save the changes. Still in the `src/` directory, run
   ```
@@ -343,7 +343,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   #### Compile KSHELL
   We are now ready to actually install `KSHELL`. Navigate to the directory where you want to install `KSHELL` and clone this repository:
   ```
-  git clone https://github.com/GaffaSnobb/kshell_public.git
+  git clone https://github.com/GaffaSnobb/kshell.git
   ```
   Navigate to the `src/` directory and run
   ```
@@ -416,10 +416,6 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </details>
 
 ## Usage
-
-<!-- <details>
-<summary>Click here usage</summary>
-<p> -->
 
   #### General usage
 
@@ -701,10 +697,6 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   where we see that the dimensionality has been reduced by up to an order of magnitude for some spins.
   </p>
   </details>
-
-
-<!-- </p>
-</details> -->
 
           
 ## Pitfalls
