@@ -896,6 +896,23 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
+  The gamma strengh function (averaged over spins and parities) can easily be calculated by:
+  ``` python
+  import matplotlib.pyplot as plt
+
+  bins, gsf = ksutil.gamma_strength_function_average(
+      levels = ne20.levels,
+      transitions = ne20.transitions_BM1,
+      bin_width = 1,
+      Ex_min = 0,
+      Ex_max = 14,
+      multipole_type = "M1"
+  )
+  plt.plot(bins, gsf)
+  plt.show()
+  ```
+  where `bin_width`, `Ex_max` and `Ex_min` are in the same unit as the input energy levels, which from `KSHELL` is in MeV. `bin_width` is the width of the bins when the level density is calculated. `Ex_min` and `Ex_max` are the lower and upper limits for the excitation energy of the initial state of the transitions.
+
   </p>
   </details>
 
