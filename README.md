@@ -778,6 +778,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   'Ex',
   'help',
   'level_plot',
+  'level_density_plot',
   'levels',
   'model_space',
   'neutron_partition',
@@ -803,7 +804,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
    [-25.834   8.      1.   ]
    [-25.829   2.      1.   ]]
   ```
-  Slice the array to get only selected values, if needed (ne20.levels[:, 0] for only the energies). To see 2\*spin_final, parity_initial, Ex_final, 2\*spin_initial, parity_initial, Ex_initial, E_gamma, B(.., i->f) for the M1 transitions:
+  Slice the array to get only selected values, if needed (`ne20.levels[:, 0]` for only the energies). To see 2\*spin_final, parity_initial, Ex_final, 2\*spin_initial, parity_initial, Ex_initial, E_gamma, B(.., i->f) for the M1 transitions:
   ```
   > ne20.transitions_BM1
   [[4.0000e+00 1.0000e+00 1.6960e+00 ... 7.5850e+00 5.8890e+00 0.0000e+00]
@@ -814,6 +815,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   [0.0000e+00 1.0000e+00 1.4126e+01 ... 1.4638e+01 5.1200e-01 2.0000e-02]
   [2.0000e+00 1.0000e+00 1.4336e+01 ... 1.4638e+01 3.0200e-01 0.0000e+00]]
   ```
+
+  ![lolz](https://github.com/GaffaSnobb/kshell-utilities/blob/main/doc/level_density_plot_ne20.png)
+
   </p>
   </details>
 
