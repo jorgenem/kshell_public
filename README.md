@@ -160,9 +160,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ## KSHELL on your PC
   
-<details>
+<!-- <details>
 <summary>Click here for KSHELL on your PC</summary>
-<p>
+<p> -->
   
   ### Installation on Ubuntu
     
@@ -419,8 +419,8 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
-</p>
-</details>
+<!-- </p>
+</details> -->
 
 ## Usage
 
