@@ -546,7 +546,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ``` python
   0+100, 0.5+100, 1+100, 1.5+100, 2+100, 2.5+100, 3+100, 0-100, 0.5-100, 1-100, 1.5-100, 2-100, 2.5-100, 3-100
   ```
-  Note that the output has a spin step length of 1/2. `kshell_ui.py` will filter out the states which are not valid for the given model space and nuclide, so just paste the entire string into the `kshell_ui` prompt.
+  Note that the output has a spin step length of 1/2. `kshell_ui.py` will filter out the states which are not valid for the given model space and nuclide, so just paste the entire string into the `kshell_ui.py` prompt.
 
   </p>
   </details>
@@ -929,6 +929,15 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   plt.show()
   ```
   where `bin_width`, `Ex_max` and `Ex_min` are in the same unit as the input energy levels, which from `KSHELL` is in MeV. `bin_width` is the width of the bins when the level density is calculated. `Ex_min` and `Ex_max` are the lower and upper limits for the excitation energy of the initial state of the transitions.
+
+  <details>
+  <summary>Click to see gamma strength function plot</summary>
+  <p>
+
+  ![gsf_plot](https://github.com/GaffaSnobb/kshell-utilities/blob/main/doc/gsf_ne20.png)
+
+  </p>
+  </details>
 
   </p>
   </details>
