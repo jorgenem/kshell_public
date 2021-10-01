@@ -160,10 +160,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ## KSHELL on your PC
   
-  ### Installation on Ubuntu
+  <!-- ### Installation on Ubuntu -->
     
   <details>
-  <summary>Click here for Ubuntu</summary>
+  <summary>Installation on Ubuntu</summary>
   <p>
 
   KSHELL probably works fine on any Linux distro as long as you install the correct versions of Fortran and Python. Following is a recipe for installing and compiling on Ubuntu 20.04.2 LTS.
@@ -288,10 +288,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
-  ### Installation on macOS
+  <!-- ### Installation on macOS -->
     
   <details>
-  <summary>Click here for macOS</summary>
+  <summary>Installation on macOS</summary>
   <p>
 
   #### Homebrew
