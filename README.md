@@ -417,10 +417,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ## Usage
 
-  #### General usage
+  <!-- #### General usage -->
 
   <details>
-  <summary>Click here for general usage</summary>
+  <summary>General usage</summary>
   <p>
 
   We will here use 20Ne as an example. Create a directory where you want to place the output from `KSHELL`. cd to that directory and run
@@ -512,10 +512,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
-  #### How to choose spin and parity states
+  <!-- #### How to choose spin and parity states -->
 
   <details>
-  <summary>Click here for how to choose spin and parity states</summary>
+  <summary>How to choose spin and parity states</summary>
   <p>
   
   `kshell_ui.py` asks you to choose what spin and parity states you want to calculate:
@@ -551,10 +551,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
-  #### How to calculate the dimensionality
+  <!-- #### How to calculate the dimensionality -->
 
   <details>
-  <summary>Click here for how to calculate the dimensionality</summary>
+  <summary>How to calculate the dimensionality</summary>
   <p>
 
   After answering all the questions from `kshell_ui.py` it might be reasonable to check the dimensionality of the configuration to see if your computer will actually manage to solve the calculations. At this point, the work folder will look something like this:
@@ -623,10 +623,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
-  #### How to truncate
+  <!-- #### How to truncate -->
 
   <details>
-  <summary>Click here for how to truncate</summary>
+  <summary>How to truncate</summary>
   <p>
 
   `kshell_ui.py` asks you if you want to truncate the model space. For large configurations (many valence nucleons and many shells for them to occupy) truncation might be necessary for `KSHELL` to actually complete the calculations. We use V50 in the `GXPF` model space as an example. This configuration has a dimensionality of (see above section on how to calculate the dimensionality):
@@ -715,10 +715,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
 
-  #### How to use the output from KSHELL
+  <!-- #### How to use the output from KSHELL -->
 
   <details>
-  <summary>Click here for how to use the output from KSHELL</summary>
+  <summary>How to use the output from KSHELL</summary>
   <p>
 
   After running `KSHELL`, your work directory will look similar to this:
@@ -942,10 +942,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   </p>
   </details>
   
-  #### KSHELL file descriptions
+  <!-- #### KSHELL file descriptions -->
 
   <details>
-  <summary>Click to see KSHELL file descriptions</summary>
+  <summary>KSHELL file descriptions</summary>
   <p>
 
   `*.wav`
