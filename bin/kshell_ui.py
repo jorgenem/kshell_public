@@ -31,6 +31,9 @@ is_mpi = False         # single node (w/o MPI)
 # if is_mpi in ('k', 'k-micro', 'k-large'): n_nodes = 1152
 # if is_mpi in ('cx400',): n_nodes = 4
 
+GS_FREE_PROTON = 5.585
+GS_FREE_NEUTRON = -3.826
+
 var_dict = {
     "max_lanc_vec"  : 200 , 
     "maxiter"       : 300 , 
@@ -40,8 +43,8 @@ var_dict = {
     "n_block"       : 0, 
     "eff_charge"    : [1.5, 0.5] , 
     "gl"            : [1.0, 0.0], 
-    # "gs"            : [3.910, -2.678],
-    "gs"            : [ 5.585, -3.826],
+    # "gs"            : [GS_FREE_PROTON, GS_FREE_NEUTRON],
+    "gs"            : [0.9*GS_FREE_PROTON, 0.9*GS_FREE_NEUTRON],
     "beta_cm"       : 0.0, 
 }
 
