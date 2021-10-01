@@ -948,7 +948,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   <summary>KSHELL file descriptions</summary>
   <p>
 
-  ##### `*.wav`
+  ##### \*.wav
     lolz
 
   </p>
