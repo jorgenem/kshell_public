@@ -43,7 +43,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
   * ```Python 3.8``` or newer (kshell_ui.py uses syntax specific to 3.8 and above)
     * `numpy`
-    * `matplotlib`
+    * `matplotlib` (not required but recommended)
     * `kshell-utilities` (not required but recommended)
   * ```gfortran 10.2.0``` or newer (Tested with this version, might work with older versions)
   * ```ifort 19.1.3.304``` (Alternative to gfortran. Tested with this version, might work with other versions.)
@@ -938,6 +938,18 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
   </p>
   </details>
+
+  </p>
+  </details>
+  
+  #### KSHELL file descriptions
+
+  <details>
+  <summary>Click to see KSHELL file descriptions</summary>
+  <p>
+
+  `*.wav`
+    lolz
 
   </p>
   </details>
