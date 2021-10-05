@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import sys, os, os.path, shutil, readline, re
 from typing import Tuple, List, Dict
 import gen_partition
