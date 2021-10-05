@@ -489,7 +489,7 @@ def output_transit(base_filename, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2
 
 def main_nuclide(
     model_space_filename: str
-) -> Tuple[str, str, Tuple[int, int], List[Tuple[int, int, int, bool]], Dict[tuple, str]]:
+    ) -> Tuple[str, str, Tuple[int, int], List[Tuple[int, int, int, bool]], Dict[tuple, str]]:
     """
     Prompt for nuclide, number of states to calculate, truncation, and
     parameter adjustment.
@@ -805,6 +805,68 @@ def ask_yn(optype):
         if ans[0] == 'N' or ans[0] == 'n': ret = False
     return ret
 
+def check_j_scheme_dimensionality(
+    states: list,
+    model_space_filename: str,
+    shell_file_content_total: str
+    ):
+    """
+    Check that the requested amount of states does not exceed the
+    J-scheme dimensionality.
+    """
+    msg = "\nChecking whether the requested number of energy eigenstates"
+    msg += " exceeds the J-scheme dimensionality..."
+    print(msg)
+    for state in states:
+        """
+        Loop over all the requested states. Correct the number of
+        requested energy eigenstates, if needed.
+        """
+        partition_filename = state[6][1].replace('"', '')
+        wave_filename = state[6][0].replace('"', '')
+        M, _, jdim = count_dim(
+            model_space_filename = model_space_filename,
+            partition_filename = partition_filename,
+            print_dimensions = False
+        )
+        _, spin, parity, n_states, is_jproj, _, _ = state
+        parity = "+" if parity == +1 else "-"
+
+        if not is_jproj:
+            """
+            The number of states requested is not for a specific spin.
+            TODO: Sum up all the J-scheme dims and check that?
+            """
+            continue
+
+        for i in range(len(M)):
+            if (M[i] == spin) and (n_states > jdim[i]):
+                """
+                If 'n_states' is greater than 'jdim[i]' then the number
+                of requested states exceeds the J-scheme dimensionality.
+                In that case, the first occurrence of .wav filename is
+                located and the first occurrence of 'n_eigen' after this
+                is changed to the maximum allowed number of states for
+                the given spin. .wav filename is located first since the
+                first occurrence of 'n_eigen' after this must be the
+                correct occurence of 'n_eigen' to change.
+                """
+                msg = f"{partition_filename.split('_')[0]}:"
+                msg += f" Changing {spin/2:.0f}{parity} from {n_states} to {jdim[i]}."
+                idx = shell_file_content_total.find(wave_filename)
+                shell_file_content_total = \
+                    shell_file_content_total[:idx] + \
+                    shell_file_content_total[idx:].replace(
+                        f"n_eigen = {n_states}",
+                        f"n_eigen = {jdim[i]}",
+                        1
+                    )
+                print(msg)
+
+    print("Done!\n")
+    
+    return shell_file_content_total
+
 def main():
     print("\n")
     print("----------------------------- \n")
@@ -1027,6 +1089,12 @@ def main():
     fn_snt_base = model_space_filename[:-4]
     shell_file_content_total = ''
 
+    """
+    list_jpn:
+        A list containing tuples with the spin, parity, number of
+        states, and is_jproj for each requested state to be calculated.
+    """
+
     states = []
     while True:
         """
@@ -1041,8 +1109,10 @@ def main():
             """
             break
         
-        for m, p, n, isj  in list_jpn:
-            states.append( (valence_p_n, m, p, n, isj, base_filename, fn_save_dict[(m,p,n,isj)] ) )
+        for spin, parity, n_states, is_jproj  in list_jpn:
+            states.append(
+                (valence_p_n, spin, parity, n_states, is_jproj, base_filename, fn_save_dict[(spin, parity, n_states, is_jproj)])
+            )
         
         shell_file_content_total += shell_file_content_single
         
@@ -1277,56 +1347,14 @@ def main():
     fp_save_input = open('save_input_ui.txt', 'w')
     fp_save_input.write( gen_partition.output_ans )
     fp_save_input.close()
-
-    """
-    Check that the requested amount of states does not exceed the
-    J-scheme dimensionality.
-    """
-    msg = "\nChecking whether the requested number of energy eigenstates"
-    msg += " exceeds the J-scheme dimensionality..."
-    print(msg)
-    # print(f"{states=}")
-    for state in states:
-        """
-        Loop over all the requested states. Correct the number of
-        requested energy eigenstates, if needed.
-        """
-        partition_filename = state[6][1].replace('"', '')
-        wave_filename = state[6][0].replace('"', '')
-        M, _, jdim = count_dim(
-            model_space_filename = model_space_filename,
-            partition_filename = partition_filename,
-            print_dimensions = False
+    
+    shell_file_content_total = \
+        check_j_scheme_dimensionality(
+            states,
+            model_space_filename,
+            shell_file_content_total
         )
-        _, spin, parity, n_states, is_jproj, _, _ = state
-        parity = "+" if parity == +1 else "-"
-
-        for i in range(len(M)):
-            if (M[i] == spin) and (n_states > jdim[i]):
-                """
-                If 'n_states' is greater than 'jdim[i]' then the number
-                of requested states exceeds the J-scheme dimensionality.
-                In that case, the first occurrence of .wav filename is
-                located and the first occurrence of 'n_eigen' after this
-                is changed to the maximum allowed number of states for
-                the given spin. .wav filename is located first since the
-                first occurrence of 'n_eigen' after this must be the
-                correct occurence of 'n_eigen' to change.
-                """
-                msg = f"{partition_filename.split('_')[0]}:"
-                msg += f" Changing {spin/2:.0f}{parity} from {n_states} to {jdim[i]}."
-                idx = shell_file_content_total.find(wave_filename)
-                shell_file_content_total = \
-                    shell_file_content_total[:idx] + \
-                    shell_file_content_total[idx:].replace(
-                        f"n_eigen = {n_states}",
-                        f"n_eigen = {jdim[i]}",
-                        1
-                    )
-                print(msg)
-
-    print("Done!\n")
-
+    
     fp_run = open(shell_filename, 'w')
     fp_run.write(shell_file_content_total)
     fp_run.close()
