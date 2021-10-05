@@ -926,10 +926,11 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   or
   ``` python
     import matplotlib.pyplot as plt
+    
     bins, gsf = ne20.gamma_strength_function_average_plot(
-        bin_width = bin_width,
-        Ex_max = Ex_max,
-        Ex_min = Ex_min,
+        bin_width = 1,
+        Ex_max = 0,
+        Ex_min = 14,
         multipole_type = "M1",
         plot = False
     )
