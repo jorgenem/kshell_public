@@ -915,6 +915,15 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
   The gamma strengh function (averaged over spins and parities) can easily be calculated by:
   ``` python
+    ne20.gamma_strength_function_average_plot(
+        bin_width = 1,
+        Ex_max = 0,
+        Ex_min = 14,
+        multipole_type = "M1",
+        plot = True
+    )
+  ```
+  ``` python
   import matplotlib.pyplot as plt
 
   bins, gsf = ksutil.gamma_strength_function_average(
@@ -948,8 +957,8 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   <summary>KSHELL file descriptions</summary>
   <p>
 
-  ##### \*.wav
-  lolz
+  #### \*.wav
+  The `.wav` files are generated after running the `KSHELL` executable. They contain the eigenvectors of the Hamiltonian matrix and are used to compute the transition probabilities.
 
   </p>
   </details>
