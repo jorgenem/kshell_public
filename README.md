@@ -923,6 +923,20 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
         plot = True
     )
   ```
+  or
+  ``` python
+    import matplotlib.pyplot as plt
+    bins, gsf = res.gamma_strength_function_average_plot(
+        bin_width = bin_width,
+        Ex_max = Ex_max,
+        Ex_min = Ex_min,
+        multipole_type = "M1",
+        plot = False
+    )
+    plt.plot(bins, gsf)
+    plt.show()
+  ```
+  or
   ``` python
   import matplotlib.pyplot as plt
 
