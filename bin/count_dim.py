@@ -187,7 +187,7 @@ def count_dim(
     print_dimensions: bool = True,
     debug: bool = False
     ):
-    """
+    """ 
     Product dimension calculation is parallelized. Some timing data for
     a .ptn file of approximately 1 million lines:
     
