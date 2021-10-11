@@ -437,6 +437,8 @@ def exec_string(mode, fn_input, fn_log):
         return r'mpiexec.hydra  -n ${PJM_MPI_PROC} ' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi == 'fram': 
         return 'mpiexec' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+    elif is_mpi == 'betzy': 
+        return 'mpiexec' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
     elif is_mpi:
         return 'mpiexec -of ' + fn_log + fn_exe + fn_input + ' \n\n'
     else:
@@ -873,7 +875,7 @@ def main():
     print("-----------------------------\n ")
 
     cdef = 'N'  # Default MPI parallel value.
-    n_nodes = 24    # Default value. May be overwritten.
+    n_nodes = 32    # Default value. May be overwritten.
     global is_mpi
     if is_mpi: cdef = is_mpi
     if cdef == True: cdef = 'Y'
@@ -882,7 +884,33 @@ def main():
         'ofp', 'ofp-flat', 'oakforest-pacs', 'yes', 'no', 'Y', 'N', 'y',
         'n', 'Yes', 'No', ''
     ]
-    list_param += ['fram']  # Added by jonkd.
+    # Sigma2 specifics:
+    list_param += ['fram', 'betzy']  # Added by jonkd.
+    n_tasks_per_node = 1    # The number of MPI ranks per node. Default value. May be overwritten.
+    n_cpus_per_task = 32    # The number of OpenMP threads per MPI rank. Default value. May be overwritten.
+    
+    type_of_fram_jobs_list = ["normal", "short", "devel"]
+    fram_job_node_limits = {
+        "normal": [1, 32],
+        "short": [1, 10],
+        "devel": [1, 8]
+    }
+    fram_job_description = {
+        "normal": "Normal. Nodes: 1 to 32, priority: normal, maximum walltime: 7 days",
+        "short": "Short. Nodes: 1 to 10, priority: high (slightly lower than devel), maximum walltime: 2 hours",
+        "devel": "Devel. Nodes: 1 to 8, priority: high, maximum walltime: 30 minutes"
+    }
+    type_of_betzy_jobs_list = ["normal", "preproc", "devel"]
+    betzy_job_node_limits = {
+        "normal": [4, 512],
+        "preproc": [1, 16],
+        "devel": [1, 4]
+    }
+    betzy_job_description = {
+        "normal": "Normal. Nodes: 4 to 512, priority: normal, maximum walltime: 4 days",
+        "preproc": "Preproc. Units: 1 to 16, priority: normal, maximum walltime: 1 day",
+        "devel": "Devel. Nodes: 1 to 4, priority: high, maximum walltime: 60 minutes"
+    }
     
     readline.set_completer( SimpleCompleter(list_param).complete )
     readline.parse_and_bind("tab: complete")
@@ -905,20 +933,20 @@ def main():
             if (len(mpi_input_arr) == 1) or (mpi_input_arr[1].isdigit()): break
         print("\n *** Invalid input ***")
 
-    if mpi_input_ans.split(",")[0] == "fram":
+    if (mpi_input_ans.split(",")[0] == "fram") or (mpi_input_ans.split(",")[0] == "betzy"):
         """
-        Fetch Fram Slurm input parameters. Added by jonkd.
+        Fetch Fram / Betzy Slurm input parameters. Added by jonkd.
         """
         print("Please input expected program runtime:")
         
         while True:
             try:
-                fram_n_minutes = raw_input_save("minutes (default 10): ")
-                if fram_n_minutes == "":
-                    fram_n_minutes = 10
-                fram_n_minutes = int(fram_n_minutes)
-                if (fram_n_minutes < 0) or (60 <= fram_n_minutes):
-                    print("Number of minutes must be 0 or larger, and lower than 60.")
+                sigma2_n_minutes = raw_input_save("minutes (default 10): ")
+                if sigma2_n_minutes == "":
+                    sigma2_n_minutes = 10
+                sigma2_n_minutes = int(sigma2_n_minutes)
+                if (sigma2_n_minutes < 0) or (60 <= sigma2_n_minutes):
+                    print("Number of minutes must larger than 0 and lower than 61.")
                     continue
                 break
             
@@ -927,11 +955,11 @@ def main():
 
         while True:
             try:
-                fram_n_hours = raw_input_save("hours (default 0): ")
-                if fram_n_hours == "":
-                    fram_n_hours = 0
-                fram_n_hours = int(fram_n_hours)
-                if (fram_n_hours < 0) or (24 <= fram_n_hours):
+                sigma2_n_hours = raw_input_save("hours (default 0): ")
+                if sigma2_n_hours == "":
+                    sigma2_n_hours = 0
+                sigma2_n_hours = int(sigma2_n_hours)
+                if (sigma2_n_hours < 0) or (24 <= sigma2_n_hours):
                     print("Number of hours must be 0 or larger, and lower than 24.")
                     continue
                 break
@@ -941,11 +969,11 @@ def main():
 
         while True:
             try:
-                fram_n_days = raw_input_save("days (default 0): ")
-                if fram_n_days == "":
-                    fram_n_days = 0
-                fram_n_days = int(fram_n_days)
-                if (fram_n_days < 0):
+                sigma2_n_days = raw_input_save("days (default 0): ")
+                if sigma2_n_days == "":
+                    sigma2_n_days = 0
+                sigma2_n_days = int(sigma2_n_days)
+                if (sigma2_n_days < 0):
                     print("Number of days must be 0 or larger.")
                     continue
                 break
@@ -953,55 +981,117 @@ def main():
             except ValueError:
                 continue
 
-        fram_project_name = raw_input_save("project name (default NN9464K): ")
-        fram_user_email = raw_input_save("email (default jonkd@uio.no): ")
+        sigma2_project_name = raw_input_save("project name (default NN9464K): ")
+        sigma2_user_email = raw_input_save("email (default jonkd@uio.no): ")
 
         # Set default values if no input is given.
-        if fram_project_name == "":
-            fram_project_name = "NN9464K"
-        if fram_user_email == "":
-            fram_user_email = "jonkd@uio.no"
+        if sigma2_project_name == "":
+            sigma2_project_name = "NN9464K"
+        if sigma2_user_email == "":
+            sigma2_user_email = "jonkd@uio.no"
+
+        if mpi_input_ans.split(",")[0] == "fram":
+            while True:
+                type_of_fram_job = raw_input_save("type of job (default 'normal'): ")
+                
+                if type_of_fram_job == "":
+                    type_of_fram_job = "normal"
+
+                if type_of_fram_job not in type_of_fram_jobs_list:
+                    print("Allowed job types are: ", type_of_fram_jobs_list)
+                    continue
+                
+                else:
+                    print(fram_job_description[type_of_fram_job])
+                    break
+
+        elif mpi_input_ans.split(",")[0] == "betzy":
+            while True:
+                type_of_betzy_job = raw_input_save("type of job (default 'normal'): ")
+                
+                if type_of_betzy_job == "":
+                    type_of_betzy_job = "normal"
+
+                if type_of_betzy_job not in type_of_betzy_jobs_list:
+                    print("Allowed job types are: ", type_of_betzy_jobs_list)
+                    continue
+                
+                else:
+                    print(betzy_job_description[type_of_betzy_job])
+                    break
 
         if len(mpi_input_arr) == 1:
             while True:
                 try:
-                    n_nodes_input = raw_input_save(f"number of nodes (default {n_nodes}): ")
+                    msg = f"number of nodes (default {n_nodes}): "
+                    n_nodes_input = raw_input_save(msg)
+                    
                     if n_nodes_input == "":
                         """
                         Keep n_nodes default value.
                         """
                         break
+                    
                     n_nodes_input = int(n_nodes_input)
                     if n_nodes_input < 0:
                         print("The number of nodes must be greater than 0")
                         continue
+                    
                     n_nodes = n_nodes_input
                     break
 
                 except ValueError:
-                    print("Please enter an integer:")
+                    print("Please enter an integer.")
                     continue
-        
-        type_of_fram_jobs_list = ["normal", "short", "devel"]
-        fram_job_description = {
-            "normal": "Normal. Nodes: 1 to 32, priority: normal, maximum walltime: 7 days",
-            "short": "Short. Nodes: 1 to 10, priority: high (slightly lower than devel), maximum walltime: 2 hours",
-            "devel": "Devel. Nodes: 1 to 8, priority: high, maximum walltime: 30 minutes"
-        }
-        while True:
-            type_of_fram_job = raw_input_save("type of job (default 'normal'): ")
             
-            if type_of_fram_job == "":
-                type_of_fram_job = "normal"
+        if (mpi_input_ans.split(",")[0] == "fram") or (mpi_input_ans.split(",")[0] == "betzy"):
+            while True:
+                try:
+                    msg = f"number of tasks per node (MPI ranks per node) (default {n_tasks_per_node}): "
+                    n_tasks_per_node_input = raw_input_save(msg)
+                    
+                    if n_tasks_per_node_input == "":
+                        """
+                        Keep n_tasks_per_node default value.
+                        """
+                        break
+                    
+                    n_tasks_per_node_input = int(n_tasks_per_node_input)
+                    if n_tasks_per_node_input < 0:
+                        msg = "The number of tasks per node must be greater than 0"
+                        print(msg)
+                        continue
+                    
+                    n_tasks_per_node = n_tasks_per_node_input
+                    break
 
-            if type_of_fram_job not in type_of_fram_jobs_list:
-                print("Allowed job types are: ", type_of_fram_jobs_list)
-                continue
-            
-            else:
-                print(fram_job_description[type_of_fram_job])
-                break
+                except ValueError:
+                    print("Please enter an integer.")
+                    continue
 
+            while True:
+                try:
+                    msg = f"number of cpus per task (OpenMP threads per MPI rank) (default {n_cpus_per_task}): "
+                    n_cpus_per_task_input = raw_input_save(msg)
+                    
+                    if n_cpus_per_task_input == "":
+                        """
+                        Keep n_cpus_per_task default value.
+                        """
+                        break
+                    
+                    n_cpus_per_task_input = int(n_cpus_per_task_input)
+                    if n_cpus_per_task_input < 0:
+                        msg = "The number of cpus per task must be greater than 0"
+                        print(msg)
+                        continue
+                    
+                    n_cpus_per_task = n_cpus_per_task_input
+                    break
+
+                except ValueError:
+                    print("Please enter an integer.")
+                    continue
 
     if len(mpi_input_arr) >= 2:
         """
@@ -1036,7 +1126,9 @@ def main():
     elif is_mpi == 'ofp-flat':
         print(txt + 'on oakforest-pacs flat mode')
     elif is_mpi == 'fram': 
-         print(txt + "on Fram@UiT with SLURM ")
+        print(txt + "on Fram@UiT with SLURM ")
+    elif is_mpi == 'betzy': 
+        print(txt + "on Betzy@NTNU with SLURM ")
     elif is_mpi: 
         print(txt + 'K-computer/FX10 with PJM. ')
     else: 
@@ -1307,14 +1399,14 @@ def main():
         elif is_mpi == 'fram': # This option added by JEM / jonkd.
             shell_file_content_tmp = '#!/bin/bash \n'
             shell_file_content_tmp += f'#SBATCH --job-name={shell_filename[:-3]} \n'
-            shell_file_content_tmp += f'#SBATCH --account={fram_project_name} \n'
+            shell_file_content_tmp += f'#SBATCH --account={sigma2_project_name} \n'
             shell_file_content_tmp += '## Syntax is d-hh:mm:ss \n'
-            shell_file_content_tmp += f'#SBATCH --time={fram_n_days}-{fram_n_hours:02d}:{fram_n_minutes:02d}:00 \n'
+            shell_file_content_tmp += f'#SBATCH --time={sigma2_n_days}-{sigma2_n_hours:02d}:{sigma2_n_minutes:02d}:00 \n'
             shell_file_content_tmp += f'#SBATCH --nodes={n_nodes}\n'
-            shell_file_content_tmp += '#SBATCH --ntasks-per-node=1 \n'
-            shell_file_content_tmp += '#SBATCH --cpus-per-task=32 \n'
+            shell_file_content_tmp += f'#SBATCH --ntasks-per-node={n_tasks_per_node} \n'
+            shell_file_content_tmp += f'#SBATCH --cpus-per-task={n_cpus_per_task} \n'
             shell_file_content_tmp += '#SBATCH --mail-type=ALL \n'
-            shell_file_content_tmp += f'#SBATCH --mail-user={fram_user_email} \n'
+            shell_file_content_tmp += f'#SBATCH --mail-user={sigma2_user_email} \n'
             if type_of_fram_job != "normal":
                 shell_file_content_tmp += f'#SBATCH --qos={type_of_fram_job} \n'
             shell_file_content_tmp += 'module --quiet purge  \n'
@@ -1325,6 +1417,27 @@ def main():
             shell_file_content_tmp += 'set -o nounset \n'
             shell_file_content_tmp += shell_file_content_total
             shell_file_content_total = shell_file_content_tmp
+
+        elif is_mpi == 'betzy': # This option added jonkd.
+            shell_file_content_tmp = '#!/bin/bash \n'
+            shell_file_content_tmp += f'#SBATCH --job-name={shell_filename[:-3]} \n'
+            shell_file_content_tmp += f'#SBATCH --account={sigma2_project_name} \n'
+            shell_file_content_tmp += '## Syntax is d-hh:mm:ss \n'
+            shell_file_content_tmp += f'#SBATCH --time={sigma2_n_days}-{sigma2_n_hours:02d}:{sigma2_n_minutes:02d}:00 \n'
+            shell_file_content_tmp += f'#SBATCH --nodes={n_nodes}\n'
+            shell_file_content_tmp += f'#SBATCH --ntasks-per-node={n_tasks_per_node} \n'
+            shell_file_content_tmp += f'#SBATCH --cpus-per-task={n_cpus_per_task} \n'
+            shell_file_content_tmp += '#SBATCH --mail-type=ALL \n'
+            shell_file_content_tmp += f'#SBATCH --mail-user={sigma2_user_email} \n'
+            shell_file_content_tmp += f'#SBATCH --qos={type_of_betzy_job} \n'
+            shell_file_content_tmp += 'module --quiet purge  \n'
+            shell_file_content_tmp += 'module load intel/2020b \n'
+            shell_file_content_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
+            shell_file_content_tmp += 'set -o errexit  \n'
+            shell_file_content_tmp += 'set -o nounset \n'
+            shell_file_content_tmp += shell_file_content_total
+            shell_file_content_total = shell_file_content_tmp
+
         else: # FX10
             shell_file_content_total = '#!/bin/sh \n' \
                     + '#PJM -L "rscgrp=debug"\n' \
