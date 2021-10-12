@@ -1429,7 +1429,8 @@ def main():
             shell_file_content_tmp += f'#SBATCH --cpus-per-task={n_cpus_per_task} \n'
             shell_file_content_tmp += '#SBATCH --mail-type=ALL \n'
             shell_file_content_tmp += f'#SBATCH --mail-user={sigma2_user_email} \n'
-            shell_file_content_tmp += f'#SBATCH --qos={type_of_betzy_job} \n'
+            if type_of_betzy_job != "normal":
+                shell_file_content_tmp += f'#SBATCH --qos={type_of_betzy_job} \n'
             shell_file_content_tmp += 'module --quiet purge  \n'
             shell_file_content_tmp += 'module load intel/2020b \n'
             shell_file_content_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
