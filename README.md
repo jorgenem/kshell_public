@@ -823,7 +823,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
    [-25.834   8.      1.   ]
    [-25.829   2.      1.   ]]
   ```
-  Slice the array to get only selected values, if needed (`ne20.levels[:, 0]` for only the energies). To see 2\*spin_final, parity_initial, Ex_final, 2\*spin_initial, parity_initial, Ex_initial, E_gamma, B(.., i->f) for the M1 transitions:
+  Slice the array to get only selected values, if needed (`ne20.levels[:, 0]` for only the energies). To see 2\*spin_initial, parity_initial, Ex_initial, 2\*spin_final, parity_final, Ex_final, E_gamma, B(.., i->f), B(.., f<-i)] for the M1 transitions:
   ``` python
   > print(ne20.transitions_BM1)
   [[4.0000e+00 1.0000e+00 1.6960e+00 ... 7.5850e+00 5.8890e+00 0.0000e+00]
