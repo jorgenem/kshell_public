@@ -533,9 +533,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
   It can be tedious to manually input a lot of specific requests to `kshell_ui.py`. You can use `kshell_utilities` to quickly generate the correct spin, parity and number of states input. To generate input for the 100 lowest lying levels for all spins from 0 including 3 for both parities:
   ``` python
-  import kshell_utilities as ksutil
+  >>> import kshell_utilities as ksutil
 
-  ksutil.generate_states(
+  >>> ksutil.generate_states(
       start = 0,
       stop = 3,
       n_states = 100,
