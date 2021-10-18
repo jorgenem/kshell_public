@@ -181,7 +181,15 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ```
   gfortran-10 --version
   ```
-  If the version is incorrect, try installing `gfortran` version 11 instead.
+  If the version is incorrect, try installing `gfortran` version 11 instead. Now, install the correct `blas` and `lapack` versions with
+  ```
+  sudo apt install libopenblas-dev
+  ```
+  If this specific version does not work or exist for your system, run
+  ```
+  apt search openblas
+  ```
+  and try a few different versions to see which one works. You check that the version is correct by compiling `KSHELL`. Instructions on this below.
 
   #### Python
   For installing the correct version of Python, it is highly recommended to install an environment management system like `miniconda` as to not mess up any other Python dependencies your system has, and to easily download the exact version needed. Start by downloading the latest release of `miniconda` ([alternative downloads here](https://docs.conda.io/en/latest/miniconda.html)):
