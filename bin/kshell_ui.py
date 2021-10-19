@@ -945,7 +945,7 @@ def main():
                 if sigma2_n_minutes == "":
                     sigma2_n_minutes = 10
                 sigma2_n_minutes = int(sigma2_n_minutes)
-                if (sigma2_n_minutes < 0) or (60 <= sigma2_n_minutes):
+                if (sigma2_n_minutes < 0) or (60 < sigma2_n_minutes):
                     print("Number of minutes must larger than 0 and lower than 61.")
                     continue
                 break
@@ -959,7 +959,7 @@ def main():
                 if sigma2_n_hours == "":
                     sigma2_n_hours = 0
                 sigma2_n_hours = int(sigma2_n_hours)
-                if (sigma2_n_hours < 0) or (24 <= sigma2_n_hours):
+                if (sigma2_n_hours < 0) or (24 < sigma2_n_hours):
                     print("Number of hours must be 0 or larger, and lower than 24.")
                     continue
                 break
