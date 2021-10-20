@@ -582,7 +582,7 @@ def main_nuclide(
     if input_base_filename: base_filename = input_base_filename
     base_filename_list.append( base_filename )
 
-    default_states = 100
+    default_states = 10
     print("\n J, parity, number of lowest states  ")
     print(f"  (ex. {default_states:d}          for {default_states:d} +parity, {default_states:d} -parity states w/o J-proj. (default)")
     print("       -5           for lowest five -parity states, ")
