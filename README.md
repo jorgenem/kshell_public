@@ -327,7 +327,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ```
   bash Miniconda3-latest-MacOSX-x86_64.sh
   ```
-  Accept the ToS. Choose all default settings except when the installer asks if it should initialize by running conda init. Choose yes. If you have trouble with initializing conda, for example
+  Accept the ToS. Choose all default settings except when the installer asks if it should initialize by running conda init. Choose yes. Remember to close and re-open your terminal session for the conda installation to function properly. If you have trouble with initializing conda, for example
   ```
   > conda
   conda: command not found
