@@ -453,10 +453,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ```
   name for script file (default: Ne20_usda ):
   ```
-  Choose which spin states you want to calculate and how many. The default value is to calculate the 100 lowest lying states. See a section later in this document on details:
+  Choose which spin states you want to calculate and how many. The default value is to calculate the 10 lowest lying states. See a section later in this document on details:
   ```
   J, parity, number of lowest states
-    (ex. 100          for 100 +parity, 100 -parity states w/o J-proj. (default)
+    (ex. 10          for 10 +parity, 10 -parity states w/o J-proj. (default)
         -5           for lowest five -parity states,
         0+3, 2+1     for lowest three 0+ states and one 2+ states,
         1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :
