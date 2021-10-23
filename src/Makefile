@@ -4,10 +4,10 @@
 
 # --- GNU Fortran compiler 
 FC = gfortran
+# FC = mpifort
 
 all: kshell.exe transit.exe count_dim.exe
 	cp kshell.exe transit.exe count_dim.exe ../bin/
-
 
 ifneq ($(findstring ifort, $(FC)), )
 #  FFLAGS =  -O2  -no-ipo
@@ -18,6 +18,11 @@ endif
 ifneq ($(findstring mpiifort, $(FC)), )
   FFLAGS =  -O3 -qopenmp -no-ipo -DMPI
   LIBS = -mkl # Intel Math Kernel Library for BLAS/LAPACK routines
+endif
+
+ifneq ($(findstring mpifort, $(FC)), )
+  FFLAGS =  -O3 -fopenmp -DMPI -fc=gfortran-11 -fallow-argument-mismatch
+  LIBS = -llapack -lblas -lm
 endif
 
 ifneq ($(findstring gfortran, $(FC)), )
@@ -41,12 +46,10 @@ endif
 
 # FFLAGS := $(FFLAGS) -DNO_POPCNT  # avoid using popcnt, poppar
 
-
 .PHONY: all clean
 
 clean:
 	rm -f *.exe *.o *.mod *.lst *__genmod.f90 gmon.out *.a
-
 
 .SUFFIXES :
 .SUFFIXES : .f90 .F90 .f .f95 .F95 .o .mod .c
@@ -91,14 +94,11 @@ transit.o: model_space.o interaction.o operator_mscheme.o partition.o \
 bp_block.o:  bp_block.F90 bp_block_inc.F90 bridge_partitions.o
 block_lanczos.o: wavefunction.o bp_block.o
 
-
 OBJS = model_space.o interaction.o harmonic_oscillator.o constant.o \
 	rotation_group.o sp_matrix_element.o \
 	operator_jscheme.o operator_mscheme.o lib_matrix.o lanczos.o \
 	partition.o  wavefunction.o  bridge_partitions.o \
 	bp_io.o bp_expc_val.o class_stopwatch.o bp_block.o block_lanczos.o
-
-
 
 kshell.exe: kshell.o $(OBJS)
 	$(FC) $(FFLAGS) -o $@ kshell.o $(OBJS) $(LIBS) 
@@ -108,5 +108,3 @@ transit.exe: transit.o $(OBJS)
 
 count_dim.exe: count_dim.f90 $(OBJS)
 	$(FC) $(FFLAGS) -o $@ count_dim.f90 $(OBJS) $(LIBS) 
-
-
