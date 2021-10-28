@@ -1,0 +1,10 @@
+n
+gxpf1a.snt
+v47
+
+
+
+n_block = 6
+
+
+

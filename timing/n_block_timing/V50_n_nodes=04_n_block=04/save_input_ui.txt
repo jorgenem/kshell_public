@@ -1,0 +1,19 @@
+betzy
+5
+
+
+
+
+devel
+4
+8
+16
+gxpf1a.snt
+v50
+
+10
+
+n_block = 2
+
+
+

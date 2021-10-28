@@ -1,0 +1,35 @@
+Starting job 242522 on b[4343-4346] at Thu Oct 21 15:23:22 CEST 2021
+
+start running log_V50_gxpf1a_m0p.txt ...
+start running log_V50_gxpf1a_tr_m0p_m0p.txt ...
+Finish computing V50_gxpf1a.    See summary_V50_gxpf1a.txt
+
+
+Task and CPU usage stats:
+       JobID    JobName  AllocCPUS   NTasks     MinCPU MinCPUTask     AveCPU    Elapsed ExitCode 
+------------ ---------- ---------- -------- ---------- ---------- ---------- ---------- -------- 
+242522       V50_gxpf1a        512                                             00:00:58      0:0 
+242522.batch      batch        128        1   00:00:00          0   00:00:00   00:00:58      0:0 
+242522.exte+     extern        512        4   00:00:00          1   00:00:00   00:00:59      0:0 
+242522.0     hydra_bst+         64        4   01:15:28          0   01:15:31   00:00:49      0:0 
+242522.1     hydra_bst+         64        4   00:00:00          3   00:00:00   00:00:04      0:0 
+
+Memory usage stats:
+       JobID     MaxRSS MaxRSSTask     AveRSS MaxPages   MaxPagesTask   AvePages 
+------------ ---------- ---------- ---------- -------- -------------- ---------- 
+242522                                                                           
+242522.batch      8053K          0      8053K       11              0         11 
+242522.exte+       807K          3       803K        3              1          3 
+242522.0       5152180K          1 5271310592      117              3         96 
+242522.1          1991K          3    2031872        0              3          0 
+
+Disk usage stats:
+       JobID  MaxDiskRead MaxDiskReadTask    AveDiskRead MaxDiskWrite MaxDiskWriteTask   AveDiskWrite 
+------------ ------------ --------------- -------------- ------------ ---------------- -------------- 
+242522                                                                                                
+242522.batch        8.56M               0          8.56M        0.47M                0          0.47M 
+242522.exte+        0.00M               1          0.00M            0                1              0 
+242522.0           37.92M               0         37.90M       66.55M                0         66.51M 
+242522.1                0               3              0            0                3              0 
+
+Job 242522 completed at Thu Oct 21 15:24:21 CEST 2021
