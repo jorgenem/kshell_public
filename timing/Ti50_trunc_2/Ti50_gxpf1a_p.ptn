@@ -1,0 +1,34 @@
+# particle-hole truncation orbit(s) : min., max.
+#      [4, 8] :  0 0
+#      [3, 7] :  0 0
+# partition file of gxpf1a.snt  Z=2  N=8  parity=+1
+ 2 8 1
+# num. of  proton partition, neutron partition
+ 3 5
+# proton partition
+     1     0  2  0  0
+     2     1  1  0  0
+     3     2  0  0  0
+# neutron partition
+     1     4  4  0  0
+     2     5  3  0  0
+     3     6  2  0  0
+     4     7  1  0  0
+     5     8  0  0  0
+# partition of proton and neutron
+15
+    1     1
+    1     2
+    1     3
+    1     4
+    1     5
+    2     1
+    2     2
+    2     3
+    2     4
+    2     5
+    3     1
+    3     2
+    3     3
+    3     4
+    3     5
