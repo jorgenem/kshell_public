@@ -340,15 +340,46 @@ def count_dim(
 
     return M, mdim, jdim
 
-if __name__ == "__main__":
+def input_choice(content, content_type):
+    if (n := len(content)) > 1:
+        for i in range(n):
+            print(f"{content[i]} ({i}), ", end="")
+
+        while True:
+            choice = input(": ")
+            try:
+                choice = int(choice)
+                filename = content[choice]
+                break
+            except (ValueError, IndexError):
+                continue
+
+    elif n == 1:
+        filename = content[0]
+
+    else:
+        print(f"No {content_type} file in this directory. Exiting...")
+        sys.exit()
+
+    return filename
+        
+
+def handle_input():
     try:
         model_space_filename, partition_filename = sys.argv[1:3]
     except ValueError:
         """
-        Ask for input if none is given in the command line.
+        Ask for input if none is given in the command line, or choose
+        the only combination of .ptn and .snt.
         """
-        print(os.listdir())
-        model_space_filename = input("Model space file (snt): ")
-        partition_filename = input("Partition file (ptn): ")
-    
+        dir_content = os.listdir()
+        snt_content = [elem for elem in dir_content if elem.endswith(".snt")]
+        ptn_content = [elem for elem in dir_content if elem.endswith(".ptn")]
+
+        model_space_filename = input_choice(snt_content, ".snt")
+        partition_filename = input_choice(ptn_content, ".ptn")
+
     count_dim(model_space_filename, partition_filename)
+
+if __name__ == "__main__":
+    handle_input()
