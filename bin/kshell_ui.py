@@ -1,4 +1,5 @@
 import sys, os, os.path, shutil, readline, re
+from fractions import Fraction
 from typing import Tuple, List, Dict
 import gen_partition
 from gen_partition import raw_input_save
@@ -606,7 +607,8 @@ def main_nuclide(
         input_n_states = ['+' + input_n_states[0], '-' + input_n_states[0]]
     
     list_jpn = [split_jpn(state, valence_p_n) for state in input_n_states]
-    
+
+    n_removed = 0
     for j, p, n, isp in list_jpn:
         if (j + sum(valence_p_n))%2 != 0:
             """
@@ -614,9 +616,17 @@ def main_nuclide(
             state is not divisible by 2, then it is not a valid spin for
             this number of nucleons.
             """
-            print("Remove states J, parity, Num = ", j, p, n, isp)
+            n_removed += 1
+            if n_removed == 1:
+                msg = "\nRemoving invalid states:\n"
+                msg += "spin   parity   n states   isp\n"
+                msg += "--------------------------------"
+                print(msg)
+
+            p = "+" if p == 1 else "-"
+            print(f"{str(Fraction(j/2)):4}      {p:1}      {n:4}      {str(isp):5}")
     
-    list_jpn = [a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0]    # Remove invalid states as described a few lines above.
+    list_jpn = [a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0]    # Remove invalid states as described a few lines above. TODO: Include this in the above loop.
 
     parity_list = list( set( jpn[1] for jpn in list_jpn ) )   # Extract a list of only parities.
     fn_ptn_list = {-1:base_filename + "_n.ptn", 1:base_filename + "_p.ptn"}
