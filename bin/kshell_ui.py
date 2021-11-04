@@ -885,7 +885,7 @@ def main():
     print("-----------------------------\n ")
 
     cdef = 'N'  # Default MPI parallel value.
-    n_nodes = 32    # Default value. May be overwritten.
+    n_nodes = 64    # Default value. May be overwritten.
     global is_mpi
     if is_mpi: cdef = is_mpi
     if cdef == True: cdef = 'Y'
@@ -896,8 +896,8 @@ def main():
     ]
     # Sigma2 specifics:
     list_param += ['fram', 'betzy']  # Added by jonkd.
-    n_tasks_per_node = 1    # The number of MPI ranks per node. Default value. May be overwritten.
-    n_cpus_per_task = 32    # The number of OpenMP threads per MPI rank. Default value. May be overwritten.
+    n_tasks_per_node = 8    # The number of MPI ranks per node. Default value. May be overwritten.
+    n_cpus_per_task = 16    # The number of OpenMP threads per MPI rank. Default value. May be overwritten.
     
     type_of_fram_jobs_list = ["normal", "short", "devel"]
     fram_job_node_limits = {
@@ -1101,6 +1101,30 @@ def main():
 
                 except ValueError:
                     print("Please enter an integer.")
+                    continue
+            
+            msg = "Double OMP_NUM_THREADS to force SMT? "
+            print(msg)
+            help_msg = "This option is applicable to Betzy where Slurm only lets us use the physical cores. "
+            help_msg += "Setting OMP_NUM_THREADS after the Slurm commands, tricks the system into letting us use as many OpenMP threads as we want, "
+            help_msg += "and by doubling it we enable usage of all virtual cores."
+            double_omp_yes_inputs = ["y", "yes", ""]
+            double_omp_no_inputs = ["n", "no", ""]
+            omp_num_threads = None
+            while True:
+                msg = "Double? (default 'yes', 'help' for info): "
+                double_omp_threads_input = raw_input_save(msg)
+                double_omp_threads_input = double_omp_threads_input.lower()
+
+                if double_omp_threads_input in double_omp_yes_inputs:
+                    omp_num_threads = int(n_cpus_per_task*2)
+                    break
+                elif double_omp_threads_input in double_omp_no_inputs:
+                    break
+                elif double_omp_threads_input == "help":
+                    print(help_msg)
+                    continue
+                else:
                     continue
 
     if len(mpi_input_arr) >= 2:
@@ -1446,6 +1470,8 @@ def main():
             shell_file_content_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
             shell_file_content_tmp += 'set -o errexit  \n'
             shell_file_content_tmp += 'set -o nounset \n'
+            if omp_num_threads is not None:
+                shell_file_content_tmp += f'export OMP_NUM_THREADS={omp_num_threads} \n'
             shell_file_content_tmp += shell_file_content_total
             shell_file_content_total = shell_file_content_tmp
 
