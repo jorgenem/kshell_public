@@ -264,6 +264,4 @@ B(%s)  ( > %.1f W.u.)  mass = %d    1 W.u. = %.1f %s
 #    print_transition('E3')
 
 if __name__ == "__main__":
-    # main(sys.argv[1:])
-    read_file_ene("log_V50_sdpf-mu_j0n.txt")
-
+    main(sys.argv[1:])
