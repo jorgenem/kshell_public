@@ -11,7 +11,7 @@ wu_threshold = -0.001
 e_data = {}     # e_data[energy] = (log filename, spin, parity, eigenstate number, tt).
 n_jnp = {}
 
-e_gs = 0.0
+E_gs = 0.0
 
 def parity_integer_to_string(i: int) -> str:
     """
@@ -160,7 +160,7 @@ def read_transit_logfile(filename: str, multipole_type: str):
                 filename_wavefunction_left = line_split[2]
                 continue
             
-            elif line_split[0] == 'fn_load_wave_r': 
+            if line_split[0] == 'fn_load_wave_r': 
                 filename_wavefunction_right = line_split[2]
                 continue
             
@@ -208,8 +208,7 @@ def read_transit_logfile(filename: str, multipole_type: str):
             """
             is_r = unit # NOTE: Prob. not needed.
             line_split = line.split()
-            line = infile.readline().rstrip()
-            # if not line: break
+            if not line_split: break    # End file read when blank lines are encountered.
             if line.startswith("pn="):
                 """
                 jonkd: I had to add this because 'pn' showed up in the
@@ -224,30 +223,27 @@ def read_transit_logfile(filename: str, multipole_type: str):
                 """
                 continue
             
-            spin_final = int(line[:2])      # J final.
-            n1 = int(line[3:7])
-            spin_initial = int(line[17:19])   # J initial.
-            n2 = int(line[20:24])
-            if spin_final == spin_initial and n1 == n2: continue
+            spin_final   = int(line_split[0])
+            idx1         = int(line_split[1])
+            E_final      = float(line_split[2]) - E_gs
+            spin_initial = int(line_split[3])
+            idx2         = int(line_split[4])
+            E_initial    = float(line_split[5]) - E_gs
+            E_x          = float(line_split[6])
+            Mred         = float(line_split[7])
+            B_decay      = float(line_split[8])
+            B_excite     = float(line_split[9])
+            Mom          = float(line_split[10])
+            if spin_final == spin_initial and idx1 == idx2: continue
+            if is_diag and (E_x < 0.0): continue
+            if abs(E_final) < 1e-3: E_final = 0.
+            if abs(E_initial) < 1e-3: E_initial = 0.
             
-            ex = float(line[34:42]) # Gamma energy.
-            if is_diag and ex < 0.0: continue
-            v1 = float(line[53:62]) # B(EM )->  NOTE: Why this when b1 below?
-            v2 = float(line[63:72]) # B(EM )<-
-            
-            E1 = float(line[8:17]) - e_gs   # E final.
-            E2 = float(line[25:34]) - e_gs  # E initial.
-            if abs(E1) < 1.e-3: E1 = 0.
-            if abs(E2) < 1.e-3: E2 = 0.
-            
-            Mred = float(line[43:52])
-            b1 = float(line[52:62])
-            b2 = float(line[62:72])
-            wu1, wu2 = b1/wu, b2/wu
+            wu1, wu2 = B_decay/wu, B_excite/wu
             if max(wu1, wu2) < wu_threshold: continue
 
-            n1 = n_jnp[ (spin_final, parity_1, n1) ]
-            n2 = n_jnp[ (spin_initial, parity_2, n2) ]
+            idx1 = n_jnp[ (spin_final, parity_1, idx1) ]
+            idx2 = n_jnp[ (spin_initial, parity_2, idx2) ]
             stringformat \
                 = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
                 + "%8.1f(%5.1f) %8.1f(%5.1f)\n"
@@ -255,18 +251,18 @@ def read_transit_logfile(filename: str, multipole_type: str):
             = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
             + "%8.3f(%5.2f) %8.3f(%5.2f)\n"
                 
-            if ex > 0.0:
+            if E_x > 0.0:
                 out = stringformat \
-                    % (str_JJ(spin_initial), parity_2, n2, E2, 
-                        str_JJ(spin_final), parity_1, n1, E1, 
-                        ex,  b2, wu2, b1, wu1)
-                ky = E2 + E1 * 1e-5 + spin_initial *1.e-10 + n2*1.e-11 + spin_final*1.e-13 + n1*1.e-14
+                    % (str_JJ(spin_initial), parity_2, idx2, E_initial, 
+                        str_JJ(spin_final), parity_1, idx1, E_final, 
+                        E_x,  B_excite, wu2, B_decay, wu1)
+                ky = E_initial + E_final * 1e-5 + spin_initial *1.e-10 + idx2*1.e-11 + spin_final*1.e-13 + idx1*1.e-14
             else:
                 out = stringformat \
-                    % (str_JJ(spin_final), parity_1, n1, E1, 
-                        str_JJ(spin_initial), parity_2, n2, E2, 
-                        -ex, b1, wu1, b2, wu2)
-                ky = E1 + E2 * 1e-5 + spin_final *1.e-10 + n1*1.e-11 + spin_initial*1.e-12 + n2*1.e-14
+                    % (str_JJ(spin_final), parity_1, idx1, E_final, 
+                        str_JJ(spin_initial), parity_2, idx2, E_initial, 
+                        -E_x, B_decay, wu1, B_excite, wu2)
+                ky = E_final + E_initial * 1e-5 + spin_final *1.e-10 + idx1*1.e-11 + spin_initial*1.e-12 + idx2*1.e-14
             out_e[ky] = out
 
     return is_r, out_e, mass_save
@@ -287,13 +283,13 @@ def main(filename_list: List):
             n_jnp[ (mtot, prty, n_eig) ] = njp[mp]
             e_data[e] = filename, mtot, prty, njp[mp], tt
 
-        global e_gs
-        e_gs = keys[0]
+        global E_gs
+        E_gs = keys[0]
         print('\n    N    J prty N_Jp    T     E(MeV)  Ex(MeV)  log-file\n')
         for i, e in enumerate(keys):
             filename, mtot, prty, n_eig, tt = e_data[e]
             print("%5d %5s %1s %5d %5s %10.3f %8.3f  %s " \
-                % (i+1, str_JJ(mtot), prty, n_eig, str_JJ(tt), e, e-e_gs, filename))
+                % (i+1, str_JJ(mtot), prty, n_eig, str_JJ(tt), e, e-E_gs, filename))
         print()
 
 
