@@ -1275,38 +1275,49 @@ contains
 
   end subroutine calc_tna
 
+   subroutine print_trans(evv, evm, irank)
+      !
+      ! Print transition data to log file. Example:
+      ! 2xJf      Ef      2xJi     Ei       Ex       Mred.    B(EM )->   B(EM)<-   Mom.
+      ! 2(   1) -391.881 2(   1) -391.881   0.000    0.2828    0.0267    0.0267    0.2363
+      ! 2(   1) -391.881 2(   2) -391.375   0.505    0.3566    0.0424    0.0424    0.0000
+      ! ...
+      !
+      ! Parameters
+      ! ----------
+      real(8), intent(in) :: evv(:,:), evm(:,:)
+      integer, intent(in) :: irank
+      integer :: index_l, index_r, jl, jr
+      real(8) :: x, y
 
-
-
-
-  subroutine print_trans(evv, evm, irank)
-    real(8), intent(in) :: evv(:,:), evm(:,:)
-    integer, intent(in) :: irank
-    integer :: i, j, jl, jr
-    real(8) :: x, y
-
-    write(*,*) '2xJf      Ef      2xJi     Ei       Ex       Mred.    B(EM )->   B(EM)<-   Mom.'
-    do i = 1, n_eig_l
-       jl = evec_l(i)%jj
-       if (jl < 0) cycle
-       do j = 1, n_eig_r
-          jr = evec_r(j)%jj
-          if (jr < 0 .or. abs(jl-jr) > irank*2 &
-               .or. irank*2 > jl+jr ) cycle
-          x = evv(i, j)
-          y = evm(i, j)
-!          if (x == 0.d0 .and. y == 0.d0) cycle
-          write(*, '(2(i2,"(",i4,")",f9.3), f8.3,5f10.4)') &
-               evec_l(i)%jj, i, evec_l(i)%eval, &
-               evec_r(j)%jj, j, evec_r(j)%eval, &
-               evec_r(j)%eval - evec_l(i)%eval, &
-               x, x**2/dble(evec_l(i)%jj+1), x**2/dble(evec_r(j)%jj+1), y
-       end do
-    end do
-    write(*,*)
-  end subroutine print_trans
+      write(*,*) '  2Jf   idx  Ef        2Ji   idx  Ei          Ex        Mred.           B(EM )->        B(EM)<-         Mom.'
+      do index_l = 1, n_eig_l
+         !
+         ! Loop over all eigenstates of the left wave function.
+         !
+         jl = evec_l(index_l)%jj
+         if (jl < 0) cycle ! Skip invalid values?
+         do index_r = 1, n_eig_r
+            !
+            ! Loop over all eigenstates of the right wave function.
+            !
+            jr = evec_r(index_r)%jj
+            if (jr < 0 .or. abs(jl - jr) > irank*2 .or. irank*2 > jl + jr ) cycle
+            x = evv(index_l, index_r)
+            y = evm(index_l, index_r)
+            ! if (x == 0.d0 .and. y == 0.d0) cycle
+            ! write(*, '(2(i4, "(", i6, ")", f11.3), f10.3, 5f16.8)') &
+            write(*, '(2(i4, i6, f11.3), f10.3, 5f16.8)') & ! 5 in the last specifier should be 4?
+               evec_l(index_l)%jj, index_l, evec_l(index_l)%eval, &
+               evec_r(index_r)%jj, index_r, evec_r(index_r)%eval, &
+               evec_r(index_r)%eval - evec_l(index_l)%eval, &
+               x, x**2/dble(evec_l(index_l)%jj + 1), x**2/dble(evec_r(index_r)%jj + 1), y
+         end do
+      
+      end do
+      write(*,*)
+   end subroutine print_trans
   
-
   subroutine print_reduced_me(c1, c2, c3, c4, ev1, ev2, ev3, ev4)
     character(len=*), intent(in), optional, target :: c1, c2, c3, c4
     real(8), intent(in), optional, target :: &
