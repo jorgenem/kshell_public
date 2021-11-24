@@ -70,7 +70,7 @@ def weisskopf_unit(multipole_type: str, mass: int) -> Tuple[float, str]:
     
     return B_weisskopf, unit_weisskopf
     
-def read_file_ene(filename: str):
+def read_energy_logfile(filename: str):
     """
     Extract the energy, spin, and parity for each eigenstate and arrange
     the data in a dictionary, e_data, where the keys are the energies
@@ -86,41 +86,41 @@ def read_file_ene(filename: str):
     filename : str
         The log filename.
     """
-    infile = open(filename, 'r')
-    while True:
-        line = infile.readline()
-        if not line: break
-        if len(line) >= 11 and line[:11] != "H converged": continue
-        if len(line) >= 14 and line[:14] != "H bn converged": continue
+    # infile = open(filename, 'r')
+    with open(filename, "r") as infile:
         while True:
             line = infile.readline()
             if not line: break
-            if line[6:10] == '<H>:':
-                """
-                Example:
-                -------------------------------------------------
-                   1  <H>:  -391.71288  <JJ>:    -0.00000  J:  0/2  prty -1     <-- this line will be read
-                    <Hcm>:     0.00022  <TT>:     6.00000  T:  4/2              <-- this line will be read
-                 <p Nj>  5.944  3.678  1.489  3.267  0.123  0.456  0.043        <-- this line will be skipped
-                 <n Nj>  5.993  3.902  1.994  5.355  0.546  0.896  0.314        <-- this line will be skipped
-                 hw:  1:1.000                                                   <-- this line will be skipped
-                -------------------------------------------------
-                NOTE: All this substring indexing seems to be easily
-                replaceable with a simple split!
-                """
-                n_eig = int(line[:5])       # Eigenvalue number. 1, 2, 3, ...
-                energy = float(line[11:22])
-                spin = int(line[45:48])     # 2*spin actually.
-                parity = int(line[57:59])
-                parity = parity_integer_to_string(parity)
-                while energy in e_data: energy += 0.000001  # NOTE: To separate energies close together? Else keys may be identical!
-                while True:
-                    line = infile.readline()
-                    if line[42:45] != ' T:': continue
-                    tt = int(line[45:48])
-                    e_data[ energy ] = (filename, spin, parity, n_eig, tt)
-                    break
-    infile.close()
+            if len(line) >= 11 and line[:11] != "H converged": continue
+            if len(line) >= 14 and line[:14] != "H bn converged": continue
+            while True:
+                line = infile.readline()
+                if not line: break
+                if line[6:10] == '<H>:':
+                    """
+                    Example:
+                    -------------------------------------------------
+                    1  <H>:  -391.71288  <JJ>:    -0.00000  J:  0/2  prty -1     <-- this line will be read
+                        <Hcm>:     0.00022  <TT>:     6.00000  T:  4/2              <-- this line will be read
+                    <p Nj>  5.944  3.678  1.489  3.267  0.123  0.456  0.043        <-- this line will be skipped
+                    <n Nj>  5.993  3.902  1.994  5.355  0.546  0.896  0.314        <-- this line will be skipped
+                    hw:  1:1.000                                                   <-- this line will be skipped
+                    -------------------------------------------------
+                    NOTE: All this substring indexing seems to be easily
+                    replaceable with a simple split!
+                    """
+                    n_eig = int(line[:5])       # Eigenvalue number. 1, 2, 3, ...
+                    energy = float(line[11:22])
+                    spin = int(line[45:48])     # 2*spin actually.
+                    parity = int(line[57:59])
+                    parity = parity_integer_to_string(parity)
+                    while energy in e_data: energy += 0.000001  # NOTE: To separate energies close together? Else keys may be identical!
+                    while True:
+                        line = infile.readline()
+                        if line[42:45] != ' T:': continue
+                        tt = int(line[45:48])
+                        e_data[ energy ] = (filename, spin, parity, n_eig, tt)
+                        break
 
 def spin_to_string(spin: int) -> str:
     """
@@ -292,11 +292,6 @@ def read_transit_logfile(filename: str, multipole_type: str):
                 + "%8.1f(%5.1f) %8.1f(%5.1f)\n"
                 
             if dE > 0.0:
-                # out = stringformat \
-                #     % (spin_to_string(spin_initial), parity_initial, idx_2, E_initial, 
-                #         spin_to_string(spin_final), parity_final, idx_1, E_final, 
-                #         dE,  B_excite, B_weisskopf_excite, B_decay, B_weisskopf_decay)
-                # E_initial += 10000
                 out = f"{spin_to_string(spin_initial):4s} "
                 out += f"{parity_initial:1s} "
                 out += f"{idx_2:4d} "
@@ -325,11 +320,29 @@ def read_transit_logfile(filename: str, multipole_type: str):
 
     return unit_weisskopf, out_e, mass_save
 
-def main(filename_list: List):
-    print("\n Energy levels")
-    for filename in filename_list:
-        read_file_ene(filename)
+def print_transition(multipole_type):
+    is_show = False
+    output_e = {}
+    
+    for filename in sys.argv[1:]:
+        unit_weisskopf, out_e, mass = read_transit_logfile(filename, multipole_type)
+        if unit_weisskopf: is_show = unit_weisskopf
+        output_e.update(out_e)
+    
+    B_weisskopf, unit_weisskopf = weisskopf_unit(multipole_type, mass)
+    output = f"B({multipole_type})  ( > {weisskopf_threshold:.1f} W.u.)  mass = {mass}    1 W.u. = {B_weisskopf:.1f} {unit_weisskopf}"
+    output += f"\n{is_show} (W.u.)"
+    output += f"\nJ_i  pi_i idx_i Ex_i    J_f  pi_f idx_f Ex_f      dE         B({multipole_type})->         B({multipole_type})->[wu]     B({multipole_type})<-         B({multipole_type})<-[wu]\n"
 
+    for _, out in sorted(output_e.items()):
+        output += out        
+    if is_show: print(output)
+
+def main(filename_list: List):
+    for filename in filename_list:
+        read_energy_logfile(filename)
+
+    print("\n Energy levels")
     keys = e_data.keys()
     if len(keys) > 0:
         keys = sorted(keys)
@@ -349,25 +362,6 @@ def main(filename_list: List):
             print("%5d %5s %1s %5d %5s %10.3f %8.3f  %s " \
                 % (i+1, spin_to_string(mtot), prty, n_eig, spin_to_string(tt), e, e-E_gs, filename))
         print()
-
-
-    def print_transition(multipole_type):
-        is_show = False
-        output_e = {}
-        
-        for filename in sys.argv[1:]:
-            unit_weisskopf, out_e, mass = read_transit_logfile(filename, multipole_type)
-            if unit_weisskopf: is_show = unit_weisskopf
-            output_e.update(out_e)
-        
-        B_weisskopf, unit_weisskopf = weisskopf_unit(multipole_type, mass)
-        output = f"B({multipole_type})  ( > {weisskopf_threshold:.1f} W.u.)  mass = {mass}    1 W.u. = {B_weisskopf:.1f} {unit_weisskopf}"
-        output += f"\n{is_show} (W.u.)"
-        output += f"\nJ_i  pi_i idx_i Ex_i    J_f  pi_f idx_f Ex_f      dE        B({multipole_type})->          B({multipole_type})->[wu]    B({multipole_type})<-          B({multipole_type})<-[wu]\n"
-
-        for e, out in sorted(output_e.items()):
-            output += out        
-        if is_show: print(output)
 
     print_transition('E2')
     print_transition('M1')
