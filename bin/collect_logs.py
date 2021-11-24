@@ -3,10 +3,11 @@
 #
 import sys
 from typing import List, Tuple
+from fractions import Fraction
 from math import pi
 
-#wu_threshold = 1.0 # threshold to show in W.u.
-wu_threshold = -0.001
+#weisskopf_threshold = 1.0 # threshold to show in W.u.
+weisskopf_threshold = -0.001
 
 e_data = {}     # e_data[energy] = (log filename, spin, parity, eigenstate number, tt).
 n_jnp = {}
@@ -32,7 +33,7 @@ def parity_integer_to_string(i: int) -> str:
 
 def weisskopf_unit(multipole_type: str, mass: int) -> Tuple[float, str]:
     """
-    Generate the Weisskopf unit for input multipolarity and mass.
+    Generate the Weisskopf unit_weisskopf for input multipolarity and mass.
     Ref. Bohr and Mottelson, Vol.1, p. 389.
 
     Parameters
@@ -121,13 +122,34 @@ def read_file_ene(filename: str):
                     break
     infile.close()
 
-def str_JJ(jj):
-    if jj < 0:
-        return str(jj) #+'  '
-    elif jj % 2 == 0: 
-        return str(jj/2) # +'  '
+def spin_to_string(spin: int) -> str:
+    """
+    Divide spin by 2 and represent integer results as integers, and
+    fraction results as fractions.
+
+    NOTE: Tempting to just do str(Fraction(spin/2)) on the negatives too
+    and just let them be negative fractions.
+
+    Parameters
+    ----------
+    spin : int
+        Two times the actual spin (for easier integer representation).
+
+    Returns
+    -------
+    res : str
+        The actual spin (input divided by 2) represented correctly as
+        an integer or as a fraction.
+    """
+    if spin < 0:
+        """
+        For the invalid -1 cases. Spin cannot actually be < 0.
+        """
+        res = str(spin)
     else:
-        return str(jj) + '/2'
+        res = str(Fraction(spin/2))
+
+    return res
         
 def read_transit_logfile(filename: str, multipole_type: str):
     """
@@ -166,10 +188,12 @@ def read_transit_logfile(filename: str, multipole_type: str):
                 mass = int(line[n + 5:n + 8])
                 if not mass_save:
                     mass_save = mass
+                
                 if mass_save != mass: 
                     msg = f"ERROR  mass: {mass=}, {mass_save=}"
-                    raise Exception(msg)
-                wu, unit = weisskopf_unit(multipole_type, mass)
+                    raise RuntimeError(msg)
+                
+                B_weisskopf, unit_weisskopf = weisskopf_unit(multipole_type, mass)
                 continue
 
             if line_split[0] == 'fn_load_wave_l': 
@@ -188,8 +212,8 @@ def read_transit_logfile(filename: str, multipole_type: str):
                    4     1   -387.729   4     1   -387.729     0.000    -20.43244863     83.49699137     83.49699137    -15.48643011
                 ...
                 """
-                parity_1 = parity_integer_to_string(int(line_split[-2]))
-                parity_2 = parity_integer_to_string(int(line_split[-1]))
+                parity_final = parity_integer_to_string(int(line_split[-2]))
+                parity_initial = parity_integer_to_string(int(line_split[-1]))
                 
                 if filename_wavefunction_left == filename_wavefunction_right:
                     is_diag = True
@@ -220,7 +244,7 @@ def read_transit_logfile(filename: str, multipole_type: str):
             4(   2) -200.706 6(  10) -197.559   3.147   -0.0289    0.0002    0.0001    0.0000
             ...
             """
-            is_r = unit # NOTE: Prob. not needed.
+            # is_r = unit_weisskopf # NOTE: Prob. not needed.
             line_split = line.split()
             if not line_split: break    # End file read when blank lines are encountered.
             if line.startswith("pn="):
@@ -243,44 +267,63 @@ def read_transit_logfile(filename: str, multipole_type: str):
             spin_initial = int(line_split[3])
             idx_2        = int(line_split[4])
             E_initial    = float(line_split[5]) - E_gs
-            E_x          = float(line_split[6])
+            dE           = float(line_split[6])
             Mred         = float(line_split[7])
             B_decay      = float(line_split[8])
             B_excite     = float(line_split[9])
             Mom          = float(line_split[10])
-            wu_decay     = B_decay/wu
-            wu_excite    = B_excite/wu
+            B_weisskopf_decay  = B_decay/B_weisskopf
+            B_weisskopf_excite = B_excite/B_weisskopf
 
-            if spin_final == spin_initial and idx_1 == idx_2: continue
-            if is_diag and (E_x < 0.0): continue
-            if max(wu_decay, wu_excite) < wu_threshold: continue
+            if (spin_final == spin_initial) and (idx_1 == idx_2): continue
+            if is_diag and (dE < 0.0): continue
+            if (B_weisskopf_decay < weisskopf_threshold): continue
+            if (B_weisskopf_excite < weisskopf_threshold): continue
             if abs(E_final) < 1e-3: E_final = 0.
             if abs(E_initial) < 1e-3: E_initial = 0.
             
-            idx_1 = n_jnp[ (spin_final, parity_1, idx_1) ]
-            idx_2 = n_jnp[ (spin_initial, parity_2, idx_2) ]
-            stringformat \
-                = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
-                + "%8.1f(%5.1f) %8.1f(%5.1f)\n"
-            if multipole_type == 'M1': stringformat \
-            = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
-            + "%8.3f(%5.2f) %8.3f(%5.2f)\n"
-                
-            if E_x > 0.0:
-                out = stringformat \
-                    % (str_JJ(spin_initial), parity_2, idx_2, E_initial, 
-                        str_JJ(spin_final), parity_1, idx_1, E_final, 
-                        E_x,  B_excite, wu_excite, B_decay, wu_decay)
-                ky = E_initial + E_final * 1e-5 + spin_initial *1.e-10 + idx_2*1.e-11 + spin_final*1.e-13 + idx_1*1.e-14
+            idx_1 = n_jnp[ (spin_final, parity_final, idx_1) ]
+            idx_2 = n_jnp[ (spin_initial, parity_initial, idx_2) ]
+            if multipole_type == 'M1':
+                stringformat = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
+                + "%8.3f(%5.2f) %8.3f(%5.2f)\n"
             else:
+                stringformat = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
+                + "%8.1f(%5.1f) %8.1f(%5.1f)\n"
+                
+            if dE > 0.0:
+                # out = stringformat \
+                #     % (spin_to_string(spin_initial), parity_initial, idx_2, E_initial, 
+                #         spin_to_string(spin_final), parity_final, idx_1, E_final, 
+                #         dE,  B_excite, B_weisskopf_excite, B_decay, B_weisskopf_decay)
+                # E_initial += 10000
+                out = f"{spin_to_string(spin_initial):4s} "
+                out += f"{parity_initial:1s} "
+                out += f"{idx_2:4d} "
+                out += f"{E_initial:9.3f}   "
+                out += f"{spin_to_string(spin_final):4s} "
+                out += f"{parity_final:1s} "
+                out += f"{idx_1:4d} "
+                out += f"{E_final:9.3f} "
+                out += f"{dE:9.3f} "
+                out += f"{B_excite:15.8f} "
+                out += f"{B_weisskopf_excite:15.8f} "
+                out += f"{B_decay:15.8f} "
+                out += f"{B_weisskopf_decay:15.8f}\n"
+                key = E_initial + E_final * 1e-5 + spin_initial *1e-10 + idx_2*1e-11 + spin_final*1e-13 + idx_1*1e-14
+            else:
+                """
+                NOTE: What is this option used for? In what case is the
+                excitation energy negative?
+                """
                 out = stringformat \
-                    % (str_JJ(spin_final), parity_1, idx_1, E_final, 
-                        str_JJ(spin_initial), parity_2, idx_2, E_initial, 
-                        -E_x, B_decay, wu_decay, B_excite, wu_excite)
-                ky = E_final + E_initial * 1e-5 + spin_final *1.e-10 + idx_1*1.e-11 + spin_initial*1.e-12 + idx_2*1.e-14
-            out_e[ky] = out
+                    % (spin_to_string(spin_final), parity_final, idx_1, E_final, 
+                        spin_to_string(spin_initial), parity_initial, idx_2, E_initial, 
+                        -dE, B_decay, B_weisskopf_decay, B_excite, B_weisskopf_excite)
+                key = E_final + E_initial * 1e-5 + spin_final *1.e-10 + idx_1*1.e-11 + spin_initial*1.e-12 + idx_2*1.e-14
+            out_e[key] = out
 
-    return is_r, out_e, mass_save
+    return unit_weisskopf, out_e, mass_save
 
 def main(filename_list: List):
     print("\n Energy levels")
@@ -304,23 +347,24 @@ def main(filename_list: List):
         for i, e in enumerate(keys):
             filename, mtot, prty, n_eig, tt = e_data[e]
             print("%5d %5s %1s %5d %5s %10.3f %8.3f  %s " \
-                % (i+1, str_JJ(mtot), prty, n_eig, str_JJ(tt), e, e-E_gs, filename))
+                % (i+1, spin_to_string(mtot), prty, n_eig, spin_to_string(tt), e, e-E_gs, filename))
         print()
 
 
     def print_transition(multipole_type):
         is_show = False
         output_e = {}
+        
         for filename in sys.argv[1:]:
-            is_r, out_e, mass = read_transit_logfile(filename, multipole_type)
-            if is_r: is_show = is_r
-            output_e.update( out_e )
-        wu, unit = weisskopf_unit(multipole_type, mass)
-        output = """
-B(%s)  ( > %.1f W.u.)  mass = %d    1 W.u. = %.1f %s
-                                           %s (W.u.) 
-   J_i    Ex_i     J_f    Ex_f   dE        B(%s)->         B(%s)<- 
-""" % (multipole_type, wu_threshold,  mass, wu, unit, is_show, multipole_type, multipole_type)
+            unit_weisskopf, out_e, mass = read_transit_logfile(filename, multipole_type)
+            if unit_weisskopf: is_show = unit_weisskopf
+            output_e.update(out_e)
+        
+        B_weisskopf, unit_weisskopf = weisskopf_unit(multipole_type, mass)
+        output = f"B({multipole_type})  ( > {weisskopf_threshold:.1f} W.u.)  mass = {mass}    1 W.u. = {B_weisskopf:.1f} {unit_weisskopf}"
+        output += f"\n{is_show} (W.u.)"
+        output += f"\nJ_i  pi_i idx_i Ex_i    J_f  pi_f idx_f Ex_f      dE        B({multipole_type})->          B({multipole_type})->[wu]    B({multipole_type})<-          B({multipole_type})<-[wu]\n"
+
         for e, out in sorted(output_e.items()):
             output += out        
         if is_show: print(output)
