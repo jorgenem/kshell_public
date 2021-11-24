@@ -150,7 +150,193 @@ def spin_to_string(spin: int) -> str:
         res = str(Fraction(spin/2))
 
     return res
-        
+
+def read_transit_logfile_old(filename: str, multipole_type: str):
+    """
+    Extract transit information from transit logfile. Old syntax style,
+    pre 2021-11-24.
+
+    Parameters
+    ----------
+    filename : str
+        Filename of the log file.
+
+    multipole_type : str
+        The electromagnetic character and angular momentum of the gamma
+        radiation. Examples: 'E1', 'M1', 'E2'.
+
+    Raises
+    ------
+    Exception:
+        If mass != mass_save. Unsure why mass_save is here at all.
+    """
+    out_e = {}
+    mass_save = 0           # NOTE: Unclear what this is used for.
+    with open(filename, "r") as infile:
+        for line in infile:
+            """
+            Fetch mass number, wave function filenames and parities.
+            Loop breaks when the line with parity information is found.
+            """
+            line_split = line.split()
+            if len(line_split) == 0: continue   # Skip empty lines.
+            if 'mass=' in line:
+                """
+                Fetch mass number. Example:
+                N. of valence protons and neutrons =  15 19   mass= 50   n,z-core     8    8
+                """
+                n = line.index('mass=')
+                mass = int(line[n + 5:n + 8])
+                if not mass_save:
+                    mass_save = mass
+                
+                if mass_save != mass: 
+                    msg = f"ERROR  mass: {mass=}, {mass_save=}"
+                    raise RuntimeError(msg)
+                
+                B_weisskopf, unit_weisskopf = weisskopf_unit(multipole_type, mass)
+                continue
+
+            if line_split[0] == 'fn_load_wave_l': 
+                filename_wavefunction_left = line_split[2]
+                continue
+            
+            if line_split[0] == 'fn_load_wave_r': 
+                filename_wavefunction_right = line_split[2]
+                continue
+            
+            if f"{multipole_type} transition" in line:
+                """
+                Example:
+                 E2 transition  e^2 fm^4  eff_charge=  1.3500  0.3500 parity -1 -1
+                   2Jf   idx  Ef        2Ji   idx  Ei          Ex        Mred.           B(EM )->        B(EM)<-         Mom.
+                   4     1   -387.729   4     1   -387.729     0.000    -20.43244863     83.49699137     83.49699137    -15.48643011
+                ...
+                """
+                parity_final = parity_integer_to_string(int(line_split[-2]))
+                parity_initial = parity_integer_to_string(int(line_split[-1]))
+                
+                if filename_wavefunction_left == filename_wavefunction_right:
+                    is_diag = True
+                else:
+                    is_diag = False
+                break
+
+            continue    # Included for readability.
+
+        infile.readline()    # Skip table header.
+        for line in infile:
+            """
+            Extract transition data from log_*_tr_*.txt. Example:
+
+            NEW (higher decimal precision and only whitespace between values):
+            E2 transition  e^2 fm^4  eff_charge=  1.3500  0.3500 parity -1 -1
+            2Jf   idx  Ef        2Ji   idx  Ei          Ex        Mred.           B(EM )->        B(EM)<-         Mom.
+            4     1   -387.729   4     1   -387.729     0.000    -20.43244863     83.49699137     83.49699137    -15.48643011
+            4     1   -387.729   6     2   -387.461     0.267     10.55639593     22.28749899     15.91964213      0.00000000
+            4     1   -387.729   8     3   -387.196     0.532     14.53838975     42.27295529     23.48497516      0.00000000
+            4     1   -387.729   6     4   -387.080     0.649    -17.34631937     60.17895916     42.98497083      0.00000000
+            4     1   -387.729   8     5   -386.686     1.042    -11.24379628     25.28459094     14.04699497      0.00000000
+            ...
+
+            OLD:
+            ...
+            4(   2) -200.706 6(   4) -198.842   1.864    0.0147    0.0000    0.0000    0.0000
+            4(   2) -200.706 6(  10) -197.559   3.147   -0.0289    0.0002    0.0001    0.0000
+            ...
+            """
+            line_split = line.split()
+            if not line_split: break    # End file read when blank lines are encountered.
+            if line.startswith("pn="):
+                """
+                jonkd: I had to add this because 'pn' showed up in the
+                middle of the 'log_Ni56_gxpf1a_tr_m0p_m0p.txt' file
+                after trying (unsuccessfully) to run on Fram. Example:
+
+                ...
+                4(   2) -200.706 6(   4) -198.842   1.864    0.0147    0.0000    0.0000    0.0000
+                pn= 1   # of mbits=            286
+                4(   2) -200.706 6(  10) -197.559   3.147   -0.0289    0.0002    0.0001    0.0000
+                ...
+                """
+                continue
+            
+            # spin_final   = int(line_split[0])
+            # idx_1        = int(line_split[1])
+            # E_final      = float(line_split[2]) - E_gs
+            # spin_initial = int(line_split[3])
+            # idx_2        = int(line_split[4])
+            # E_initial    = float(line_split[5]) - E_gs
+            # dE           = float(line_split[6])
+            # Mred         = float(line_split[7])
+            # B_decay      = float(line_split[8])
+            # B_excite     = float(line_split[9])
+            # Mom          = float(line_split[10])
+            spin_final = int(line[:2])
+            idx_1 = int(line[3:7])
+            spin_initial = int(line[17:19])
+            idx_2 = int(line[20:24])
+            dE = float(line[34:42]) # Gamma energy.
+            E_final = float(line[8:17]) - E_gs
+            E_initial = float(line[25:34]) - E_gs
+            B_decay = float(line[52:62])
+            B_excite = float(line[62:72])
+            B_weisskopf_decay  = B_decay/B_weisskopf
+            B_weisskopf_excite = B_excite/B_weisskopf
+
+            if (spin_final == spin_initial) and (idx_1 == idx_2): continue
+            if is_diag and (dE < 0.0): continue
+            if (B_weisskopf_decay < weisskopf_threshold): continue
+            if (B_weisskopf_excite < weisskopf_threshold): continue
+            if abs(E_final) < 1e-3: E_final = 0.
+            if abs(E_initial) < 1e-3: E_initial = 0.
+            
+            idx_1 = n_jnp[ (spin_final, parity_final, idx_1) ]
+            idx_2 = n_jnp[ (spin_initial, parity_initial, idx_2) ]
+                
+            if dE > 0:
+                out = f"{spin_to_string(spin_initial):4s} "
+                out += f"{parity_initial:1s} "
+                out += f"{idx_2:4d} "
+                out += f"{E_initial:9.3f}   "
+                out += f"{spin_to_string(spin_final):4s} "
+                out += f"{parity_final:1s} "
+                out += f"{idx_1:4d} "
+                out += f"{E_final:9.3f} "
+                out += f"{dE:9.3f} "
+                out += f"{B_excite:15.8f} "
+                out += f"{B_weisskopf_excite:15.8f} "
+                out += f"{B_decay:15.8f} "
+                out += f"{B_weisskopf_decay:15.8f}\n"
+                key = E_initial + E_final * 1e-5 + spin_initial *1e-10 + idx_2*1e-11 + spin_final*1e-13 + idx_1*1e-14
+            else:
+                """
+                NOTE: What is this option used for? In what case is the
+                excitation energy negative?
+                """
+                # out = stringformat \
+                #     % (spin_to_string(spin_final), parity_final, idx_1, E_final, 
+                #         spin_to_string(spin_initial), parity_initial, idx_2, E_initial, 
+                #         -dE, B_decay, B_weisskopf_decay, B_excite, B_weisskopf_excite)
+
+                out = f"{spin_to_string(spin_final):4s} "
+                out += f"{parity_final:1s} "
+                out += f"{idx_1:4d} "
+                out += f"{E_final:9.3f}   "
+                out += f"{spin_to_string(spin_initial):4s} "
+                out += f"{parity_initial:1s} "
+                out += f"{idx_2:4d} "
+                out += f"{E_initial:9.3f} "
+                out += f"{-dE:9.3f} "
+                out += f"{B_decay:15.8f} "
+                out += f"{B_weisskopf_decay:15.8f} "
+                out += f"{B_excite:15.8f} "
+                out += f"{B_weisskopf_excite:15.8f}\n"
+                key = E_final + E_initial * 1e-5 + spin_final *1.e-10 + idx_1*1.e-11 + spin_initial*1.e-12 + idx_2*1.e-14
+            out_e[key] = out
+
+    return unit_weisskopf, out_e, mass_save   
+
 def read_transit_logfile(filename: str, multipole_type: str):
     """
     Extract transit information from transit logfile.
@@ -244,7 +430,6 @@ def read_transit_logfile(filename: str, multipole_type: str):
             4(   2) -200.706 6(  10) -197.559   3.147   -0.0289    0.0002    0.0001    0.0000
             ...
             """
-            # is_r = unit_weisskopf # NOTE: Prob. not needed.
             line_split = line.split()
             if not line_split: break    # End file read when blank lines are encountered.
             if line.startswith("pn="):
@@ -284,12 +469,6 @@ def read_transit_logfile(filename: str, multipole_type: str):
             
             idx_1 = n_jnp[ (spin_final, parity_final, idx_1) ]
             idx_2 = n_jnp[ (spin_initial, parity_initial, idx_2) ]
-            if multipole_type == 'M1':
-                stringformat = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
-                + "%8.3f(%5.2f) %8.3f(%5.2f)\n"
-            else:
-                stringformat = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
-                + "%8.1f(%5.1f) %8.1f(%5.1f)\n"
                 
             if dE > 0.0:
                 out = f"{spin_to_string(spin_initial):4s} "
@@ -311,10 +490,23 @@ def read_transit_logfile(filename: str, multipole_type: str):
                 NOTE: What is this option used for? In what case is the
                 excitation energy negative?
                 """
-                out = stringformat \
-                    % (spin_to_string(spin_final), parity_final, idx_1, E_final, 
-                        spin_to_string(spin_initial), parity_initial, idx_2, E_initial, 
-                        -dE, B_decay, B_weisskopf_decay, B_excite, B_weisskopf_excite)
+                # out = stringformat \
+                #     % (spin_to_string(spin_final), parity_final, idx_1, E_final, 
+                #         spin_to_string(spin_initial), parity_initial, idx_2, E_initial, 
+                #         -dE, B_decay, B_weisskopf_decay, B_excite, B_weisskopf_excite)
+                out = f"{spin_to_string(spin_final):4s} "
+                out += f"{parity_final:1s} "
+                out += f"{idx_1:4d} "
+                out += f"{E_final:9.3f}   "
+                out += f"{spin_to_string(spin_initial):4s} "
+                out += f"{parity_initial:1s} "
+                out += f"{idx_2:4d} "
+                out += f"{E_initial:9.3f} "
+                out += f"{-dE:9.3f} "
+                out += f"{B_decay:15.8f} "
+                out += f"{B_weisskopf_decay:15.8f} "
+                out += f"{B_excite:15.8f} "
+                out += f"{B_weisskopf_excite:15.8f}\n"
                 key = E_final + E_initial * 1e-5 + spin_final *1.e-10 + idx_1*1.e-11 + spin_initial*1.e-12 + idx_2*1.e-14
             out_e[key] = out
 
