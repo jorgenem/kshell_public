@@ -2,7 +2,7 @@
 # ./collect_logs.py log_foo.txt log_bar.txt ...
 #
 import sys
-from typing import List
+from typing import List, Tuple
 from math import pi
 
 #wu_threshold = 1.0 # threshold to show in W.u.
@@ -30,23 +30,44 @@ def parity_integer_to_string(i: int) -> str:
     if i == 1: return '+'
     else: return '-'
 
-def weisskopf_unit(multipole_type, mass):
-    # Bohr and Mottelson, Vol.1, p. 389
+def weisskopf_unit(multipole_type: str, mass: int) -> Tuple[float, str]:
+    """
+    Generate the Weisskopf unit for input multipolarity and mass.
+    Ref. Bohr and Mottelson, Vol.1, p. 389.
+
+    Parameters
+    ----------
+    multipole_type : str
+        The electromagnetic character and angular momentum of the gamma
+        radiation. Examples: 'E1', 'M1', 'E2'.
+
+    mass : int
+        Mass of the nucleus.
+
+    Returns
+    -------
+    B_weisskopf : float
+        Reduced transition probability in the Weisskopf estimate.
+
+    unit_weisskopf : str
+        The accompanying unit.
+    """
     l = int(multipole_type[1:])
-    if multipole_type[0] in ('e', 'E'):
-        wu = 1.2**(2*l) / ( 4.*pi )  * (3./(l+3.))**2 \
-            * mass**(2.*l/3.)  
-        unit = 'e^2 fm^' + str(2*l)
-    elif multipole_type[0] in ('m', 'M'):
-        wu = 10. / pi * 1.2**(2*l-2) * (3./(l+3.))**2 \
-            * mass**((2.*l-2.)/3.) 
+    if multipole_type[0].upper() == "E":
+        B_weisskopf = 1.2**(2*l)/(4*pi)*(3/(l + 3))**2*mass**(2*l/3)  
+        unit_weisskopf = f"e^2 fm^{str(2*l)}"
+    
+    elif multipole_type[0].upper() == "M":
+        B_weisskopf = 10/pi*1.2**(2*l - 2)*(3/(l + 3))**2*mass**((2*l - 2)/3) 
         if l == 1: 
-            unit = 'mu_N^2  '
+            unit_weisskopf = 'mu_N^2  '
         else:
-            unit = 'mu_N^2 fm^' + str(2*l - 2)
+            unit_weisskopf = f"mu_N^2 fm^{str(2*l - 2)}"
     else:
-        raise 'weisskopf error'
-    return  wu, unit
+        msg = f"Got invalid multipole type: '{multipole_type}'."
+        raise ValueError(msg)
+    
+    return B_weisskopf, unit_weisskopf
     
 def read_file_ene(filename: str):
     """
@@ -127,13 +148,8 @@ def read_transit_logfile(filename: str, multipole_type: str):
         If mass != mass_save. Unsure why mass_save is here at all.
     """
     out_e = {}
-    is_r = False    # NOTE: Prob. not needed.
-    # filename_wavefunction_left, filename_wavefunction_right = 'a', 'b'   # NOTE: Why these declarations?
     mass_save = 0           # NOTE: Unclear what this is used for.
     with open(filename, "r") as infile:
-        # while True:
-        #     line = infile.readline()
-        #     if not line: break    # NOTE: Safe to remove when 'for line in infile' is implemented.
         for line in infile:
             """
             Fetch mass number, wave function filenames and parities.
@@ -164,8 +180,6 @@ def read_transit_logfile(filename: str, multipole_type: str):
                 filename_wavefunction_right = line_split[2]
                 continue
             
-            # if line[:14] != " " + multipole_type + " transition":  continue
-            # if line.startswith(f" {multipole_type} transition"):
             if f"{multipole_type} transition" in line:
                 """
                 Example:
@@ -224,26 +238,27 @@ def read_transit_logfile(filename: str, multipole_type: str):
                 continue
             
             spin_final   = int(line_split[0])
-            idx1         = int(line_split[1])
+            idx_1        = int(line_split[1])
             E_final      = float(line_split[2]) - E_gs
             spin_initial = int(line_split[3])
-            idx2         = int(line_split[4])
+            idx_2        = int(line_split[4])
             E_initial    = float(line_split[5]) - E_gs
             E_x          = float(line_split[6])
             Mred         = float(line_split[7])
             B_decay      = float(line_split[8])
             B_excite     = float(line_split[9])
             Mom          = float(line_split[10])
-            if spin_final == spin_initial and idx1 == idx2: continue
+            wu_decay     = B_decay/wu
+            wu_excite    = B_excite/wu
+
+            if spin_final == spin_initial and idx_1 == idx_2: continue
             if is_diag and (E_x < 0.0): continue
+            if max(wu_decay, wu_excite) < wu_threshold: continue
             if abs(E_final) < 1e-3: E_final = 0.
             if abs(E_initial) < 1e-3: E_initial = 0.
             
-            wu1, wu2 = B_decay/wu, B_excite/wu
-            if max(wu1, wu2) < wu_threshold: continue
-
-            idx1 = n_jnp[ (spin_final, parity_1, idx1) ]
-            idx2 = n_jnp[ (spin_initial, parity_2, idx2) ]
+            idx_1 = n_jnp[ (spin_final, parity_1, idx_1) ]
+            idx_2 = n_jnp[ (spin_initial, parity_2, idx_2) ]
             stringformat \
                 = "%4s%c(%2d) %6.3f %4s%c(%2d) %6.3f %6.3f " \
                 + "%8.1f(%5.1f) %8.1f(%5.1f)\n"
@@ -253,16 +268,16 @@ def read_transit_logfile(filename: str, multipole_type: str):
                 
             if E_x > 0.0:
                 out = stringformat \
-                    % (str_JJ(spin_initial), parity_2, idx2, E_initial, 
-                        str_JJ(spin_final), parity_1, idx1, E_final, 
-                        E_x,  B_excite, wu2, B_decay, wu1)
-                ky = E_initial + E_final * 1e-5 + spin_initial *1.e-10 + idx2*1.e-11 + spin_final*1.e-13 + idx1*1.e-14
+                    % (str_JJ(spin_initial), parity_2, idx_2, E_initial, 
+                        str_JJ(spin_final), parity_1, idx_1, E_final, 
+                        E_x,  B_excite, wu_excite, B_decay, wu_decay)
+                ky = E_initial + E_final * 1e-5 + spin_initial *1.e-10 + idx_2*1.e-11 + spin_final*1.e-13 + idx_1*1.e-14
             else:
                 out = stringformat \
-                    % (str_JJ(spin_final), parity_1, idx1, E_final, 
-                        str_JJ(spin_initial), parity_2, idx2, E_initial, 
-                        -E_x, B_decay, wu1, B_excite, wu2)
-                ky = E_final + E_initial * 1e-5 + spin_final *1.e-10 + idx1*1.e-11 + spin_initial*1.e-12 + idx2*1.e-14
+                    % (str_JJ(spin_final), parity_1, idx_1, E_final, 
+                        str_JJ(spin_initial), parity_2, idx_2, E_initial, 
+                        -E_x, B_decay, wu_decay, B_excite, wu_excite)
+                ky = E_final + E_initial * 1e-5 + spin_final *1.e-10 + idx_1*1.e-11 + spin_initial*1.e-12 + idx_2*1.e-14
             out_e[ky] = out
 
     return is_r, out_e, mass_save
