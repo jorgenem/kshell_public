@@ -1290,7 +1290,7 @@ contains
       integer :: index_l, index_r, jl, jr
       real(8) :: x, y
 
-      write(*,*) '  2Jf   idx  Ef        2Ji   idx  Ei          Ex        Mred.           B(EM )->        B(EM)<-         Mom.'
+      write(*,'(a)') '  2Jf   idx  Ef        2Ji   idx  Ei          Ex        Mred.           B(EM )->        B(EM)<-         Mom.'
       do index_l = 1, n_eig_l
          !
          ! Loop over all eigenstates of the left wave function.
