@@ -800,18 +800,23 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   `ne20` is an instance containing several useful attributes. To see the available attributes:
   ``` python
   > print(ne20.help)
-  ['BE2',
-  'BM1',
-  'Ex',
+  ['debug',
+  'fname_ptn',
+  'fname_summary',
+  'gamma_strength_function_average_plot',
+  'gsf',
   'help',
-  'level_plot',
   'level_density_plot',
+  'level_plot',
   'levels',
   'model_space',
+  'negative_spin_counts',
   'neutron_partition',
   'nucleus',
+  'parameters',
+  'path',
   'proton_partition',
-  'transitions',
+  'transitions_BE1',
   'transitions_BE2',
   'transitions_BM1',
   'truncation']
