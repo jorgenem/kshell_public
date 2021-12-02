@@ -928,12 +928,24 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
   The gamma strengh function (averaged over spins and parities) can easily be calculated by:
   ``` python
-    ne20.gamma_strength_function_average_plot(
-        bin_width = 1,
-        Ex_max = 0,
-        Ex_min = 14,
+    ne20.gsf(
+        bin_width = 0.2,
+        Ex_max = 5,
+        Ex_min = 20,
         multipole_type = "M1",
-        plot = True
+        plot = True,
+        save_plot = False
+    )
+  ```
+  or
+  ``` python
+    ne20.gamma_strength_function_average_plot(
+        bin_width = 0.2,
+        Ex_max = 5,
+        Ex_min = 20,
+        multipole_type = "M1",
+        plot = True,
+        save_plot = False
     )
   ```
   or
@@ -941,11 +953,12 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
     import matplotlib.pyplot as plt
     
     bins, gsf = ne20.gamma_strength_function_average_plot(
-        bin_width = 1,
-        Ex_max = 0,
-        Ex_min = 14,
+        bin_width = 0.2,
+        Ex_max = 5,
+        Ex_min = 20,
         multipole_type = "M1",
-        plot = False
+        plot = False,
+        save_plot = False
     )
     plt.plot(bins, gsf)
     plt.show()
@@ -957,9 +970,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   bins, gsf = ksutil.gamma_strength_function_average(
       levels = ne20.levels,
       transitions = ne20.transitions_BM1,
-      bin_width = 1,
-      Ex_min = 0,
-      Ex_max = 14,
+      bin_width = 0.2,
+      Ex_min = 5,
+      Ex_max = 20,
       multipole_type = "M1"
   )
   plt.plot(bins, gsf)
