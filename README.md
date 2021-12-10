@@ -58,7 +58,7 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 ## KSHELL on Fram and Betzy
 
   <details>
-  <summary>Click here for KSHELL on Fram</summary>
+  <summary>Click here for KSHELL on Fram and Betzy</summary>
   <p>
 
   ### Compilation on Fram and Betzy with MPI
