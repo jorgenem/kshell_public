@@ -156,8 +156,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   For running a job on Betzy with 64 nodes with an estimated time of 1 day, using all 256 (virtual (SMT)) cores per node effectively, the slurm commands look like:
     
   <details>
-  <summary>Click here to see the Fram commands</summary>
+  <summary>Click here to see the Betzy commands</summary>
   <p>
+    ```
     #!/bin/bash
     #SBATCH --job-name=V50_gxpf1a
     #SBATCH --account=<enter account name here (example NN9464K)>
@@ -174,10 +175,11 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
     set -o errexit
     set -o nounset
     export OMP_NUM_THREADS=32
+    ```
   </p>
   </details>
   
-  The command `export OMP_NUM_THREADS=32` forces 256 virtual cores to be used instead of 128 physical cores. SMT is beneficial to use with KSHELL, so use this option for better performance!
+  The command `export OMP_NUM_THREADS=32` forces 256 virtual cores to be used instead of 128 physical cores per node. SMT is beneficial to use with KSHELL, so use this option for better performance! `--ntasks-per-node=8` specifies 8 MPI ranks per node, and `--cpus-per-task=16` specifies 16 OMP threads per MPI rank (and is extended to 32 by `export OMP_NUM_THREADS=32` which in total per node utilizes 8*32 = 256 virtual cores). The Betzy documentation states that this mix of MPI ranks and OMP threads yields better performance than a pure MPI or pure OMP setup.
     
   Note that the modules must be explicitly loaded in the script file since the modules you load to the login node does not get loaded on the compute nodes. The login node is the computer you control when you SSH to `<username>@fram.sigma2.no` and the compute nodes are other computers which you control via the `slurm` queue system. If you need any other modules loaded, you must add these to the executable shell script. Now, just wait for the program to run its course!
 
