@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import sys, os, os.path, shutil, readline, re
 from fractions import Fraction
 from typing import Tuple, List, Dict
