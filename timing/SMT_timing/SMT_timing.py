@@ -35,5 +35,5 @@ def nodes_1():
 
 
 if __name__ == "__main__":
-    # nodes_4()
+    nodes_4()
     nodes_1()
