@@ -961,7 +961,7 @@ program kshell
             write(*,'(a, i10)') &
                     "TBME,  i   j   k   l   J prty pn V_ijkl     <V>    ", nop
             do iop = 1, nop
-                if (myrank==0) write(*,'(a, 7i4, 2f14.7)') &
+                if (myrank == 0) write(*,'(a, 7i4, 2f14.7)') &
                     "TBME ", idxs(:, iop), vs(iop), evs(iop, i)
                 e = e + vs(iop) * evs(iop, i)
             end do
@@ -971,10 +971,10 @@ program kshell
     end subroutine calc_tbme_from_tbtd
 
     subroutine ex_val_snt()
-        integer :: i, j
+        integer :: i, j     ! Loop indices.
         type(type_vec_p) :: vt
         real(8) :: x, y
-        if (myrank==0) write(*,'(/,a,/)') 'compute <vl| snt-file | vr> '
+        if (myrank == 0) write(*,'(/,a,/)') 'compute <vl| snt-file | vr> '
         call allocate_l_vec( vt%p, ptn%max_local_dim )
 
         do j = 1, n_eigen
