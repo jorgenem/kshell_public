@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-
 import sys, os, os.path, shutil, readline, re
 from fractions import Fraction
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, TextIO
+from ast import literal_eval
 import gen_partition
 from gen_partition import raw_input_save
 from count_dim import count_dim
@@ -44,8 +44,8 @@ var_dict = {
     "n_block"       : 0, 
     "eff_charge"    : [1.5, 0.5] , 
     "gl"            : [1.0, 0.0], 
-    # "gs"            : [GS_FREE_PROTON, GS_FREE_NEUTRON],
-    "gs"            : [0.9*GS_FREE_PROTON, 0.9*GS_FREE_NEUTRON],
+    "gs"            : [GS_FREE_PROTON, GS_FREE_NEUTRON],
+    # "gs"            : [0.9*GS_FREE_PROTON, 0.9*GS_FREE_NEUTRON],
     "beta_cm"       : 0.0, 
 }
 
@@ -324,43 +324,118 @@ def prty2str(p):
     elif p == -1: return "n"
     else: raise ValueError("Parity must be 1 or -1.")
 
-def read_comment_skip(fp):
+def read_comment_skip(model_space_file: TextIO) -> List:
     """
-    Read data from a .snt file and remove comments.
-    
-    Examples in the docstrings in this function are from gxpf1a.snt.
+    Extract model space data and recommended parameters from .snt file.
+    Enter the recommended parameters into var_dict.
+    Example from jun45.snt:
+    ! default input parameters 
+    !namelist eff_charge = 1.5, 1.1
+    !namelist gl         = 1.0, 0.0 
+    !namelist gs         = 3.910, -2.678 
+    !namelist orbs_ratio = 4, 8
+    !
+    ! model space
+    4   4    28  28
+    1       1   1   3  -1    !  1 = p 1p_3/2
+    2       0   3   5  -1    !  2 = p 0f_5/2
+    3       1   1   1  -1    !  3 = p 1p_1/2
+    4       0   4   9  -1    !  4 = p 0g_9/2
+    5       1   1   3   1    !  5 = n 1p_3/2
+    6       0   3   5   1    !  6 = n 0f_5/2
+    7       1   1   1   1    !  7 = n 1p_1/2
+    8       0   4   9   1    !  8 = n 0g_9/2
 
     Parameters
     ----------
-    fp : file object
+    model_space_file : TextIO
+        File object of the .snt file.
     """
+    header_printed = False  # To print recommended parameters header only once.
     while True:
-        arr = fp.readline().split()
-        if not arr: return None     # NOTE: Should this be here? See 'if not arr' a few lines down.
-        if arr[0] == '!namelist':
-            if arr[2] != '=':
+        line = model_space_file.readline().split()
+        if not line: return None    # NOTE: When does this happen?
+        
+        if line[0] == '!namelist':
+            """
+            Extract recommended parameters from .snt file. For example
+            eff_charge, gl, gs, orbs_ratio. Example:
+            
+            ! default input parameters 
+            !namelist eff_charge = 1.5, 1.1
+            !namelist gl         = 1.0, 0.0 
+            !namelist gs         = 3.910, -2.678 
+            !namelist orbs_ratio = 4, 8
+            """
+            if line[2] != '=':
                 """
                 Second element in '!namelist' line should always be '='.
                 """
-                raise 'ERROR namelist line in snt'
-            var_dict[arr[1]]  = ' '.join(arr[3:])   # Read eff_charge or orbs_ratio.
+                msg = "!namelist syntax error in .snt file.\n"
+                msg += f"{line = }"
+                raise ExternalSyntaxError(msg)
+
+            var_dict[line[1]] = ' '.join(line[3:])  # Update entries with recommended values.
+            if not header_printed:
+                msg = "\nRecommended parameters extracted from .snt and saved"
+                msg += " in var_dict: "
+                print(msg)
+                header_printed = True
+
+            if f"{line[1]}" == "gs":
+                """
+                Calculate the quenching factor in addition to displaying
+                the gs values.
+                """
+                tmp = literal_eval(var_dict[line[1]])
+                gs_proton = float(tmp[0])
+                gs_neutron = float(tmp[1])
+                proton_quench = round(gs_proton/GS_FREE_PROTON, 1)
+                neutron_quench = round(gs_neutron/GS_FREE_NEUTRON, 1)
+                print(f"{line[1]} = {var_dict[line[1]]} (quench: {proton_quench}, {neutron_quench})")
+            else:
+                print(f"{line[1]} = {var_dict[line[1]]}")
         
-        for i in range(len(arr)): 
-            if (arr[i][0] == "!") or (arr[i][0] == "#"): 
-                arr = arr[:i]
+        for i in range(len(line)):
+            """
+            Loop over all elements in 'line' and extract model space
+            info. Example:
+            ! model space
+            4   4    28  28
+            1       1   1   3  -1    !  1 = p 1p_3/2
+            2       0   3   5  -1    !  2 = p 0f_5/2
+            3       1   1   1  -1    !  3 = p 1p_1/2
+            4       0   4   9  -1    !  4 = p 0g_9/2
+            5       1   1   3   1    !  5 = n 1p_3/2
+            6       0   3   5   1    !  6 = n 0f_5/2
+            7       1   1   1   1    !  7 = n 1p_1/2
+            8       0   4   9   1    !  8 = n 0g_9/2
+            """
+            if (line[i][0] == "!") or (line[i][0] == "#"):
+                """
+                Slice away info after comment symbol. From the example
+                above, '!  1 = p 1p_3/2' will be removed.
+                """
+                line = line[:i]
                 break
-        if not arr: continue    # NOTE: Should this be here? See 'if not arr' a few lines up.
+
+        if not line: continue
         
         try:
             """
-            Example: 4   4    20  20
+            Example: 4   4    28  28
             """
-            return [int(i) for i in arr]
+            return [int(i) for i in line]
         except ValueError:
+            """
+            NOTE: When does this ever happen? I have checked all the
+            built-in .snt files that come with KSHELL and none of them
+            trigger this ValueError.
+            """
             try:
-                return [int(i) for i in arr[:-1]] + [float(arr[-1])]
+                return [int(i) for i in line[:-1]] + [float(line[-1])]
             except ValueError:
-                return arr
+                return line
 
 class ExternalSyntaxError(Exception):
     """
@@ -372,23 +447,46 @@ class ExternalSyntaxError(Exception):
 def read_snt(model_space_filename: str):
     """
     Read model space file (.snt), extract information about orbit
-    properties (occupation, angular momentum, etc.) and save in snt_parameters
-    dictionary.
+    properties (occupation, angular momentum, etc.) and save in
+    snt_parameters dictionary.
 
     Parameters
     ----------
-    model_space_filename:
-        Path to snt file.
+    model_space_filename : str
+        Path to .snt file.
     """
-    fp = open( model_space_filename, 'r')
-    np, nn, ncp, ncn  = read_comment_skip(fp)
-    norb, lorb, jorb, torb = [], [], [], []
-    npn = [np, nn]  # NOTE: Not in use.
-    nfmax = [0, 0]
+    infile = open(model_space_filename, 'r')
+    n_valence_orbitals_proton, n_valence_orbitals_neutron, n_core_protons, n_core_neutrons = \
+        read_comment_skip(infile)
+    norb = []   # ?
+    lorb = []   # Orbital angular momentum.
+    jorb = []   # Orbital angular momentum z projection.
+    torb = []   # Orbital isospin.
+    npn = [n_valence_orbitals_proton, n_valence_orbitals_neutron]  # NOTE: Not in use.
+    nfmax = [0, 0]  # Max number of valence protons and neutrons.
     
-    for i in range(np + nn):
-        arr = read_comment_skip(fp)
-        if (i + 1) != int(arr[0]): 
+    for i in range(n_valence_orbitals_proton + n_valence_orbitals_neutron):
+        """
+        Extract model space information from .snt file. Example from
+        jun45.snt:
+        ! model space
+            4   4    28  28
+            1       1   1   3  -1    !  1 = p 1p_3/2
+            2       0   3   5  -1    !  2 = p 0f_5/2
+            3       1   1   1  -1    !  3 = p 1p_1/2
+            4       0   4   9  -1    !  4 = p 0g_9/2
+            5       1   1   3   1    !  5 = n 1p_3/2
+            6       0   3   5   1    !  6 = n 0f_5/2
+            7       1   1   1   1    !  7 = n 1p_1/2
+            8       0   4   9   1    !  8 = n 0g_9/2
+        """
+        arr = read_comment_skip(infile)
+        
+        if (i + 1) != int(arr[0]):
+            """
+            All valence orbitals are labeled 1 to N. Raise error if the
+            numbering is not 1, 2, 3, ..., N.
+            """
             msg = f"Syntax error in {model_space_filename}. Expected {i + 1} got {arr[0]}."
             raise ExternalSyntaxError(msg)
 
@@ -398,9 +496,9 @@ def read_snt(model_space_filename: str):
         torb.append( int(arr[4]) )
         nfmax[(int(arr[4]) + 1)//2] += int(arr[3]) + 1
 
-    fp.close()
-    snt_parameters['ncore'] = (ncp, ncn)   # Number of protons and neutrons in the core.
-    snt_parameters['n_jorb'] = (np, nn)
+    infile.close()
+    snt_parameters['ncore'] = (n_core_protons, n_core_neutrons)   # Number of protons and neutrons in the core.
+    snt_parameters['n_jorb'] = (n_valence_orbitals_proton, n_valence_orbitals_neutron)
     snt_parameters['norb'] = norb
     snt_parameters['lorb'] = lorb          # Angular momentum of each orbit.
     snt_parameters['jorb'] = jorb          # z proj. of total spin of each orbit.
@@ -418,8 +516,8 @@ def check_cm_snt(model_space_filename):
         for i in range(npn[np]):
             p_list.append( 1 - (snt_parameters['lorb'][i] % 2)*2 )
             j_list.append( snt_parameters['jorb'][i] )
-        j_list_posi = [ j for p, j in zip(p_list,j_list) if p== 1 ]
-        j_list_nega = [ j for p, j in zip(p_list,j_list) if p==-1 ]
+        j_list_posi = [j for p, j in zip(p_list, j_list) if p == 1]
+        j_list_nega = [j for p, j in zip(p_list, j_list) if p == -1]
         for jp in j_list_posi:
             for jn in j_list_nega:
                 if abs(jp-jn) <= 2: is_cm = True        
@@ -649,11 +747,27 @@ def main_nuclide(
         if os.path.exists( partition_filename ): stgin_filenames.append( partition_filename )
 
     #-----------------------------------------------------
-
-      
+    list_param = [ k +" = " for k in var_dict.keys() ]
+    list_param += [ # A few extra tab complete entries.
+        'is_obtd = .true.', 'is_ry_sum = .true.', 'is_calc_tbme = .true.',
+        'sq = ', 'quench = '
+    ]
+    parameter_info = "\nModify parameters?\n"
+    parameter_info += "Example: maxiter = 300 for parameter change or <CR> for no more"
+    parameter_info += " modification.\nAvailable paramters are:\n"
+    print(f"{parameter_info}{[i.split(' = ')[0] for i in list_param]}\n")
     
+    readline.set_completer( SimpleCompleter(list_param).complete )
+    if 'libedit' in readline.__doc__: # for Mac
+        readline.parse_and_bind("bind ^I rl_complete")
+    else:
+        readline.parse_and_bind("tab: complete")
+    # readline.parse_and_bind("tab: None")
     while True:
-        print("\n --- input parameter --- ")
+        """
+        Update parameters in var_dict.
+        """
+        print("\n --- set parameters --- ")
         print(print_var_dict(
             var_dict,
             skip = (    # NOTE: 'fn_ptn' and 'partition_filename' mixup.
@@ -662,42 +776,58 @@ def main_nuclide(
             )
         ))
 
-        ask = "modify parameter? \n" \
-            + " (e.g.  maxiter = 300 for parameter change\n" \
-            + "        <CR>          for no more modification ) :\n"
-        list_param = [ k +" = " for k in var_dict.keys() ]
-        list_param += [ 'is_obtd = .true.', 'is_ry_sum = .true.',
-                        'is_calc_tbme = .true.', 'sq 0.7' ]
-        readline.set_completer( SimpleCompleter(list_param).complete )
-
-        if 'libedit' in readline.__doc__: # for Mac
-            readline.parse_and_bind("bind ^I rl_complete")
-        else:
-            readline.parse_and_bind("tab: complete")
-
-        ans = raw_input_save(ask)
-        readline.parse_and_bind("tab: None")
-
+        ans = raw_input_save(": ")
         ans = ans.strip()
         if not ans:
+            """
+            Stop asking for parameters if no parameter is given.
+            """
             break
+        
         elif '=' in ans:
+            """
+            Update entry in var dict if input is given on the form
+            'name = value' (with or without whitespaces).
+            """
             arr = ans.split('=')
-            arr = [ a.strip() for a in arr ] 
+            arr = [a.strip() for a in arr]    # Remove whitespaces, but keep whitespace entries.
             if len(arr[1]) != 0:
-                var_dict[ arr[0] ] = arr[1]
-            else: 
-                del var_dict[ arr[0] ]
-        elif ans[:2] == 'sq':
-            arr = ans.split()
-            if len(arr)<=1 or not arr[1].replace(".","",1).isdigit(): 
-                print("ILLEGAL INPUT")
-                continue
-            x = float(arr[1])
-            print("quenching of spin g-factor ", x)
-            var_dict[ 'gs' ] = [ 5.585*x, -3.826*x]   
-        else: 
-            print("ILLEGAL INPUT")
+                """
+                If a value is given for 'name', then update 'name' in
+                var_dict.
+                """
+                if (arr[0] == "sq") or (arr[0] == "quench"):
+                    """
+                    Specify a quenching factor which is multiplied with
+                    the free gs values for protons and neutrons. The
+                    quenching factor itself is not an entry in var_dict.
+                    """
+                    gs_quenching_factor = float(arr[1])
+                    print(f"Quenching of spin g-factor: {gs_quenching_factor}*GS_FREE")
+                    var_dict["gs"] = [
+                        round(gs_quenching_factor*GS_FREE_PROTON, 3),
+                        round(gs_quenching_factor*GS_FREE_NEUTRON, 3)
+                    ]
+                else:
+                    var_dict[arr[0]] = arr[1]
+            else:
+                """
+                If input is 'name = ', then 'name' is removed if it
+                exists.
+                """
+                try:
+                    del var_dict[arr[0]]
+                except KeyError:
+                    msg = f"No entry for input parameter {arr[0]}"
+                    print(msg)
+            
+            continue
+
+        else:
+            msg = "Input must be on the form: 'name = value'."
+            msg += " <CR> to proceed, TAB to complete."
+            print(msg)
+            continue
 
 
     # ---------------------------------------------
