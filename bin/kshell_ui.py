@@ -110,10 +110,10 @@ def split_jpn(jpn: str, valence_p_n: Tuple[int, int]) -> Tuple[int, int, int, bo
     Returns
     -------
     spin:
-        The spin of the state.
+        2 times the spin of the state.
 
     parity:
-        2 times the parity of the state (2*J).
+        The parity of the state.
 
     n_states:
         The amount of states to be calculated with the given spin and
@@ -523,29 +523,44 @@ def check_cm_snt(model_space_filename):
                 if abs(jp-jn) <= 2: is_cm = True        
     return is_cm
 
-def exec_string(mode, fn_input, fn_log):
+def exec_string(mode: str, input_filename: str, log_filename: str) -> str:
     """
-    Mode is either 'kshell' or 'transit'.
+    Generate the execution command. Example:
+    mpiexec ./kshell.exe O20_usda_0.input > log_O20_usda_j0p.txt
+
+    Parameters
+    ----------
+    mode : str
+        Mode is either 'kshell' or 'transit'.
+
+    input_filename : str
+        The filename of the Fortran input parameter file (the values in
+        var_dict).
+
+    log_filename : str
+        The filename of the output logfile from the Fortran code (kshell
+        or transit).
     """
-    fn_exe = ' ./' + mode + '.exe '
+    exec_command = ' ./' + mode + '.exe '
         
     if is_mpi in ('coma', 'cx400'): 
-        return 'mpirun ' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+        return 'mpirun ' + exec_command + input_filename + ' > ' + log_filename + '  \n\n'
     elif is_mpi in ('ofp-flat', ):
         return r'mpiexec.hydra  -n ${PJM_MPI_PROC} numactl --preferred=1 ' \
-            + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+            + exec_command + input_filename + ' > ' + log_filename + '  \n\n'
     elif is_mpi in ('ofp', ):
-        return r'mpiexec.hydra  -n ${PJM_MPI_PROC} ' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+        return r'mpiexec.hydra  -n ${PJM_MPI_PROC} ' + exec_command + input_filename + ' > ' + log_filename + '  \n\n'
     elif is_mpi == 'fram': 
-        return 'mpiexec' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+        return 'mpiexec' + exec_command + input_filename + ' > ' + log_filename + '  \n\n'
     elif is_mpi == 'betzy': 
-        return 'mpiexec' + fn_exe + fn_input + ' > ' + fn_log + '  \n\n'
+        return f"mpiexec{exec_command}{input_filename} > {log_filename}  \n\n"
+        # return 'mpiexec' + exec_command + input_filename + ' > ' + log_filename + '  \n\n'
     elif is_mpi:
-        return 'mpiexec -of ' + fn_log + fn_exe + fn_input + ' \n\n'
+        return 'mpiexec -of ' + log_filename + exec_command + input_filename + ' \n\n'
     else:
-        return 'nice' + fn_exe + fn_input + ' > ' + fn_log + ' 2>&1 \n\n'
+        return 'nice' + exec_command + input_filename + ' > ' + log_filename + ' 2>&1 \n\n'
 
-def output_transit(base_filename, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
+def output_transit(base_filename, input_filename, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
     m1, np1, ne1, isj1 = jpn1
     m2, np2, ne2, isj2 = jpn2
 
@@ -562,13 +577,13 @@ def output_transit(base_filename, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2
     else:    jchar1 = '_m'
     if isj2: jchar2 = '_j'
     else:    jchar2 = '_m'
-    fn_log = 'log_' + base_filename + '_tr' \
+    log_filename = 'log_' + base_filename + '_tr' \
         + jchar1 + str(m1) + prty2str(np1) \
         + jchar2 + str(m2) + prty2str(np2) + '.txt'
-    stgout_filenames.append( fn_log )
+    stgout_filenames.append( log_filename )
 
-    out += 'echo "start running ' + fn_log + ' ..."\n' 
-    out += 'cat > ' + fn_input + ' <<EOF\n' \
+    out += 'echo "start running ' + log_filename + ' ..."\n' 
+    out += 'cat > ' + input_filename + ' <<EOF\n' \
         +  '&input\n'
     out += '  fn_int   = ' + var_dict["fn_int"] + '\n' \
         +  '  fn_ptn_l = ' + fn_wav_ptn1[1] + '\n' \
@@ -584,7 +599,7 @@ def output_transit(base_filename, fn_input, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2
     out += '&end\n' \
         +  'EOF\n'
 
-    out +=  exec_string('transit', fn_input, fn_log)
+    out +=  exec_string('transit', input_filename, log_filename)
 
     return out
 
@@ -613,7 +628,7 @@ def main_nuclide(
         A tuple containing the number of valence protons and neutrons.
     
     list_jpn:
-        A list containing tuples with the spin, parity, number of
+        A list containing tuples with the 2*spin, parity, number of
         states, and is_jproj for each requested state to be calculated.
 
     fn_save_dict:
@@ -728,7 +743,7 @@ def main_nuclide(
     
     list_jpn = [a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0]    # Remove invalid states as described a few lines above. TODO: Include this in the above loop.
 
-    parity_list = list( set( jpn[1] for jpn in list_jpn ) )   # Extract a list of only parities.
+    parity_list = list( set( jpn[1] for jpn in list_jpn ) )   # Extract a list of only parities. Might at this point contain a parity not supported by the model space.
     fn_ptn_list = {-1:base_filename + "_n.ptn", 1:base_filename + "_p.ptn"}
     trc_list_prty = {-1:None, 1:None}
 
@@ -829,20 +844,24 @@ def main_nuclide(
             print(msg)
             continue
 
-
     # ---------------------------------------------
 
     shell_file_content_single = '# ---------- ' + base_filename + ' --------------\n'
-
-    list_jpn = [ jpn for jpn in list_jpn if os.path.isfile( fn_ptn_list[ jpn[1] ]) ]
-
-    
+    list_jpn = [ jpn for jpn in list_jpn if os.path.isfile( fn_ptn_list[ jpn[1] ]) ]    # Checks that the correct .ptn file exists.
     fn_save_dict = {}
+    
     for mtot, nparity, n_eigen, is_proj in list_jpn:
-        if is_proj: 
+        if is_proj:
+            """
+            Specific spin(s) requested.
+            """
             jchar = '_j'
             var_dict[ 'is_double_j' ] = '.true.'
-        else: 
+        else:
+            """
+            No specific spin(s) requested, only a number of the lowest
+            laying states.
+            """
             jchar =  '_m'
             var_dict[ 'is_double_j' ] = '.false.'
         var_dict[ 'fn_ptn' ] = '"' + fn_ptn_list[nparity] + '"' # NOTE: 'fn_ptn' and 'partition_filename' mixup.
@@ -850,16 +869,20 @@ def main_nuclide(
         if (trc_list_prty[nparity] is not None) and (not 'orbs_ratio' in var_dict.keys()):
             var_dict[ 'orbs_ratio' ] = trc_list_prty[nparity]
 
-        fn_save_wave = base_filename + jchar + str(mtot) \
-                       + prty2str(nparity) + '.wav'
-        stgout_filenames.append( fn_save_wave )
-        fn_save_wave = '"' + fn_save_wave + '"'
-        fn_log = 'log_' + base_filename + jchar + str(mtot) \
-                 + prty2str(nparity) + '.txt'
-        stgout_filenames.append( fn_log )
-        var_dict[ 'fn_save_wave' ] = fn_save_wave
-        fn_save_dict[ (mtot,nparity,n_eigen,is_proj) ] \
-            = fn_save_wave, var_dict[ 'fn_ptn' ]    # NOTE: 'fn_ptn' and 'partition_filename' mixup.
+        wave_filename = \
+            f"{base_filename}{jchar}{str(mtot)}{prty2str(nparity)}.wav"
+        # fn_save_wave = base_filename + jchar + str(mtot) + prty2str(nparity) + '.wav'
+
+        stgout_filenames.append( wave_filename )
+        # wave_filename = '"' + wave_filename + '"'
+        wave_filename = f'"{wave_filename}"'
+        log_filename = \
+            f"log_{base_filename}{jchar}{str(mtot)}{prty2str(nparity)}.txt"
+            # 'log_' + base_filename + jchar + str(mtot) + prty2str(nparity) + '.txt'
+        stgout_filenames.append( log_filename )
+        var_dict[ 'fn_save_wave' ] = wave_filename
+        fn_save_dict[ (mtot, nparity, n_eigen, is_proj) ] \
+            = wave_filename, var_dict[ 'fn_ptn' ]    # NOTE: 'fn_ptn' and 'partition_filename' mixup.
         var_dict[ 'n_eigen' ] = n_eigen
         var_dict[ 'n_restart_vec' ] \
             = max( int(n_eigen * 1.5) , int(var_dict[ 'n_restart_vec' ]) )
@@ -868,73 +891,145 @@ def main_nuclide(
                    int(var_dict[ 'n_restart_vec' ]) + 50 )
         var_dict[ 'mtot' ] = mtot
         
-        fn_input = base_filename + '_' + str(mtot) + '.input'
+        # input_filename = base_filename + '_' + str(mtot) + '.input'
+        input_filename = f"{base_filename}_{str(mtot)}.input"
 
         if 'no_save' in var_dict.keys():
             del var_dict[ 'fn_save_wave' ]
 
-        shell_file_content_single += 'echo "start running ' + fn_log + ' ..."\n' 
-        shell_file_content_single += 'cat > ' + fn_input + ' <<EOF\n' \
+        shell_file_content_single += 'echo "start running ' + log_filename + ' ..."\n' 
+        shell_file_content_single += 'cat > ' + input_filename + ' <<EOF\n' \
             +  '&input\n'
         shell_file_content_single += print_var_dict( var_dict, skip=('is_obtd', 'no_save') )
         shell_file_content_single += '&end\n' \
             +  'EOF\n'
         
-        shell_file_content_single +=  exec_string('kshell', fn_input, fn_log)
+        shell_file_content_single +=  exec_string('kshell', input_filename, log_filename)
 
         partition_filename = fn_ptn_list[nparity]
 
         shell_file_content_single += 'rm -f tmp_snapshot_' + partition_filename + '_' + str(mtot) + '_* ' + \
                'tmp_lv_' + partition_filename + '_' + str(mtot) + '_* ' + \
-               fn_input + ' \n\n\n'
+               input_filename + ' \n\n\n'
 
         # if var_dict.has_key('orbs_ratio'): del var_dict[ 'orbs_ratio' ]
 
-
-
-    is_transit = True
-    ans = raw_input_save( \
-      "\n compute transition probabilities (E2/M1/E1) for \n    " \
-                          + base_filename +' ? Y/N (default: Y) : ')
-    if len(ans) > 0:
-        if ans[0] == 'Y' or ans[0] == 'y': is_transit = True
-        if ans[0] == 'N' or ans[0] == 'n': is_transit = False
+    transition_prob_msg = f"Compute transition probabilities (E2/M1/E1) for"
+    transition_prob_msg += f" {base_filename} ? Y/N (default: Y)"
+    print(transition_prob_msg)
+    while True:
+        ans = raw_input_save(": ")
+        try:
+            if ans[0].lower() == "y": is_transit = True
+            elif ans[0].lower() == "n": is_transit = False
+            else: continue
+        except IndexError:
+            """
+            [0] does not exist because no input was given. Revert to
+            default value.
+            """
+            is_transit = True   # Default.
+            break
+        break
+        
     if is_transit: 
         is_e2m1, is_e1 = True,  True
         shell_file_content_single += "# --------------- transition probabilities --------------\n\n"
     else: 
         is_e2m1, is_e1 = False, False
+    
+    parity_list = list( set( jpn[1] for jpn in list_jpn ) ) # Contains only the supported parity / parities.
+    if len(parity_list) < 2:
+        """
+        If parity_list only contains a single parity, then no transit
+        will have a change of parity and thus E1 is impossible.
+        """
+        is_e1 = False
 
-    parity_list = list( set( jpn[1] for jpn in list_jpn ) )
-    if len(parity_list)<2: is_e1 = False
+    """
+    list_jpn:
+        A list containing tuples with the 2*spin, parity, number of
+        states, and is_jproj for each requested state to be calculated.
+    """
 
-
-    for i1, (m1, np1, ne1, isj1) in enumerate(list_jpn):
-        for i2, (m2, np2, ne2, isj2) in enumerate(list_jpn):
-            if i1 > i2: continue
-            if (isj1 and m1==0) and (isj2 and m2==0): continue
+    for idx_1, (spin_1, parity_1, n_states_1, is_jproj_1) in enumerate(list_jpn):
+        for idx_2, (spin_2, parity_2, n_states_2, is_jproj_2) in enumerate(list_jpn):
+            """
+            Loop over all pairs of transitions. Some might be skipped
+            due to gramma transition rules.
+            """
             is_skip = True
-            if is_e2m1: 
-                if abs(m1-m2) <= 4 and np1 == np2: is_skip = False
-            if is_e1:
-                if abs(m1-m2) <= 2 and np1 != np2: is_skip = False
-            if is_skip: continue
-            fn_input = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
-            shell_file_content_single += output_transit(base_filename, fn_input, 
-                                  fn_save_dict[(m1,np1,ne1,isj1)], 
-                                  fn_save_dict[(m2,np2,ne2,isj2)], 
-                                  (m1, np1, ne1, isj1), 
-                                  (m2, np2, ne2, isj2) )
-            shell_file_content_single +='rm -f ' + fn_input + '\n\n\n'
+            
+            if idx_1 > idx_2:
+                """
+                Use each unordered spin pair only once. Skip (1, 0) if
+                (0, 1) has already occurred.
+                """
+                continue
+            
+            if (is_jproj_1 and (spin_1 == 0)) and (is_jproj_2 and (spin_2 == 0)):
+                """
+                0 to 0 transitions are not allowed. But why demand that
+                is_jproj is True?
+                """
+                continue
+            
+            if is_e2m1:
+                if abs(spin_1 - spin_2) <= 4 and (parity_1 == parity_2):
+                    """
+                    If the spin difference between two orbitals is 2 or
+                    1, and there is no change in parity, then E2 and M1
+                    transitions are allowed (remember that spin_1 and
+                    spin_2 are twice the spin).
 
-    fn_summary = 'summary_' + base_filename + '.txt'
-    stgout_filenames.append( fn_summary )
-    shell_file_content_single += "./collect_logs.py log_*" + base_filename \
-        + "* > " + fn_summary + "\n"
+                    NOTE: This check allows the difference to be 0, but
+                    0 transitions are not allowed so they must be
+                    excluded somewhere else. NOTE in the note: if the
+                    difference is 0 (for example 2 -> 2), then the
+                    transition might still happen with L = 1, 2 (and
+                    theoretically 3, 4 but this is not supported by
+                    KSHELL).
+                    """
+                    is_skip = False
+            if is_e1:
+                if abs(spin_1 - spin_2) <= 2 and (parity_1 != parity_2):
+                    """
+                    If the spin difference between two orbitals is 1,
+                    and there is a change in parity, then E1 transitions
+                    are allowed.
+                    """
+                    is_skip = False
+            
+            if is_skip:
+                """
+                Skip any transition which do not pass the above two
+                tests.
+                """
+                continue
+            
+            # input_filename = base_filename + '_' + str(spin_1) + '_' + str(spin_2) + '.input'
+            input_filename = f"{base_filename}_{str(spin_1)}_{str(spin_2)}.input"
+            shell_file_content_single += output_transit(
+                base_filename,
+                input_filename,
+                fn_save_dict[(spin_1, parity_1, n_states_1, is_jproj_1)],
+                fn_save_dict[(spin_2, parity_2, n_states_2, is_jproj_2)],
+                (spin_1, parity_1, n_states_1, is_jproj_1),
+                (spin_2, parity_2, n_states_2, is_jproj_2)
+            )
+            # shell_file_content_single += 'rm -f ' + input_filename + '\n\n\n'
+            shell_file_content_single += f"rm -f {input_filename}\n\n\n"
+
+    # summary_filename = 'summary_' + base_filename + '.txt'
+    summary_filename = f"summary_{base_filename}.txt"
+    stgout_filenames.append(summary_filename)
+    # shell_file_content_single += "./collect_logs.py log_*" + base_filename + "* > " + summary_filename + "\n"
+    shell_file_content_single += f"./collect_logs.py log_*{base_filename}* > {summary_filename}\n"
     # shell_file_content_single += 'rm -f tmp_snapshot_' + base_filename + '* tmp_lv_' + base_filename + '* ' \
-    #       + fn_input + ' \n'
-    shell_file_content_single += 'echo "Finish computing '+base_filename+'.    See ' + fn_summary + '"\n'
-    shell_file_content_single += 'echo \n\n'
+    #       + input_filename + ' \n'
+    # shell_file_content_single += 'echo "Finish computing ' + base_filename + '.    See ' + summary_filename + '"\n'
+    # shell_file_content_single += 'echo \n\n'
+    shell_file_content_single += f'echo "Finish computing {base_filename}. See {summary_filename}"\necho\n\n'
 
     return base_filename, shell_file_content_single, valence_p_n, list_jpn, fn_save_dict
 
@@ -1347,7 +1442,7 @@ def main():
 
     """
     list_jpn:
-        A list containing tuples with the spin, parity, number of
+        A list containing tuples with the 2*spin, parity, number of
         states, and is_jproj for each requested state to be calculated.
     """
 
@@ -1366,14 +1461,20 @@ def main():
             break
         
         for spin, parity, n_states, is_jproj  in list_jpn:
-            states.append(
-                (valence_p_n, spin, parity, n_states, is_jproj, base_filename, fn_save_dict[(spin, parity, n_states, is_jproj)])
-            )
+            states.append((
+                valence_p_n,
+                spin,
+                parity,
+                n_states,
+                is_jproj,
+                base_filename,
+                fn_save_dict[(spin, parity, n_states, is_jproj)]
+            ))
         
         shell_file_content_total += shell_file_content_single
         
         if shell_filename: 
-            if len(shell_filename)> len(fn_snt_base) \
+            if len(shell_filename) > len(fn_snt_base) \
                and shell_filename[-len(fn_snt_base):] == fn_snt_base:
                 shell_filename = shell_filename[:-len(fn_snt_base)]
             else:
@@ -1381,7 +1482,10 @@ def main():
         
         shell_filename += base_filename
 
-    if not shell_filename: 
+    if not shell_filename:
+        """
+        End program if no nuclide is specified.
+        """
         print("\n*** NO input ***\n")
         return
 
@@ -1411,10 +1515,10 @@ def main():
                 base_filename += '_'
             base_filename += fn_base2
 
-            fn_input = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
+            input_filename = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
 
             shell_file_content_total += output_transit(
-                base_filename, fn_input, fn_wp1, fn_wp2, (m1, p1, n1, isj1),
+                base_filename, input_filename, fn_wp1, fn_wp2, (m1, p1, n1, isj1),
                 (m2, p2, n2, isj2)
             )
         return shell_file_content_total
@@ -1460,6 +1564,7 @@ def main():
                 except IOError:
                     print( "\n*** WARNING: copy " + binfname \
                         + " to current dir. failed ***")
+    
     # header
     if is_mpi:
         check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py') 
@@ -1562,7 +1667,7 @@ def main():
                     # + 'cd ' + os.getcwd() +'\n\n' \
             print("\n Finish. edit and pjsub ./" + shell_filename + "\n")
 
-        elif is_mpi == 'fram': # This option added by JEM / jonkd.
+        elif is_mpi == 'fram': # This option is added by JEM / jonkd.
             shell_file_content_tmp = '#!/bin/bash \n'
             shell_file_content_tmp += f'#SBATCH --job-name={shell_filename[:-3]} \n'
             shell_file_content_tmp += f'#SBATCH --account={sigma2_project_name} \n'
@@ -1584,7 +1689,7 @@ def main():
             shell_file_content_tmp += shell_file_content_total
             shell_file_content_total = shell_file_content_tmp
 
-        elif is_mpi == 'betzy': # This option added jonkd.
+        elif is_mpi == 'betzy': # This option is added by jonkd.
             shell_file_content_tmp = '#!/bin/bash \n'
             shell_file_content_tmp += f'#SBATCH --job-name={shell_filename[:-3]} \n'
             shell_file_content_tmp += f'#SBATCH --account={sigma2_project_name} \n'
@@ -1595,15 +1700,19 @@ def main():
             shell_file_content_tmp += f'#SBATCH --cpus-per-task={n_cpus_per_task} \n'
             shell_file_content_tmp += '#SBATCH --mail-type=ALL \n'
             shell_file_content_tmp += f'#SBATCH --mail-user={sigma2_user_email} \n'
+            
             if type_of_betzy_job != "normal":
                 shell_file_content_tmp += f'#SBATCH --qos={type_of_betzy_job} \n'
+            
             shell_file_content_tmp += 'module --quiet purge  \n'
             shell_file_content_tmp += 'module load intel/2020b \n'
             shell_file_content_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
             shell_file_content_tmp += 'set -o errexit  \n'
             shell_file_content_tmp += 'set -o nounset \n'
+            
             if omp_num_threads is not None:
                 shell_file_content_tmp += f'export OMP_NUM_THREADS={omp_num_threads} \n'
+            
             shell_file_content_tmp += shell_file_content_total
             shell_file_content_total = shell_file_content_tmp
 
