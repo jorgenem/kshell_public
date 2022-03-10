@@ -301,13 +301,13 @@ def print_var_dict(var_dict, skip=()):
         ret += "  " + key + " = " + vv + "\n"
     return ret
 
-def prty2str(p):
+def parity_to_string(parity):
     """
     Convert numeric parity representation to string representation.
 
     Parameters
     ----------
-    p : int
+    parity : int
         Parity. Valid inputs are 1, -1.
 
     Returns
@@ -320,8 +320,8 @@ def prty2str(p):
     ValueError
         If input is anything other than 'p' or 'n'.
     """
-    if p == 1: return "p"
-    elif p == -1: return "n"
+    if parity == 1: return "p"
+    elif parity == -1: return "n"
     else: raise ValueError("Parity must be 1 or -1.")
 
 def read_comment_skip(model_space_file: TextIO) -> List:
@@ -578,8 +578,8 @@ def output_transit(base_filename, input_filename, fn_wav_ptn1, fn_wav_ptn2, jpn1
     if isj2: jchar2 = '_j'
     else:    jchar2 = '_m'
     log_filename = 'log_' + base_filename + '_tr' \
-        + jchar1 + str(m1) + prty2str(np1) \
-        + jchar2 + str(m2) + prty2str(np2) + '.txt'
+        + jchar1 + str(m1) + parity_to_string(np1) \
+        + jchar2 + str(m2) + parity_to_string(np2) + '.txt'
     stgout_filenames.append( log_filename )
 
     out += 'echo "start running ' + log_filename + ' ..."\n' 
@@ -605,7 +605,7 @@ def output_transit(base_filename, input_filename, fn_wav_ptn1, fn_wav_ptn2, jpn1
 
 def main_nuclide(
     model_space_filename: str
-    ) -> Tuple[str, str, Tuple[int, int], List[Tuple[int, int, int, bool]], Dict[tuple, str]]:
+    ) -> Tuple[str, str, Tuple[int, int], List[Tuple[int, int, int, bool]], Dict[tuple, str], List, List]:
     """
     Prompt for nuclide, number of states to calculate, truncation, and
     parameter adjustment.
@@ -617,24 +617,29 @@ def main_nuclide(
 
     Returns
     -------
-    base_filename:
+    base_filename : str
         The base filename used for logs, summary, main script and
         partition files. Example: 'Ar28_usda'.
 
-    shell_file_content_single:
+    shell_file_content_single : str
         The content of the executable shell file for a single nucleon.
 
-    valence_p_n:
+    valence_p_n : tuple
         A tuple containing the number of valence protons and neutrons.
     
-    list_jpn:
+    list_jpn : list
         A list containing tuples with the 2*spin, parity, number of
         states, and is_jproj for each requested state to be calculated.
 
-    fn_save_dict:
+    fn_save_dict : dict
         A dictionary where the keys are each tuple from list_jpn, and
         the values are the corresponding .wav and .ptn files.
 
+    kshell_shell_file_content_list : list
+        Shell file content for each (spin, parity) pair separately.
+
+    transit_shell_file_content_list : list
+        Shell file content for each (spin, parity) pair separately.
     """
     print("\n\n*************** specify a nuclide ********************\n")
 
@@ -652,7 +657,7 @@ def main_nuclide(
             """
             No input.
             """
-            return "", "", None, None, None
+            return "", "", None, None, None, None, None
         
         elif len(input_nuclide_or_valence) == 1:
             """
@@ -724,8 +729,8 @@ def main_nuclide(
     list_jpn = [split_jpn(state, valence_p_n) for state in input_n_states]
 
     n_removed = 0
-    for j, p, n, isp in list_jpn:
-        if (j + sum(valence_p_n))%2 != 0:
+    for spin, parity, n_states, is_jproj in list_jpn:
+        if (spin + sum(valence_p_n))%2 != 0:
             """
             If the sum of valence nucleons plus 2 times the spin of the
             state is not divisible by 2, then it is not a valid spin for
@@ -738,8 +743,8 @@ def main_nuclide(
                 msg += "--------------------------------"
                 print(msg)
 
-            p = "+" if p == 1 else "-"
-            print(f"{str(Fraction(j/2)):4}      {p:1}      {n:4}      {str(isp):5}")
+            parity = "+" if parity == 1 else "-"
+            print(f"{str(Fraction(spin/2)):4}      {parity:1}      {n_states:4}      {str(is_jproj):5}")
     
     list_jpn = [a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0]    # Remove invalid states as described a few lines above. TODO: Include this in the above loop.
 
@@ -762,7 +767,7 @@ def main_nuclide(
         if os.path.exists( partition_filename ): stgin_filenames.append( partition_filename )
 
     #-----------------------------------------------------
-    list_param = [ k +" = " for k in var_dict.keys() ]
+    list_param = [ k + " = " for k in var_dict.keys() ]
     list_param += [ # A few extra tab complete entries.
         'is_obtd = .true.', 'is_ry_sum = .true.', 'is_calc_tbme = .true.',
         'sq = ', 'quench = '
@@ -846,12 +851,17 @@ def main_nuclide(
 
     # ---------------------------------------------
 
-    shell_file_content_single = '# ---------- ' + base_filename + ' --------------\n'
-    list_jpn = [ jpn for jpn in list_jpn if os.path.isfile( fn_ptn_list[ jpn[1] ]) ]    # Checks that the correct .ptn file exists.
+    """
+    list_jpn=[(0, 1, 200, True), (2, 1, 200, True)]
+    """
+    # shell_file_content_single = '# ---------- ' + base_filename + ' --------------\n'
+    shell_file_content_single = f'# ---------- {base_filename} --------------\n'
+    list_jpn = [ jpn for jpn in list_jpn if os.path.isfile( fn_ptn_list[ jpn[1] ]) ]    # Checks that the correct .ptn file exists. Unsure why this is needed...
     fn_save_dict = {}
+    kshell_shell_file_content_list = [] # For running each spin, parity config as a separate shell file.
     
-    for mtot, nparity, n_eigen, is_proj in list_jpn:
-        if is_proj:
+    for spin, parity, n_states, is_jproj in list_jpn:
+        if is_jproj:
             """
             Specific spin(s) requested.
             """
@@ -864,55 +874,56 @@ def main_nuclide(
             """
             jchar =  '_m'
             var_dict[ 'is_double_j' ] = '.false.'
-        var_dict[ 'fn_ptn' ] = '"' + fn_ptn_list[nparity] + '"' # NOTE: 'fn_ptn' and 'partition_filename' mixup.
+        
+        var_dict[ 'fn_ptn' ] = '"' + fn_ptn_list[parity] + '"' # NOTE: 'fn_ptn' and 'partition_filename' mixup.
 
-        if (trc_list_prty[nparity] is not None) and (not 'orbs_ratio' in var_dict.keys()):
-            var_dict[ 'orbs_ratio' ] = trc_list_prty[nparity]
+        if (trc_list_prty[parity] is not None) and (not 'orbs_ratio' in var_dict.keys()):
+            var_dict[ 'orbs_ratio' ] = trc_list_prty[parity]
 
         wave_filename = \
-            f"{base_filename}{jchar}{str(mtot)}{prty2str(nparity)}.wav"
-        # fn_save_wave = base_filename + jchar + str(mtot) + prty2str(nparity) + '.wav'
+            f"{base_filename}{jchar}{str(spin)}{parity_to_string(parity)}.wav"
 
         stgout_filenames.append( wave_filename )
-        # wave_filename = '"' + wave_filename + '"'
         wave_filename = f'"{wave_filename}"'
         log_filename = \
-            f"log_{base_filename}{jchar}{str(mtot)}{prty2str(nparity)}.txt"
-            # 'log_' + base_filename + jchar + str(mtot) + prty2str(nparity) + '.txt'
+            f"log_{base_filename}{jchar}{str(spin)}{parity_to_string(parity)}.txt"
         stgout_filenames.append( log_filename )
         var_dict[ 'fn_save_wave' ] = wave_filename
-        fn_save_dict[ (mtot, nparity, n_eigen, is_proj) ] \
+        fn_save_dict[ (spin, parity, n_states, is_jproj) ] \
             = wave_filename, var_dict[ 'fn_ptn' ]    # NOTE: 'fn_ptn' and 'partition_filename' mixup.
-        var_dict[ 'n_eigen' ] = n_eigen
-        var_dict[ 'n_restart_vec' ] \
-            = max( int(n_eigen * 1.5) , int(var_dict[ 'n_restart_vec' ]) )
-        var_dict[ "max_lanc_vec" ] \
-            = max( var_dict[ 'max_lanc_vec' ], 
-                   int(var_dict[ 'n_restart_vec' ]) + 50 )
-        var_dict[ 'mtot' ] = mtot
+        var_dict[ 'n_eigen' ] = n_states
+        var_dict[ 'n_restart_vec' ] = max(
+            int(n_states * 1.5),
+            int(var_dict[ 'n_restart_vec' ])
+        )
+        var_dict[ "max_lanc_vec" ] = max(
+            var_dict[ 'max_lanc_vec' ],
+            int(var_dict[ 'n_restart_vec' ]) + 50
+        )
+        var_dict[ 'mtot' ] = spin
         
-        # input_filename = base_filename + '_' + str(mtot) + '.input'
-        input_filename = f"{base_filename}_{str(mtot)}.input"
+        input_filename = f"{base_filename}_{str(spin)}{parity_to_string(parity)}.input"
 
         if 'no_save' in var_dict.keys():
             del var_dict[ 'fn_save_wave' ]
 
-        shell_file_content_single += 'echo "start running ' + log_filename + ' ..."\n' 
-        shell_file_content_single += 'cat > ' + input_filename + ' <<EOF\n' \
-            +  '&input\n'
-        shell_file_content_single += print_var_dict( var_dict, skip=('is_obtd', 'no_save') )
-        shell_file_content_single += '&end\n' \
-            +  'EOF\n'
+        # shell_file_content_single += 'echo "start running ' + log_filename + ' ..."\n'
+        # shell_file_content_single += 'cat > ' + input_filename + ' <<EOF\n' +  '&input\n'
+        # shell_file_content_single += '&end\n' + 'EOF\n'
+        tmp_kshell_content = f'echo "start running {log_filename} ..."\n'
+        tmp_kshell_content += f'cat > {input_filename} <<EOF\n&input\n'
+        tmp_kshell_content += print_var_dict(var_dict, skip=('is_obtd', 'no_save'))
+        tmp_kshell_content += f'&end\nEOF\n'
+        tmp_kshell_content +=  exec_string('kshell', input_filename, log_filename)
         
-        shell_file_content_single +=  exec_string('kshell', input_filename, log_filename)
+        partition_filename = fn_ptn_list[parity]
 
-        partition_filename = fn_ptn_list[nparity]
-
-        shell_file_content_single += 'rm -f tmp_snapshot_' + partition_filename + '_' + str(mtot) + '_* ' + \
-               'tmp_lv_' + partition_filename + '_' + str(mtot) + '_* ' + \
+        tmp_kshell_content += 'rm -f tmp_snapshot_' + partition_filename + '_' + str(spin) + '_* ' + \
+               'tmp_lv_' + partition_filename + '_' + str(spin) + '_* ' + \
                input_filename + ' \n\n\n'
 
-        # if var_dict.has_key('orbs_ratio'): del var_dict[ 'orbs_ratio' ]
+        shell_file_content_single += tmp_kshell_content
+        kshell_shell_file_content_list.append(tmp_kshell_content)
 
     transition_prob_msg = f"Compute transition probabilities (E2/M1/E1) for"
     transition_prob_msg += f" {base_filename} ? Y/N (default: Y)"
@@ -946,12 +957,7 @@ def main_nuclide(
         """
         is_e1 = False
 
-    """
-    list_jpn:
-        A list containing tuples with the 2*spin, parity, number of
-        states, and is_jproj for each requested state to be calculated.
-    """
-
+    transit_shell_file_content_list = []
     for idx_1, (spin_1, parity_1, n_states_1, is_jproj_1) in enumerate(list_jpn):
         for idx_2, (spin_2, parity_2, n_states_2, is_jproj_2) in enumerate(list_jpn):
             """
@@ -1007,9 +1013,8 @@ def main_nuclide(
                 """
                 continue
             
-            # input_filename = base_filename + '_' + str(spin_1) + '_' + str(spin_2) + '.input'
-            input_filename = f"{base_filename}_{str(spin_1)}_{str(spin_2)}.input"
-            shell_file_content_single += output_transit(
+            input_filename = f"{base_filename}_{str(spin_1)}{parity_to_string(parity_1)}_{str(spin_2)}{parity_to_string(parity_2)}.input"
+            tmp_transit_content = output_transit(
                 base_filename,
                 input_filename,
                 fn_save_dict[(spin_1, parity_1, n_states_1, is_jproj_1)],
@@ -1017,21 +1022,28 @@ def main_nuclide(
                 (spin_1, parity_1, n_states_1, is_jproj_1),
                 (spin_2, parity_2, n_states_2, is_jproj_2)
             )
-            # shell_file_content_single += 'rm -f ' + input_filename + '\n\n\n'
-            shell_file_content_single += f"rm -f {input_filename}\n\n\n"
+            tmp_transit_content += f"rm -f {input_filename}\n\n\n"
+            shell_file_content_single += tmp_transit_content
+            transit_shell_file_content_list.append(tmp_transit_content)
 
-    # summary_filename = 'summary_' + base_filename + '.txt'
     summary_filename = f"summary_{base_filename}.txt"
     stgout_filenames.append(summary_filename)
-    # shell_file_content_single += "./collect_logs.py log_*" + base_filename + "* > " + summary_filename + "\n"
     shell_file_content_single += f"./collect_logs.py log_*{base_filename}* > {summary_filename}\n"
-    # shell_file_content_single += 'rm -f tmp_snapshot_' + base_filename + '* tmp_lv_' + base_filename + '* ' \
-    #       + input_filename + ' \n'
-    # shell_file_content_single += 'echo "Finish computing ' + base_filename + '.    See ' + summary_filename + '"\n'
-    # shell_file_content_single += 'echo \n\n'
     shell_file_content_single += f'echo "Finish computing {base_filename}. See {summary_filename}"\necho\n\n'
 
-    return base_filename, shell_file_content_single, valence_p_n, list_jpn, fn_save_dict
+    # for i, elem in enumerate(transit_shell_file_content_list):
+    #     with open(f"file_{i}.txt", "w") as outfile:
+    #         outfile.write(elem)
+
+    return (
+        base_filename,
+        shell_file_content_single,
+        valence_p_n,
+        list_jpn,
+        fn_save_dict,
+        kshell_shell_file_content_list,
+        transit_shell_file_content_list
+    )
 
 def ask_yn(optype):
     ret = False
@@ -1447,20 +1459,26 @@ def main():
     """
 
     states = []
+    kshell_shell_file_content_list = []
+    transit_shell_file_content_list = []
     while True:
         """
         Fetch nuclide information from user.
         """
-        base_filename, shell_file_content_single, valence_p_n, list_jpn, fn_save_dict = \
+        base_filename, shell_file_content_single, valence_p_n, list_jpn, \
+        fn_save_dict, kshell_tmp, transit_tmp = \
             main_nuclide(model_space_filename)
-        
+
         if not shell_file_content_single:
             """
             No new nuclide information specified.
             """
             break
+
+        kshell_shell_file_content_list.append(kshell_tmp)
+        transit_shell_file_content_list.append(transit_tmp)
         
-        for spin, parity, n_states, is_jproj  in list_jpn:
+        for spin, parity, n_states, is_jproj in list_jpn:
             states.append((
                 valence_p_n,
                 spin,
@@ -1522,7 +1540,6 @@ def main():
                 (m2, p2, n2, isj2)
             )
         return shell_file_content_total
-
 
     if gt_pair and ask_yn('Gamow-teller transition'):
         shell_file_content_total += '# ------ Gamow Teller transition ------ \n'
@@ -1713,8 +1730,9 @@ def main():
             if omp_num_threads is not None:
                 shell_file_content_tmp += f'export OMP_NUM_THREADS={omp_num_threads} \n'
             
-            shell_file_content_tmp += shell_file_content_total
-            shell_file_content_total = shell_file_content_tmp
+            # shell_file_content_tmp += shell_file_content_total
+            # shell_file_content_total = shell_file_content_tmp
+            shell_file_content_total = shell_file_content_tmp + shell_file_content_total
 
         else: # FX10
             shell_file_content_total = '#!/bin/sh \n' \
@@ -1732,10 +1750,6 @@ def main():
                 + '# ulimit -s unlimited\n\n' \
                 + shell_file_content_total 
         print("\n Finish. Run ./" + shell_filename + "\n")
-
-    fp_save_input = open('save_input_ui.txt', 'w')
-    fp_save_input.write( gen_partition.output_ans )
-    fp_save_input.close()
     
     shell_file_content_total = \
         check_j_scheme_dimensionality(
@@ -1743,12 +1757,62 @@ def main():
             model_space_filename,
             shell_file_content_total
         )
-    
-    fp_run = open(shell_filename, 'w')
-    fp_run.write(shell_file_content_total)
-    fp_run.close()
 
-    if not is_mpi: os.chmod(shell_filename, 0o755)
+    split_shell_files = False
+    split_shell_files_msg = "Split shell files? y/n: (default: n)"
+    print(split_shell_files_msg)
+    while True:
+        ans = raw_input_save(": ")
+        if ans.lower() == "y":
+            split_shell_files = True
+        elif ans.lower() == "n":
+            split_shell_files = False
+        elif ans == "":
+            split_shell_files = False
+        else:
+            continue
+        break
+    
+    if split_shell_files:
+        """
+        Save separate shell files for each (spin, parity) pair in
+        separate directories.
+        """
+        if len(kshell_shell_file_content_list) != 1:
+            print("Split shell files currently not supported with multiple nuclides input.")
+        else:
+            for state, content in zip(states, kshell_shell_file_content_list[0]):
+                directory_name = f"{state[1]/2:g}{parity_to_string(state[2])}"
+                shell_filename = f"{directory_name}/{directory_name}.sh"
+                if not is_mpi: shell_file_content_tmp = ""  # Temporary hack.
+                
+                try:
+                    os.mkdir(directory_name)
+                except FileExistsError:
+                    print(f"Warning! Directory '{directory_name}' already exists!")
+
+                with open(shell_filename, "w") as outfile:
+                    outfile.write(shell_file_content_tmp + content)
+
+                if not is_mpi: os.chmod(shell_filename, 0o755)
+
+                os.system(f"cp {state[6][1]} {directory_name}")
+                os.system(f"cp *.snt kshell.exe {directory_name}")
+
+            os.system("rm kshell.exe")
+
+    else:
+        """
+        Save one shell file for all calculations.
+        """
+        with open(shell_filename, 'w') as outfile:
+            outfile.write(shell_file_content_total)
+
+        if not is_mpi: os.chmod(shell_filename, 0o755)
+
+    with open('save_input_ui.txt', 'w') as outfile:
+        outfile.write( gen_partition.output_ans )
+
  
 if __name__ == "__main__":
     main()
