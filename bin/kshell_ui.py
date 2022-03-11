@@ -7,6 +7,7 @@ import gen_partition
 from gen_partition import raw_input_save
 from count_dim import count_dim
 import job_schedulers
+from parameters import recommended_quenching_factors
 
 bindir = os.path.dirname( __file__ )    # Full path to the directory of this file.
 
@@ -777,6 +778,17 @@ def main_nuclide(
     parameter_info += "Example: maxiter = 300 for parameter change or <CR> for no more"
     parameter_info += " modification.\nAvailable paramters are:\n"
     print(f"{parameter_info}{[i.split(' = ')[0] for i in list_param]}\n")
+    
+    try:
+        quenching_info = f"Recommended quenching for {model_space_filename}: "
+        quenching_info += f"{recommended_quenching_factors[model_space_filename]}\n"
+        print(quenching_info)
+    except KeyError:
+        """
+        Dont display recommended quenching if there are no
+        recommendations!
+        """
+        pass
     
     readline.set_completer( SimpleCompleter(list_param).complete )
     if 'libedit' in readline.__doc__: # for Mac
@@ -1711,7 +1723,7 @@ def main():
             model_space_filename,
             shell_file_content_total
         )
-        
+
     save_shell_script(
         states = states,
         kshell_shell_file_content_list = kshell_shell_file_content_list,
