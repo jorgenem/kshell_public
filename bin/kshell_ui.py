@@ -6,6 +6,7 @@ from ast import literal_eval
 import gen_partition
 from gen_partition import raw_input_save
 from count_dim import count_dim
+import job_schedulers
 
 bindir = os.path.dirname( __file__ )    # Full path to the directory of this file.
 
@@ -1116,6 +1117,115 @@ def check_j_scheme_dimensionality(
     
     return shell_file_content_total
 
+def save_shell_script(
+    states: List,
+    kshell_shell_file_content_list: List,
+    shell_file_content_total: str,
+    shell_file_content_tmp: str,
+    shell_filename_single: str
+    ):
+    """
+    Save as either a single .sh executable or multiple .sh executables,
+    one for each (spin, parity) pair.
+    """
+    split_shell_files = False
+    split_shell_files_msg = "Split shell files? y/n: (default: n): "
+    ans = raw_input_save(split_shell_files_msg)
+    while True:
+        if ans.lower() == "y":
+            split_shell_files = True
+        elif ans.lower() == "n":
+            split_shell_files = False
+        elif ans == "":
+            split_shell_files = False
+        else:
+            ans = raw_input_save(": ")
+            continue
+        break
+    
+    if split_shell_files:
+        """
+        Save separate shell files for each (spin, parity) pair in
+        separate directories.
+        """
+        if len(kshell_shell_file_content_list) != 1:
+            print("Split shell files currently not supported with multiple nuclides input.")
+        else:
+            for state, content in zip(states, kshell_shell_file_content_list[0]):
+                directory_name = f"{state[1]/2:g}{parity_to_string(state[2])}"
+                shell_filename = f"{directory_name}/{directory_name}.sh"
+                # if not is_mpi: shell_file_content_tmp = ""  # Temporary hack.
+                try:
+                    os.mkdir(directory_name)
+                except FileExistsError:
+                    print(f"Warning! Directory '{directory_name}' already exists!")
+
+                with open(shell_filename, "w") as outfile:
+                    outfile.write(shell_file_content_tmp + content)
+
+                if not is_mpi: os.chmod(shell_filename, 0o755)
+
+                os.system(f"cp {state[6][1]} {directory_name}")
+                os.system(f"cp *.snt kshell.exe {directory_name}")
+
+            os.system("rm kshell.exe")
+
+    else:
+        """
+        Save one shell file for all calculations.
+        """
+        with open(shell_filename_single, 'w') as outfile:
+            outfile.write(shell_file_content_total)
+
+        if not is_mpi: os.chmod(shell_filename_single, 0o755)
+
+def check_copy(*fnames):
+    """
+    Copy needed files (typically 'kshell.exe', 'transit.exe',
+    'collect_logs.py') from <kshell_install_dir/bin> to the run
+    directory (the directory where this file is called from).
+
+    Print a warning message if the files do not exist and cannot be
+    copied. This happens if the source files are not yet compiled.
+    Program does not terminate by this warning.
+
+    Parameters
+    ----------
+    *fnames : strings
+        Names of files to be copied. Input filenames are gathered
+        into a tuple. Input must be individual strings of filenames.
+    """
+    for fname in fnames:
+        binfname = bindir + '/' + fname
+        if not os.path.exists( binfname ):
+            print("\n*** WARNING: NOT found " + bindir + '/' + fname, " ***")
+        else:
+            try:
+                shutil.copy( binfname, '.' )
+            except IOError:
+                print( "\n*** WARNING: copy " + binfname \
+                    + " to current dir. failed ***")
+
+def output_transit_pair(pair, fn_snt_base):
+    shell_file_content_total = ''
+    for (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1), \
+        (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) in pair: 
+        base_filename = fn_base1
+        if len(base_filename)> len(fn_snt_base) \
+            and base_filename[-len(fn_snt_base):] == fn_snt_base:
+            base_filename = base_filename[:-len(fn_snt_base)]
+        else:
+            base_filename += '_'
+        base_filename += fn_base2
+
+        input_filename = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
+
+        shell_file_content_total += output_transit(
+            base_filename, input_filename, fn_wp1, fn_wp2, (m1, p1, n1, isj1),
+            (m2, p2, n2, isj2)
+        )
+    return shell_file_content_total
+
 def main():
     print("\n")
     print("----------------------------- \n")
@@ -1521,235 +1631,81 @@ def main():
                   if (nf1[0] == nf2[0]+1 and nf1[1] == nf2[1])
                   or (nf1[0] == nf2[0]   and nf1[1] == nf2[1]+1) ]
 
-    def output_transit_pair(pair):
-        shell_file_content_total = ''
-        for (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1), \
-            (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) in pair: 
-            base_filename = fn_base1
-            if len(base_filename)> len(fn_snt_base) \
-               and base_filename[-len(fn_snt_base):] == fn_snt_base:
-                base_filename = base_filename[:-len(fn_snt_base)]
-            else:
-                base_filename += '_'
-            base_filename += fn_base2
-
-            input_filename = base_filename + '_' + str(m1) + '_' + str(m2) + '.input'
-
-            shell_file_content_total += output_transit(
-                base_filename, input_filename, fn_wp1, fn_wp2, (m1, p1, n1, isj1),
-                (m2, p2, n2, isj2)
-            )
-        return shell_file_content_total
-
     if gt_pair and ask_yn('Gamow-teller transition'):
         shell_file_content_total += '# ------ Gamow Teller transition ------ \n'
         shell_file_content_total += 'echo \n'
         shell_file_content_total += 'echo "Gamow Teller transition calc."\n'
-        shell_file_content_total += output_transit_pair(gt_pair)
+        shell_file_content_total += output_transit_pair(gt_pair, fn_snt_base)
 
     if sfac_pair and ask_yn('one-particle spectroscopic factor'):
         shell_file_content_total += '# --------- spectroscocpic factor --------- \n'
         shell_file_content_total += 'echo \n'
         shell_file_content_total += 'echo "spectroscopic factor calc."\n'
-        shell_file_content_total += output_transit_pair(sfac_pair)
+        shell_file_content_total += output_transit_pair(sfac_pair, fn_snt_base)
 
     shell_filename += ".sh"
-
-    def check_copy(*fnames):
-        """
-        Copy needed files (typically 'kshell.exe', 'transit.exe',
-        'collect_logs.py') from <kshell_install_dir/bin> to the run
-        directory (the directory where this file is called from).
-
-        Print a warning message if the files do not exist and cannot be
-        copied. This happens if the source files are not yet compiled.
-        Program does not terminate by this warning.
-
-        Parameters
-        ----------
-        *fnames : strings
-            Names of files to be copied. Input filenames are gathered
-            into a tuple. Input must be individual strings of filenames.
-        """
-        for fname in fnames:
-            binfname = bindir + '/' + fname
-            if not os.path.exists( binfname ):
-                print("\n*** WARNING: NOT found " + bindir + '/' + fname, " ***")
-            else:
-                try:
-                    shutil.copy( binfname, '.' )
-                except IOError:
-                    print( "\n*** WARNING: copy " + binfname \
-                        + " to current dir. failed ***")
     
     # header
     if is_mpi:
         check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py') 
         if is_mpi == 'coma':
-            shell_file_content_total = '#!/bin/sh \n' \
-                    + '#SBATCH -J ' + shell_filename[:-3] + '\n' \
-                    + '#SBATCH -p mixed\n' \
-                    + '#SBATCH -N ' + str(n_nodes) + '\n' \
-                    + '#SBATCH -n ' + str(n_nodes) + '\n' \
-                    + '# #SBATCH -t 01:00:00\n' \
-                    + '#SBATCH --cpus-per-task=20\n' \
-                    + '#SBATCH -o stdout\n' \
-                    + '#SBATCH -e stderr\n\n' \
-                    + 'export OMP_NUM_THREADS=20\n\n' \
-                    + 'module load mkl intel intelmpi \n' \
-                    + shell_file_content_total 
-                    # + 'cd ' + os.getcwd() +'\n\n' \
-                    # cd $SLURM_SUBMIT_DIR
-                    # export OMP_NUM_THREADS=16
+            job_commands = job_schedulers.coma(stgin_filenames, stgout_filenames, n_nodes)
             
-            print("\n Finish. edit and sbatch ./"+shell_filename+"\n")
-        elif is_mpi == 'k' or is_mpi == 'k-micro': 
-            shell_file_content_total = '#!/bin/sh \n' \
-                    + '#PJM -L "rscgrp=micro"\n' \
-                    + '#PJM -L "node=' + str(n_nodes) + '"\n' \
-                    + '#PJM -L "elapse=00:30:00"\n' \
-                    + '#PJM -g "XXXXXXXX"\n\n' \
-                    + '. /work/system/Env_base\n\n' \
-                    + shell_file_content_total 
-                    # + 'cd ' + os.getcwd() +'\n\n' \
+        elif (is_mpi == 'k') or (is_mpi == 'k-micro'):
+            job_commands = job_schedulers.k_micro(stgin_filenames, stgout_filenames, n_nodes)
+        
         elif is_mpi == 'k-small': 
-            outstg = '#PJM --stgin "'
-            for fn in stgin_filenames: outstg += './'+fn+' '
-            outstg += './"\n'
-            outstg += '#PJM --stgout "'
-            for fn in stgout_filenames: outstg += './'+fn+' '
-            outstg += './"\n\n'
-            shell_file_content_total = '#!/bin/sh \n' \
-                    + '#PJM -L "rscgrp=small"\n' \
-                    + '#PJM -L "node=' + str(n_nodes) + '"\n' \
-                    + '#PJM -L "elapse=00:30:00"\n' \
-                    + outstg \
-                    + '. /work/system/Env_base\n\n' \
-                    + 'lfs setstripe -s 100m -c 12 .\n\n' \
-                    + shell_file_content_total 
-        elif is_mpi == 'k-large': 
-            outstg = '#PJM --stgin "'
-            for fn in stgin_filenames: outstg += './'+fn+' '
-            outstg += './"\n'
-            outstg += '#PJM --stgout "'
-            for fn in stgout_filenames: outstg += './'+fn+' '
-            outstg += './"\n\n'
-            shell_file_content_total = '#!/bin/sh \n' \
-                    + '#PJM -L "rscgrp=large"\n' \
-                    + '#PJM -L "node=' + str(n_nodes) + '"\n' \
-                    + '#PJM -L "elapse=06:00:00"\n' \
-                    + outstg \
-                    + '. /work/system/Env_base\n\n' \
-                    + 'lfs setstripe -s 100m -c 12 .\n\n' \
-                    + shell_file_content_total 
+            job_commands = job_schedulers.k_small(stgin_filenames, stgout_filenames, n_nodes)
+        
+        elif is_mpi == 'k-large':
+            job_commands = job_schedulers.k_large(stgin_filenames, stgout_filenames, n_nodes)
+        
         elif is_mpi == 'ofp': 
-            shell_file_content_total = '#!/bin/sh \n' \
-                    + '#PJM -L "rscgrp=debug-cache"\n' \
-                    + '#PJM -L "node=' + str(n_nodes) + '"\n' \
-                    + '#PJM --omp thread=272\n' \
-                    + '#PJM -L "elapse=00:30:00"\n' \
-                    + '#PJM -g XXXXXXXX\n' \
-                    + shell_file_content_total 
+            job_commands = job_schedulers.ofp(n_nodes)
+        
         elif is_mpi == 'ofp-flat': 
-            shell_file_content_total = '#!/bin/sh \n' \
-                    + '#PJM -L "rscgrp=debug-flat"\n' \
-                    + '#PJM -L "node=' + str(n_nodes) + '"\n' \
-                    + '# #PJM --mpi "proc=' + str(n_nodes) + '"\n' \
-                    + '#PJM --omp thread=272\n' \
-                    + '#PJM -L "elapse=00:30:00"\n' \
-                    + '#PJM -g XXXXXX\n' \
-                    + shell_file_content_total 
-        elif is_mpi == 'cx400': 
-            shell_file_content_total = \
-            '''#!/bin/sh 
-            #PJM -L "rscgrp=XXXXXXXX"
-            #PJM -L "vnode=''' + str(n_nodes) + '''"
-            #PJM -L "vnode-core=28"
-            # #PJM --mpi "rank-map-bynode"
-            #PJM -P "vn-policy=abs-unpack"
-            #PJM -L "elapse=01:00:00"
-            #
-
-            source /center/local/apl/cx/intel/composerxe/bin/compilervars.sh intel64
-            source /center/local/apl/cx/intel/impi/4.1.1.036/bin64/mpivars.sh
-            source /center/local/apl/cx/intel/mkl/bin/mklvars.sh intel64
-
-            export I_MPI_PIN_DOMAIN=omp
-            # export OMP_NUM_THREADS=28
-            export I_MPI_HYDRA_BOOTSTRAP=rsh
-            export I_MPI_HYDRA_BOOTSTRAP_EXEC=/bin/pjrsh
-            export I_MPI_HYDRA_HOST_FILE=${PJM_O_NODEINF}
-            export FORT90L=-Wl,-Lu
-            '''  + shell_file_content_total
-                    # + 'cd ' + os.getcwd() +'\n\n' \
-            print("\n Finish. edit and pjsub ./" + shell_filename + "\n")
+            job_commands = job_schedulers.ofp_flat(n_nodes)
+        
+        elif is_mpi == 'cx400':
+            job_commands = job_schedulers.cx400(n_nodes)
 
         elif is_mpi == 'fram': # This option is added by JEM / jonkd.
-            shell_file_content_tmp = '#!/bin/bash \n'
-            shell_file_content_tmp += f'#SBATCH --job-name={shell_filename[:-3]} \n'
-            shell_file_content_tmp += f'#SBATCH --account={sigma2_project_name} \n'
-            shell_file_content_tmp += '## Syntax is d-hh:mm:ss \n'
-            shell_file_content_tmp += f'#SBATCH --time={sigma2_n_days}-{sigma2_n_hours:02d}:{sigma2_n_minutes:02d}:00 \n'
-            shell_file_content_tmp += f'#SBATCH --nodes={n_nodes}\n'
-            shell_file_content_tmp += f'#SBATCH --ntasks-per-node={n_tasks_per_node} \n'
-            shell_file_content_tmp += f'#SBATCH --cpus-per-task={n_cpus_per_task} \n'
-            shell_file_content_tmp += '#SBATCH --mail-type=ALL \n'
-            shell_file_content_tmp += f'#SBATCH --mail-user={sigma2_user_email} \n'
-            if type_of_fram_job != "normal":
-                shell_file_content_tmp += f'#SBATCH --qos={type_of_fram_job} \n'
-            shell_file_content_tmp += 'module --quiet purge  \n'
-            # shell_file_content_tmp += 'module load foss/2017a \n'
-            shell_file_content_tmp += 'module load intel/2020b \n'
-            shell_file_content_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
-            shell_file_content_tmp += 'set -o errexit  \n'
-            shell_file_content_tmp += 'set -o nounset \n'
-            shell_file_content_tmp += shell_file_content_total
-            shell_file_content_total = shell_file_content_tmp
+            job_commands = job_schedulers.fram(
+                shell_filename,
+                sigma2_project_name,
+                sigma2_n_days,
+                sigma2_n_hours,
+                sigma2_n_minutes,
+                n_nodes,
+                n_tasks_per_node,
+                n_cpus_per_task,
+                sigma2_user_email,
+                type_of_fram_job,
+            )
 
         elif is_mpi == 'betzy': # This option is added by jonkd.
-            shell_file_content_tmp = '#!/bin/bash \n'
-            shell_file_content_tmp += f'#SBATCH --job-name={shell_filename[:-3]} \n'
-            shell_file_content_tmp += f'#SBATCH --account={sigma2_project_name} \n'
-            shell_file_content_tmp += '## Syntax is d-hh:mm:ss \n'
-            shell_file_content_tmp += f'#SBATCH --time={sigma2_n_days}-{sigma2_n_hours:02d}:{sigma2_n_minutes:02d}:00 \n'
-            shell_file_content_tmp += f'#SBATCH --nodes={n_nodes}\n'
-            shell_file_content_tmp += f'#SBATCH --ntasks-per-node={n_tasks_per_node} \n'
-            shell_file_content_tmp += f'#SBATCH --cpus-per-task={n_cpus_per_task} \n'
-            shell_file_content_tmp += '#SBATCH --mail-type=ALL \n'
-            shell_file_content_tmp += f'#SBATCH --mail-user={sigma2_user_email} \n'
-            
-            if type_of_betzy_job != "normal":
-                shell_file_content_tmp += f'#SBATCH --qos={type_of_betzy_job} \n'
-            
-            shell_file_content_tmp += 'module --quiet purge  \n'
-            shell_file_content_tmp += 'module load intel/2020b \n'
-            shell_file_content_tmp += 'module load Python/3.8.6-GCCcore-10.2.0 \n'
-            shell_file_content_tmp += 'set -o errexit  \n'
-            shell_file_content_tmp += 'set -o nounset \n'
-            
-            if omp_num_threads is not None:
-                shell_file_content_tmp += f'export OMP_NUM_THREADS={omp_num_threads} \n'
-            
-            # shell_file_content_tmp += shell_file_content_total
-            # shell_file_content_total = shell_file_content_tmp
-            shell_file_content_total = shell_file_content_tmp + shell_file_content_total
+            job_commands = job_schedulers.betzy(
+                shell_filename,
+                sigma2_project_name,
+                sigma2_n_days,
+                sigma2_n_hours,
+                sigma2_n_minutes,
+                n_nodes,
+                n_tasks_per_node,
+                n_cpus_per_task,
+                sigma2_user_email,
+                type_of_betzy_job,
+                omp_num_threads
+            )
 
         else: # FX10
-            shell_file_content_total = '#!/bin/sh \n' \
-                    + '#PJM -L "rscgrp=debug"\n' \
-                    + '#PJM -L "node=' + str(n_nodes) + '"\n' \
-                    + '# #PJM -L "elapse=24:00:00"\n\n' \
-                    + shell_file_content_total 
-                    # + 'cd ' + os.getcwd() +'\n\n' \
-            print("\n Finish. edit and pjsub ./" + shell_filename + "\n")
+            job_commands = job_schedulers.pjm_default(n_nodes)
+
     else:
-        check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py') 
-        shell_file_content_total = '#!/bin/sh \n' \
-                + '# export OMP_STACKSIZE=1g\n' \
-                + 'export GFORTRAN_UNBUFFERED_PRECONNECTED=y\n' \
-                + '# ulimit -s unlimited\n\n' \
-                + shell_file_content_total 
-        print("\n Finish. Run ./" + shell_filename + "\n")
+        check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py')
+        job_commands = job_schedulers.no_scheduler()
+
+    shell_file_content_total = job_commands + shell_file_content_total
     
     shell_file_content_total = \
         check_j_scheme_dimensionality(
@@ -1758,61 +1714,29 @@ def main():
             shell_file_content_total
         )
 
-    split_shell_files = False
-    split_shell_files_msg = "Split shell files? y/n: (default: n)"
-    print(split_shell_files_msg)
-    while True:
-        ans = raw_input_save(": ")
-        if ans.lower() == "y":
-            split_shell_files = True
-        elif ans.lower() == "n":
-            split_shell_files = False
-        elif ans == "":
-            split_shell_files = False
-        else:
-            continue
-        break
-    
-    if split_shell_files:
+    try:
+        save_shell_script(
+            states = states,
+            kshell_shell_file_content_list = kshell_shell_file_content_list,
+            shell_file_content_total = shell_file_content_total,
+            shell_file_content_tmp = job_commands,
+            shell_filename_single = shell_filename
+        )
+    except UnboundLocalError:
         """
-        Save separate shell files for each (spin, parity) pair in
-        separate directories.
+        Temporary hack until I fix the header properly.
         """
-        if len(kshell_shell_file_content_list) != 1:
-            print("Split shell files currently not supported with multiple nuclides input.")
-        else:
-            for state, content in zip(states, kshell_shell_file_content_list[0]):
-                directory_name = f"{state[1]/2:g}{parity_to_string(state[2])}"
-                shell_filename = f"{directory_name}/{directory_name}.sh"
-                if not is_mpi: shell_file_content_tmp = ""  # Temporary hack.
-                
-                try:
-                    os.mkdir(directory_name)
-                except FileExistsError:
-                    print(f"Warning! Directory '{directory_name}' already exists!")
-
-                with open(shell_filename, "w") as outfile:
-                    outfile.write(shell_file_content_tmp + content)
-
-                if not is_mpi: os.chmod(shell_filename, 0o755)
-
-                os.system(f"cp {state[6][1]} {directory_name}")
-                os.system(f"cp *.snt kshell.exe {directory_name}")
-
-            os.system("rm kshell.exe")
-
-    else:
-        """
-        Save one shell file for all calculations.
-        """
-        with open(shell_filename, 'w') as outfile:
-            outfile.write(shell_file_content_total)
-
-        if not is_mpi: os.chmod(shell_filename, 0o755)
-
+        save_shell_script(
+            states = states,
+            kshell_shell_file_content_list = kshell_shell_file_content_list,
+            shell_file_content_total = shell_file_content_total,
+            shell_file_content_tmp = "",
+            shell_filename_single = shell_filename
+        )
     with open('save_input_ui.txt', 'w') as outfile:
-        outfile.write( gen_partition.output_ans )
+        outfile.write(gen_partition.output_ans)
 
- 
+    print("Setup complete. Exiting...")
+
 if __name__ == "__main__":
     main()
