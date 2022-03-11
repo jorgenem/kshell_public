@@ -1645,9 +1645,7 @@ def main():
 
     shell_filename += ".sh"
     
-    # header
     if is_mpi:
-        check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py') 
         if is_mpi == 'coma':
             job_commands = job_schedulers.coma(stgin_filenames, stgout_filenames, n_nodes)
             
@@ -1702,10 +1700,10 @@ def main():
             job_commands = job_schedulers.pjm_default(n_nodes)
 
     else:
-        check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py')
         job_commands = job_schedulers.no_scheduler()
 
     shell_file_content_total = job_commands + shell_file_content_total
+    check_copy('kshell.exe', 'transit.exe', 'collect_logs.py', 'count_dim.py')
     
     shell_file_content_total = \
         check_j_scheme_dimensionality(
@@ -1713,26 +1711,14 @@ def main():
             model_space_filename,
             shell_file_content_total
         )
-
-    try:
-        save_shell_script(
-            states = states,
-            kshell_shell_file_content_list = kshell_shell_file_content_list,
-            shell_file_content_total = shell_file_content_total,
-            shell_file_content_tmp = job_commands,
-            shell_filename_single = shell_filename
-        )
-    except UnboundLocalError:
-        """
-        Temporary hack until I fix the header properly.
-        """
-        save_shell_script(
-            states = states,
-            kshell_shell_file_content_list = kshell_shell_file_content_list,
-            shell_file_content_total = shell_file_content_total,
-            shell_file_content_tmp = "",
-            shell_filename_single = shell_filename
-        )
+        
+    save_shell_script(
+        states = states,
+        kshell_shell_file_content_list = kshell_shell_file_content_list,
+        shell_file_content_total = shell_file_content_total,
+        shell_file_content_tmp = job_commands,
+        shell_filename_single = shell_filename
+    )
     with open('save_input_ui.txt', 'w') as outfile:
         outfile.write(gen_partition.output_ans)
 
