@@ -3,39 +3,14 @@ import sys, os, os.path, shutil, readline, re
 from fractions import Fraction
 from typing import Tuple, List, Dict, TextIO
 from ast import literal_eval
+import numpy as np
 import gen_partition
 from gen_partition import raw_input_save
 from count_dim import count_dim
 import job_schedulers
-from parameters import recommended_quenching_factors
+from parameters import recommended_quenching_factors, GS_FREE_PROTON, GS_FREE_NEUTRON
 
 bindir = os.path.dirname( __file__ )    # Full path to the directory of this file.
-
-# # Change the default behaviour by uncommenting the correct MPI preset.
-# # The values listed can be chosen in the interactive setup even though
-# # they are commented here.
-
-is_mpi = False         # single node (w/o MPI)
-#is_mpi = True         # FX10 
-#is_mpi = 'fx10'       # FX10 
-#is_mpi = 'coma'       # Tsukuba CCS COMA + sbatch
-#is_mpi = 'k'          # K computer 'micro'
-#is_mpi = 'k-micro'    # K computer 'micro'
-#is_mpi = 'k-small'    # K computer 'small' queue with staging
-#is_mpi = 'k-large'    # K computer 'large' queue with staging
-#is_mpi = 'cx400'      # CX400 at Nagoya Univ.
-#is_mpi = 'ofp'        # Oakforest-PACS at Tokyo and Tsukuba  
-#is_mpi = 'ofp-flat'   # Oakforest-PACS at Tokyo and Tsukuba , flat mode
-# is_mpi = "fram" # Fram cluster @ UiT, Norway
-
-# NOTE: I (jonkd) removed global declaration of n_nodes from main.
-# n_nodes = 24  # default number of MPI nodes 
-# n_nodes = 768
-# if is_mpi in ('k', 'k-micro', 'k-large'): n_nodes = 1152
-# if is_mpi in ('cx400',): n_nodes = 4
-
-GS_FREE_PROTON = 5.585
-GS_FREE_NEUTRON = -3.826
 
 var_dict = {
     "max_lanc_vec"  : 200 , 
@@ -47,7 +22,6 @@ var_dict = {
     "eff_charge"    : [1.5, 0.5] , 
     "gl"            : [1.0, 0.0], 
     "gs"            : [GS_FREE_PROTON, GS_FREE_NEUTRON],
-    # "gs"            : [0.9*GS_FREE_PROTON, 0.9*GS_FREE_NEUTRON],
     "beta_cm"       : 0.0, 
 }
 
@@ -73,7 +47,7 @@ elements = [
     'Rg', 'Cn', 'Nh', 'Fl', 'Mc', 'Lv', 'Ts', 'Og'
 ]
 
-class SimpleCompleter(object):
+class SimpleCompleter:
     def __init__(self, options):
         self.options = sorted(options)
         return
@@ -149,7 +123,7 @@ def split_jpn(jpn: str, valence_p_n: Tuple[int, int]) -> Tuple[int, int, int, bo
     
     if arr[0]:
         """
-        Spin is specified. Calculate the n lowest lying states with the
+        Spin is specified. Calculate the n lowest laying states with the
         given spin.
         
         Example: '3.5+3'.split('+') >>> ['3.5', '3']
@@ -157,7 +131,7 @@ def split_jpn(jpn: str, valence_p_n: Tuple[int, int]) -> Tuple[int, int, int, bo
         is_jproj = True
     else:
         """
-        Spin is not specified. Calculate the n lowest lying states.
+        Spin is not specified. Calculate the n lowest laying states.
         
         Example: '+10'.split('+') >>> ['', '10']
         """
@@ -710,11 +684,61 @@ def main_nuclide(
     print(f"  (ex. {default_states:d}          for {default_states:d} +parity, {default_states:d} -parity states w/o J-proj. (default)")
     print("       -5           for lowest five -parity states, ")
     print("       0+3, 2+1     for lowest three 0+ states and one 2+ states, ")
-    print("       1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :")
+    print("       1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states")
+    print("       range        for a range of states) :")
 
     input_n_states = raw_input_save()
-    input_n_states = input_n_states.replace(',', ' ').split()
-    
+    if input_n_states.lower() == "range":
+        """
+        Specify a range of spin values for any parity.
+        """
+        while True:
+            start_spin = raw_input_save("Start spin: ")
+            end_spin = raw_input_save("End spin (included): ")
+            n_spin_states = raw_input_save("Number of states per spin: ")
+            parities = raw_input_save("Parity (+, -, both): ")
+
+            try:
+                start_spin = float(start_spin)
+                end_spin = float(end_spin)
+            except ValueError:
+                print("Input spins must be int or float!")
+                continue
+
+            try:
+                n_spin_states = int(n_spin_states)
+            except ValueError:
+                print("Input number of states must be an integer!")
+                continue
+
+            if parities not in (allowed := ["+", "-", "both"]):
+                print(f"Input parity must be one of: {allowed}")
+                continue
+
+            if start_spin >= end_spin:
+                print("Start spin must be lower than end spin!")
+                continue
+
+            if n_spin_states <= 0:
+                print("The number of requested states must be greater than zero!")
+                continue
+            
+            break
+        
+        input_n_states = []
+        if parities in ["+", "both"]:
+            input_n_states += [f"{i:g}{'+'}{n_spin_states}" for i in np.arange(start_spin, end_spin + 1, 1)]
+        if parities in ["-", "both"]:
+            input_n_states += [f"{i:g}{'-'}{n_spin_states}" for i in np.arange(start_spin, end_spin + 1, 1)]
+        print(f"Chosen states: {input_n_states}")
+        
+    else:
+        """
+        Make a list of the input values. Example:
+        0+200,1+200,2+200 -> [0+200, 1+200, 2+200]
+        """
+        input_n_states = input_n_states.replace(',', ' ').split()
+
     if not input_n_states:
         """
         If no input is given, go to default values.
@@ -873,7 +897,7 @@ def main_nuclide(
     fn_save_dict = {}
     kshell_shell_file_content_list = [] # For running each spin, parity config as a separate shell file.
     
-    for spin, parity, n_states, is_jproj in list_jpn:
+    for kshell_filename_counter, (spin, parity, n_states, is_jproj) in enumerate(list_jpn):
         if is_jproj:
             """
             Specific spin(s) requested.
@@ -916,6 +940,7 @@ def main_nuclide(
         var_dict[ 'mtot' ] = spin
         
         input_filename = f"{base_filename}_{str(spin)}{parity_to_string(parity)}.input"
+        kshell_shell_filename_single = f"{kshell_filename_counter:03d}_{str(spin)}{parity_to_string(parity)}.sh"
 
         if 'no_save' in var_dict.keys():
             del var_dict[ 'fn_save_wave' ]
@@ -936,10 +961,10 @@ def main_nuclide(
                input_filename + ' \n\n\n'
 
         shell_file_content_single += tmp_kshell_content
-        kshell_shell_file_content_list.append(tmp_kshell_content)
+        kshell_shell_file_content_list.append([tmp_kshell_content, kshell_shell_filename_single])
 
     transition_prob_msg = f"Compute transition probabilities (E2/M1/E1) for"
-    transition_prob_msg += f" {base_filename} ? Y/N (default: Y)"
+    transition_prob_msg += f" {base_filename} ? y/n (default: y)"
     print(transition_prob_msg)
     while True:
         ans = raw_input_save(": ")
@@ -971,6 +996,7 @@ def main_nuclide(
         is_e1 = False
 
     transit_shell_file_content_list = []
+    transit_filename_counter = kshell_filename_counter + 1  # Continue the numbering.
     for idx_1, (spin_1, parity_1, n_states_1, is_jproj_1) in enumerate(list_jpn):
         for idx_2, (spin_2, parity_2, n_states_2, is_jproj_2) in enumerate(list_jpn):
             """
@@ -1027,6 +1053,7 @@ def main_nuclide(
                 continue
             
             input_filename = f"{base_filename}_{str(spin_1)}{parity_to_string(parity_1)}_{str(spin_2)}{parity_to_string(parity_2)}.input"
+            transit_shell_filename_single = f"{transit_filename_counter:03d}_tr_{str(spin_1)}{parity_to_string(parity_1)}_{str(spin_2)}{parity_to_string(parity_2)}.sh"
             tmp_transit_content = output_transit(
                 base_filename,
                 input_filename,
@@ -1037,16 +1064,13 @@ def main_nuclide(
             )
             tmp_transit_content += f"rm -f {input_filename}\n\n\n"
             shell_file_content_single += tmp_transit_content
-            transit_shell_file_content_list.append(tmp_transit_content)
+            transit_shell_file_content_list.append([tmp_transit_content, transit_shell_filename_single])
+            transit_filename_counter += 1
 
     summary_filename = f"summary_{base_filename}.txt"
     stgout_filenames.append(summary_filename)
     shell_file_content_single += f"./collect_logs.py log_*{base_filename}* > {summary_filename}\n"
     shell_file_content_single += f'echo "Finish computing {base_filename}. See {summary_filename}"\necho\n\n'
-
-    # for i, elem in enumerate(transit_shell_file_content_list):
-    #     with open(f"file_{i}.txt", "w") as outfile:
-    #         outfile.write(elem)
 
     return (
         base_filename,
@@ -1068,13 +1092,23 @@ def ask_yn(optype):
     return ret
 
 def check_j_scheme_dimensionality(
-    states: list,
+    states: List,
     model_space_filename: str,
     shell_file_content_total: str
     ):
     """
     Check that the requested amount of states does not exceed the
     J-scheme dimensionality.
+
+    Parameters
+    ----------
+    states : list
+        A nested list containing information on each set of requested
+        states. Each entry contains: A tuple with the number of valence
+        protons and neutrons, the spin of the states, the parity of the
+        states, the number of requested states, is_jproj, base filename
+        ('{element}_{interaction}'), and a tuple with the .wav and .ptn
+        filenames.
     """
     msg = "\nChecking whether the requested number of energy eigenstates"
     msg += " exceeds the J-scheme dimensionality..."
@@ -1132,13 +1166,42 @@ def check_j_scheme_dimensionality(
 def save_shell_script(
     states: List,
     kshell_shell_file_content_list: List,
+    transit_shell_file_content_list: List,
     shell_file_content_total: str,
-    shell_file_content_tmp: str,
+    job_commands: str,
     shell_filename_single: str
     ):
     """
     Save as either a single .sh executable or multiple .sh executables,
     one for each (spin, parity) pair.
+
+    Parameters
+    ----------
+    states : list
+        A nested list containing information on each set of requested
+        states. Each entry contains: A tuple with the number of valence
+        protons and neutrons, the spin of the states, the parity of the
+        states, the number of requested states, is_jproj, base filename
+        ('{element}_{interaction}'), and a tuple with the .wav and .ptn
+        filenames.
+    
+    kshell_shell_file_content_list : list
+        A nested list where each entry is a list containing the .sh
+        commands for each set of requested states.
+    
+    transit_shell_file_content_list : list
+        A nested list where each entry is a list containing the .sh
+        commands for all requested transitions.
+    
+    shell_file_content_total : str
+        A string containing all the .sh commands for all set of
+        requested states and all requested transitions.
+    
+    job_commands : str
+        The job queue system commands.
+
+    shell_filename_single : str
+        The shell_fine_content_total filename.
     """
     split_shell_files = False
     split_shell_files_msg = "Split shell files? y/n: (default: n): "
@@ -1161,27 +1224,68 @@ def save_shell_script(
         separate directories.
         """
         if len(kshell_shell_file_content_list) != 1:
-            print("Split shell files currently not supported with multiple nuclides input.")
-        else:
-            for state, content in zip(states, kshell_shell_file_content_list[0]):
-                directory_name = f"{state[1]/2:g}{parity_to_string(state[2])}"
-                shell_filename = f"{directory_name}/{directory_name}.sh"
-                # if not is_mpi: shell_file_content_tmp = ""  # Temporary hack.
-                try:
-                    os.mkdir(directory_name)
-                except FileExistsError:
-                    print(f"Warning! Directory '{directory_name}' already exists!")
+            msg = "Split shell files currently not supported with multiple nuclides input.\n"
+            msg += "Exiting..."
+            raise NotImplementedError(msg)
 
-                with open(shell_filename, "w") as outfile:
-                    outfile.write(shell_file_content_tmp + content)
+        # is_continue_msg = True  # Prompt for continuation only once.
+        # for state, content in zip(states, kshell_shell_file_content_list[0]):
+        for content, shell_filename in kshell_shell_file_content_list[0]:
+            """
+            KSHELL part of the calculations.
+            """
+            # directory_name = f"{state[1]/2:g}{parity_to_string(state[2])}"
+            # shell_filename = f"{directory_name}/{directory_name}.sh"
+            # shell_filename = f"{state[1]/2:g}{parity_to_string(state[2])}.sh"
+            # try:
+            #     os.mkdir(directory_name)
+            # except FileExistsError:
+            #     msg = f"Warning! Directory '{directory_name}' already exists!"
+            #     msg += " Continuing will probably overwrite existing .sh files."
+            #     print(msg)
+                
+            #     if is_continue_msg:
+            #         """
+            #         Display continue message only once.
+            #         """
+            #         is_continue_msg = False
+            #         ans = raw_input_save("Continue? (y/n): ")
+            #         if ans.lower() != "y":
+            #             print("Exiting...")
+            #             sys.exit()
 
-                if not is_mpi: os.chmod(shell_filename, 0o755)
+            with open(shell_filename, "w") as outfile:
+                outfile.write(job_commands + content)
 
-                os.system(f"cp {state[6][1]} {directory_name}")
-                os.system(f"cp *.snt kshell.exe {directory_name}")
+            if not is_mpi: os.chmod(shell_filename, 0o755)
 
-            os.system("rm kshell.exe")
+            # os.system(f"cp {state[6][1]} {directory_name}")
+            # os.system(f"cp *.snt kshell.exe {directory_name}")
 
+        # try:
+        #     os.mkdir("transit")
+        # except FileExistsError:
+        #     print(f"Warning! Directory 'transit' already exists!")
+        #     ans = raw_input_save("Continue? (y/n): ")
+        #     if ans.lower() != "y":
+        #         print("Exiting...")
+        #         sys.exit()
+
+        # os.system("cp *.snt *.ptn transit.exe transit")
+        
+        # print("LOLZ")
+        # print(f"{len(states)=}")
+        # print(f"{len(transit_shell_file_content_list[0])=}")
+        for content, shell_filename in transit_shell_file_content_list[0]:
+            """
+            Transit part of the calculations.
+            """
+            with open(shell_filename, "w") as outfile:
+                outfile.write(job_commands + content)
+
+            if not is_mpi: os.chmod(shell_filename, 0o755)
+        # os.system("rm kshell.exe transit.exe")
+    
     else:
         """
         Save one shell file for all calculations.
@@ -1245,11 +1349,13 @@ def main():
     print("     to generate job script. \n")
     print("-----------------------------\n ")
 
-    cdef = 'N'  # Default MPI parallel value.
+    # cdefault = 'N'  # Default MPI parallel value.
     n_nodes = 64    # Default value. May be overwritten.
     global is_mpi
-    if is_mpi: cdef = is_mpi
-    if cdef == True: cdef = 'Y'
+    is_mpi = False  # Default
+    cdefault = "Y" if is_mpi else "N"
+    # if is_mpi: cdefault = is_mpi  # Consider removing these.
+    # if cdefault == True: cdefault = 'Y'
     list_param = [  # Valid MPI parameters.
         'coma', 'fx10', 'k', 'k-micro', 'k-small', 'k-large', 'cx400',
         'ofp', 'ofp-flat', 'oakforest-pacs', 'yes', 'no', 'Y', 'N', 'y',
@@ -1292,14 +1398,14 @@ def main():
         'Y/N/preset, number of nodes'.
         """
         mpi_input_ans = raw_input_save( 
-            '\n MPI parallel? Y/N/preset, n nodes (default: ' + cdef + ',  TAB to complete) : '
+            '\n MPI parallel? Y/N/preset, n nodes (default: ' + cdefault + ',  TAB to complete) : '
         )
         mpi_input_arr = mpi_input_ans.replace(',', ' ').split() # Example input: 'y, 10'.
         if not mpi_input_arr:
             """
-            Revert to default (cdef) if no input is given.
+            Revert to default (cdefault) if no input is given.
             """
-            mpi_input_arr = [ cdef, ]
+            mpi_input_arr = [ cdefault, ]
         if mpi_input_arr[0] in list_param:
             if (len(mpi_input_arr) == 1) or (mpi_input_arr[1].isdigit()): break
         print("\n *** Invalid input ***")
@@ -1727,8 +1833,9 @@ def main():
     save_shell_script(
         states = states,
         kshell_shell_file_content_list = kshell_shell_file_content_list,
+        transit_shell_file_content_list = transit_shell_file_content_list,
         shell_file_content_total = shell_file_content_total,
-        shell_file_content_tmp = job_commands,
+        job_commands = job_commands,
         shell_filename_single = shell_filename
     )
     with open('save_input_ui.txt', 'w') as outfile:
