@@ -1164,7 +1164,6 @@ def check_j_scheme_dimensionality(
     return shell_file_content_total
 
 def save_shell_script(
-    states: List,
     kshell_shell_file_content_list: List,
     transit_shell_file_content_list: List,
     shell_file_content_total: str,
@@ -1176,15 +1175,7 @@ def save_shell_script(
     one for each (spin, parity) pair.
 
     Parameters
-    ----------
-    states : list
-        A nested list containing information on each set of requested
-        states. Each entry contains: A tuple with the number of valence
-        protons and neutrons, the spin of the states, the parity of the
-        states, the number of requested states, is_jproj, base filename
-        ('{element}_{interaction}'), and a tuple with the .wav and .ptn
-        filenames.
-    
+    ----------    
     kshell_shell_file_content_list : list
         A nested list where each entry is a list containing the .sh
         commands for each set of requested states.
@@ -1228,54 +1219,15 @@ def save_shell_script(
             msg += "Exiting..."
             raise NotImplementedError(msg)
 
-        # is_continue_msg = True  # Prompt for continuation only once.
-        # for state, content in zip(states, kshell_shell_file_content_list[0]):
         for content, shell_filename in kshell_shell_file_content_list[0]:
             """
             KSHELL part of the calculations.
             """
-            # directory_name = f"{state[1]/2:g}{parity_to_string(state[2])}"
-            # shell_filename = f"{directory_name}/{directory_name}.sh"
-            # shell_filename = f"{state[1]/2:g}{parity_to_string(state[2])}.sh"
-            # try:
-            #     os.mkdir(directory_name)
-            # except FileExistsError:
-            #     msg = f"Warning! Directory '{directory_name}' already exists!"
-            #     msg += " Continuing will probably overwrite existing .sh files."
-            #     print(msg)
-                
-            #     if is_continue_msg:
-            #         """
-            #         Display continue message only once.
-            #         """
-            #         is_continue_msg = False
-            #         ans = raw_input_save("Continue? (y/n): ")
-            #         if ans.lower() != "y":
-            #             print("Exiting...")
-            #             sys.exit()
-
             with open(shell_filename, "w") as outfile:
                 outfile.write(job_commands + content)
 
             if not is_mpi: os.chmod(shell_filename, 0o755)
 
-            # os.system(f"cp {state[6][1]} {directory_name}")
-            # os.system(f"cp *.snt kshell.exe {directory_name}")
-
-        # try:
-        #     os.mkdir("transit")
-        # except FileExistsError:
-        #     print(f"Warning! Directory 'transit' already exists!")
-        #     ans = raw_input_save("Continue? (y/n): ")
-        #     if ans.lower() != "y":
-        #         print("Exiting...")
-        #         sys.exit()
-
-        # os.system("cp *.snt *.ptn transit.exe transit")
-        
-        # print("LOLZ")
-        # print(f"{len(states)=}")
-        # print(f"{len(transit_shell_file_content_list[0])=}")
         for content, shell_filename in transit_shell_file_content_list[0]:
             """
             Transit part of the calculations.
@@ -1284,7 +1236,6 @@ def save_shell_script(
                 outfile.write(job_commands + content)
 
             if not is_mpi: os.chmod(shell_filename, 0o755)
-        # os.system("rm kshell.exe transit.exe")
     
     else:
         """
