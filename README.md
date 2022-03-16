@@ -608,6 +608,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ```
   python count_dim.py usda.snt Ne20_usda_p.ptn
   ```
+  or by (you will be prompted for available `.snt` and `ptn` files)
+  ```
+  python count_dim.py
+  ```
   which generates the output
   ```
         2*M        M-scheme dim.          J-scheme dim.
