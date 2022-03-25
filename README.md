@@ -1116,7 +1116,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 <summary>Click here for pitfalls</summary>
 <p>
 
-  2021-09-29 UPDATE: `kshell_ui.py` now checks if the number of requested states exceeds the maximum possible number of states for the given model space and configuration and adjusts accordingly. This error should not be a problem anymore for single PC compilation. We still do experience this issue when compiled with `-DMPI`, but running KSHELL a with a small number of possible configurations on a computer with several nodes is nonsenical.
+  #### error [dcg]: invalid j or m
+  KSHELL might raise this error, meaning that the projection `m` is larger than the angular momentum of the state, `j`. This error probably occurs in combination with using block Lanczos (`n_block = 8` for example). Setting `n_block = 0` should resolve this problem, though at an increase in computation time.
+  
+  2021-09-29 UPDATE: `kshell_ui.py` now checks if the number of requested states exceeds the maximum possible number of states for the given model space and configuration and adjusts accordingly. This error should not be a problem anymore for single PC compilation. We still do experience this issue when compiled with `-DMPI`, but running KSHELL a with a small number of possible configurations on several nodes is nonsenical; reduce the number of nodes.
 
   KSHELL version 2 has undefined behavior if you request more states than the configuration and model space allows. As an example, take 28Ar in the USDA model space. By running the `count_dim.py` script we get
   ```
