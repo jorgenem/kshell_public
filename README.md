@@ -608,6 +608,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   ```
   python count_dim.py usda.snt Ne20_usda_p.ptn
   ```
+  or by (you will be prompted for available `.snt` and `ptn` files)
+  ```
+  python count_dim.py
+  ```
   which generates the output
   ```
         2*M        M-scheme dim.          J-scheme dim.
@@ -664,7 +668,8 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   <details>
   <summary>How to truncate</summary>
   <p>
-
+  
+  #### Particle-hole truncation
   `kshell_ui.py` asks you if you want to truncate the model space. For large configurations (many valence nucleons and many shells for them to occupy) truncation might be necessary for `KSHELL` to actually complete the calculations. We use V50 in the `GXPF` model space as an example. This configuration has a dimensionality of (see above section on how to calculate the dimensionality):
   ```
         2*M        M-scheme dim.          J-scheme dim.
@@ -748,6 +753,78 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   dim.     0              1004814                23628   1.00x10^ 6  2.36x10^ 4
   ```
   where we see that the dimensionality has been reduced by up to an order of magnitude for some spins.
+    
+  #### hw truncation
+  Some interactions (model spaces), like sdpf-mu, span over several major shells. In this case we can use hw (hbar omega) truncation to limit the number of particles which are allowed to cross the major shell gap. Lets use 44Sc as an example. 44Sc with the sdpf-mu interaction has a dimensionality so large that we are not even able to calculate the dimensionality, let alone perform the calculations. Here we need to use hw truncation to drastically reduce the size. Choose option 2 when you are prompted for truncation (or option 3 if you plan on using particle-hole truncation in addition to hw):
+  ```
+  truncation for "+" parity state in  Sc44_sdpf-mu_p.ptn
+  truncation scheme ?
+       0 : No truncation (default)
+       1 : particle-hole truncation for orbit(s)
+       2 : hw truncation
+       3 : Both (1) and (2)
+
+  2
+  (min. and) max hw for excitation : 3
+  lowest hw, maxhw  60 63
+  generating partition file ............ done.
+  ```
+  In the case of 44Sc with sdpf-mu you will be prompted for truncation on the negative parity states too. This example uses the same truncation for both + and -. In this example, 3 particles are allowed to cross the major shell gaps which results in a dimensionality of
+  ```
+        2*M        M-scheme dim.          J-scheme dim.
+  dim.    42                    8                    8   8.00x10^ 0  8.00x10^ 0
+  dim.    40                   84                   76   8.40x10^ 1  7.60x10^ 1
+  dim.    38                  513                  429   5.13x10^ 2  4.29x10^ 2
+  dim.    36                 2250                 1737   2.25x10^ 3  1.74x10^ 3
+  dim.    34                 7950                 5700   7.95x10^ 3  5.70x10^ 3
+  dim.    32                23800                15850   2.38x10^ 4  1.58x10^ 4
+  dim.    30                62464                38664   6.25x10^ 4  3.87x10^ 4
+  dim.    28               146820                84356   1.47x10^ 5  8.44x10^ 4
+  dim.    26               313940               167120   3.14x10^ 5  1.67x10^ 5
+  dim.    24               617562               303622   6.18x10^ 5  3.04x10^ 5
+  dim.    22              1127352               509790   1.13x10^ 6  5.10x10^ 5
+  dim.    20              1922531               795179   1.92x10^ 6  7.95x10^ 5
+  dim.    18              3079113              1156582   3.08x10^ 6  1.16x10^ 6
+  dim.    16              4651003              1571890   4.65x10^ 6  1.57x10^ 6
+  dim.    14              6648334              1997331   6.65x10^ 6  2.00x10^ 6
+  dim.    12              9018026              2369692   9.02x10^ 6  2.37x10^ 6
+  dim.    10             11633108              2615082   1.16x10^ 7  2.62x10^ 6
+  dim.     8             14296260              2663152   1.43x10^ 7  2.66x10^ 6
+  dim.     6             16760154              2463894   1.68x10^ 7  2.46x10^ 6
+  dim.     4             18762983              2002829   1.88x10^ 7  2.00x10^ 6
+  dim.     2             20072284              1309301   2.01x10^ 7  1.31x10^ 6
+  dim.     0             20527802               455518   2.05x10^ 7  4.56x10^ 5
+  ```
+  and
+  ```
+        2*M        M-scheme dim.          J-scheme dim.
+  dim.    50                    6                    6   6.00x10^ 0  6.00x10^ 0
+  dim.    48                   95                   89   9.50x10^ 1  8.90x10^ 1
+  dim.    46                  735                  640   7.35x10^ 2  6.40x10^ 2
+  dim.    44                 3972                 3237   3.97x10^ 3  3.24x10^ 3
+  dim.    42                16782                12810   1.68x10^ 4  1.28x10^ 4
+  dim.    40                59228                42446   5.92x10^ 4  4.24x10^ 4
+  dim.    38               181116               121888   1.81x10^ 5  1.22x10^ 5
+  dim.    36               492378               311262   4.92x10^ 5  3.11x10^ 5
+  dim.    34              1210949               718571   1.21x10^ 6  7.19x10^ 5
+  dim.    32              2729673              1518724   2.73x10^ 6  1.52x10^ 6
+  dim.    30              5695210              2965537   5.70x10^ 6  2.97x10^ 6
+  dim.    28             11083379              5388169   1.11x10^ 7  5.39x10^ 6
+  dim.    26             20241387              9158008   2.02x10^ 7  9.16x10^ 6
+  dim.    24             34862609             14621222   3.49x10^ 7  1.46x10^ 7
+  dim.    22             56856340             21993731   5.69x10^ 7  2.20x10^ 7
+  dim.    20             88092886             31236546   8.81x10^ 7  3.12x10^ 7
+  dim.    18            130029311             41936425   1.30x10^ 8  4.19x10^ 7
+  dim.    16            183263256             53233945   1.83x10^ 8  5.32x10^ 7
+  dim.    14            247098324             63835068   2.47x10^ 8  6.38x10^ 7
+  dim.    12            319234048             72135724   3.19x10^ 8  7.21x10^ 7
+  dim.    10            395690620             76456572   3.96x10^ 8  7.65x10^ 7
+  dim.     8            471046277             75355657   4.71x10^ 8  7.54x10^ 7
+  dim.     6            539002617             67956340   5.39x10^ 8  6.80x10^ 7
+  dim.     4            593209277             54206660   5.93x10^ 8  5.42x10^ 7
+  dim.     2            628208483             34999206   6.28x10^ 8  3.50x10^ 7
+  dim.     0            640309604             12101121   6.40x10^ 8  1.21x10^ 7
+  ```
   </p>
   </details>
 
@@ -1039,7 +1116,10 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 <summary>Click here for pitfalls</summary>
 <p>
 
-  2021-09-29 UPDATE: `kshell_ui.py` now checks if the number of requested states exceeds the maximum possible number of states for the given model space and configuration and adjusts accordingly. This error should not be a problem anymore for single PC compilation. We still do experience this issue when compiled with `-DMPI`, but running KSHELL a with a small number of possible configurations on a computer with several nodes is nonsenical.
+  #### error [dcg]: invalid j or m
+  KSHELL might raise this error, meaning that the projection `m` is larger than the angular momentum of the state, `j`. This error probably occurs in combination with using block Lanczos (`n_block = 8` for example). Setting `n_block = 0` should resolve this problem, though at an increase in computation time.
+  
+  2021-09-29 UPDATE: `kshell_ui.py` now checks if the number of requested states exceeds the maximum possible number of states for the given model space and configuration and adjusts accordingly. This error should not be a problem anymore for single PC compilation. We still do experience this issue when compiled with `-DMPI`, but running KSHELL a with a small number of possible configurations on several nodes is nonsenical; reduce the number of nodes.
 
   KSHELL version 2 has undefined behavior if you request more states than the configuration and model space allows. As an example, take 28Ar in the USDA model space. By running the `count_dim.py` script we get
   ```
