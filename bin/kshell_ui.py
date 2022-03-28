@@ -536,36 +536,74 @@ def exec_string(mode: str, input_filename: str, log_filename: str) -> str:
     else:
         return 'nice' + exec_command + input_filename + ' > ' + log_filename + ' 2>&1 \n\n'
 
-def output_transit(base_filename, input_filename, fn_wav_ptn1, fn_wav_ptn2, jpn1, jpn2):
-    m1, np1, ne1, isj1 = jpn1
-    m2, np2, ne2, isj2 = jpn2
+def list2str(a):
+    """
+    
+    """
+    if isinstance(a, list): 
+        return str(a[0]) + ', ' + str(a[1])
+    else: return a
 
-    def list2str( a ):
-        if isinstance(a, list): 
-            return str(a[0])+', '+str(a[1])
-        else: return a
+def output_transit(
+    base_filename: str,
+    input_filename: str,
+    wave_partition_filename_l: tuple,
+    wave_partition_filename_r: tuple,
+    jpn_l: tuple,
+    jpn_r: tuple
+    ) -> str:
+    """
+    Parameters
+    ----------
+    base_filename : str
+        Filename basis on the form '{nuclide}_{interaction}'.
+
+    input_filename : str
+        The filename of the .input file.
+
+    wave_partition_filename_l : tuple
+        A tuple containing the wave and partition filenames for the
+        left wave function.
+
+    wave_partition_filename_r : tuple
+        A tuple containing the wave and partition filenames for the
+        right wave function.
+
+    jpn_l : tuple
+        A tuple containing the 2*spin, parity, number of states and
+        is_jproj for the left wave function.
+
+    jpn_r : tuple
+        A tuple containing the 2*spin, parity, number of states and
+        is_jproj for the right wave function.
+    """
+    spin_l, parity_l, n_states_l, is_jproj_l = jpn_l
+    spin_r, parity_r, n_states_r, is_jproj_r = jpn_r
+
+    wave_filename_l, partition_filename_l = wave_partition_filename_l
+    wave_filename_r, partition_filename_r = wave_partition_filename_r
+
     eff_charge = list2str( var_dict[ "eff_charge" ] )
     gl = list2str( var_dict[ "gl" ] )
     gs = list2str( var_dict[ "gs" ] )
 
     out = ""
-    if isj1: jchar1 = '_j'
-    else:    jchar1 = '_m'
-    if isj2: jchar2 = '_j'
-    else:    jchar2 = '_m'
+    jchar_l = '_j' if is_jproj_l else '_m'
+    jchar_r = '_j' if is_jproj_r else '_m'
+
     log_filename = 'log_' + base_filename + '_tr' \
-        + jchar1 + str(m1) + parity_to_string(np1) \
-        + jchar2 + str(m2) + parity_to_string(np2) + '.txt'
+        + jchar_l + str(spin_l) + parity_to_string(parity_l) \
+        + jchar_r + str(spin_r) + parity_to_string(parity_r) + '.txt'
     stgout_filenames.append( log_filename )
 
     out += 'echo "start running ' + log_filename + ' ..."\n' 
     out += 'cat > ' + input_filename + ' <<EOF\n' \
         +  '&input\n'
     out += '  fn_int   = ' + var_dict["fn_int"] + '\n' \
-        +  '  fn_ptn_l = ' + fn_wav_ptn1[1] + '\n' \
-        +  '  fn_ptn_r = ' + fn_wav_ptn2[1] + '\n' \
-        +  '  fn_load_wave_l = ' + fn_wav_ptn1[0] + '\n' \
-        +  '  fn_load_wave_r = ' + fn_wav_ptn2[0] + '\n' \
+        +  '  fn_ptn_l = ' + partition_filename_l + '\n' \
+        +  '  fn_ptn_r = ' + partition_filename_r + '\n' \
+        +  '  fn_load_wave_l = ' + wave_filename_l + '\n' \
+        +  '  fn_load_wave_r = ' + wave_filename_r + '\n' \
         +  '  hw_type = ' + str(var_dict["hw_type"]) + '\n' \
         +  '  eff_charge = ' + eff_charge + '\n' \
         +  '  gl = ' + gl + '\n' \
@@ -1782,7 +1820,6 @@ def main():
         )
 
     save_shell_script(
-        states = states,
         kshell_shell_file_content_list = kshell_shell_file_content_list,
         transit_shell_file_content_list = transit_shell_file_content_list,
         shell_file_content_total = shell_file_content_total,
