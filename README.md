@@ -1119,6 +1119,9 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
   #### error [dcg]: invalid j or m
   KSHELL might raise this error, meaning that the projection `m` is larger than the angular momentum of the state, `j`. This error probably occurs in combination with using block Lanczos (`n_block = 8` for example). Setting `n_block = 0` should resolve this problem, though at an increase in computation time.
   
+  #### Small M- / J-scheme dimensionalities on many cores
+  If you are performing a calculation of relatively small dimensionality, be sure to not use too many CPU cores. This is not applicable to normal desktop / laptop computers, but to supercomputer with thousands of cores. Best case, the program crashes. Worst case, the program does nothing for the enitre duration of the allocated time. The program might run fine, but not using all the allocated resources and thus wasting CPU hours. As an example, Sc45 in sdpf-sdg with a max M-scheme dimensionality of 1.4e6 does not run well on 64 nodes on Betzy and just uses all of the allocated time doing nothing. Reducing the number of nodes to 4 solved the calculations in under 5 minutes. Dimensionality above 1e7 should work fine with any number of nodes on betzy.
+  
   2021-09-29 UPDATE: `kshell_ui.py` now checks if the number of requested states exceeds the maximum possible number of states for the given model space and configuration and adjusts accordingly. This error should not be a problem anymore for single PC compilation. We still do experience this issue when compiled with `-DMPI`, but running KSHELL a with a small number of possible configurations on several nodes is nonsenical; reduce the number of nodes.
 
   KSHELL version 2 has undefined behavior if you request more states than the configuration and model space allows. As an example, take 28Ar in the USDA model space. By running the `count_dim.py` script we get
