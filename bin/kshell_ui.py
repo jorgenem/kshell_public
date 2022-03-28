@@ -979,6 +979,7 @@ def main_nuclide(
         
         input_filename = f"{base_filename}_{str(spin)}{parity_to_string(parity)}.input"
         kshell_shell_filename_single = f"{kshell_filename_counter:03d}_{str(spin)}{parity_to_string(parity)}.sh"
+        kshell_job_name = f"{str(spin)}{parity_to_string(parity)}"
 
         if 'no_save' in var_dict.keys():
             del var_dict[ 'fn_save_wave' ]
@@ -999,7 +1000,7 @@ def main_nuclide(
                input_filename + ' \n\n\n'
 
         shell_file_content_single += tmp_kshell_content
-        kshell_shell_file_content_list.append([tmp_kshell_content, kshell_shell_filename_single])
+        kshell_shell_file_content_list.append([tmp_kshell_content, kshell_shell_filename_single, kshell_job_name])
 
     transition_prob_msg = f"Compute transition probabilities (E2/M1/E1) for"
     transition_prob_msg += f" {base_filename} ? y/n (default: y)"
@@ -1092,6 +1093,7 @@ def main_nuclide(
             
             input_filename = f"{base_filename}_{str(spin_1)}{parity_to_string(parity_1)}_{str(spin_2)}{parity_to_string(parity_2)}.input"
             transit_shell_filename_single = f"{transit_filename_counter:03d}_tr_{str(spin_1)}{parity_to_string(parity_1)}_{str(spin_2)}{parity_to_string(parity_2)}.sh"
+            transit_job_name = f"{str(spin_1)}{parity_to_string(parity_1)}{str(spin_2)}{parity_to_string(parity_2)}"
             tmp_transit_content = output_transit(
                 base_filename,
                 input_filename,
@@ -1102,7 +1104,7 @@ def main_nuclide(
             )
             tmp_transit_content += f"rm -f {input_filename}\n\n\n"
             shell_file_content_single += tmp_transit_content
-            transit_shell_file_content_list.append([tmp_transit_content, transit_shell_filename_single])
+            transit_shell_file_content_list.append([tmp_transit_content, transit_shell_filename_single, transit_job_name])
             transit_filename_counter += 1
 
     summary_filename = f"summary_{base_filename}.txt"
@@ -1230,10 +1232,10 @@ def save_shell_script(
         The job queue system commands.
 
     shell_filename_single : str
-        The shell_fine_content_total filename.
+        The shell_file_content_total filename.
     """
     split_shell_files = False
-    split_shell_files_msg = "Split shell files? y/n: (default: n): "
+    split_shell_files_msg = "Split shell files? y/n (default: n): "
     ans = raw_input_save(split_shell_files_msg)
     while True:
         if ans.lower() == "y":
@@ -1257,21 +1259,31 @@ def save_shell_script(
             msg += "Exiting..."
             raise NotImplementedError(msg)
 
-        for content, shell_filename in kshell_shell_file_content_list[0]:
+        for content, shell_filename, job_name in kshell_shell_file_content_list[0]:
             """
             KSHELL part of the calculations.
             """
+            old_job_name = "#SBATCH --job-name="
+            old_job_name += shell_filename_single.split(".")[0]  # Example: O20_usda
+            new_job_name = f"#SBATCH --job-name={job_name}"
+            job_commands_tmp = job_commands.replace(old_job_name, new_job_name)
+
             with open(shell_filename, "w") as outfile:
-                outfile.write(job_commands + content)
+                outfile.write(job_commands_tmp + content)
 
             if not is_mpi: os.chmod(shell_filename, 0o755)
 
-        for content, shell_filename in transit_shell_file_content_list[0]:
+        for content, shell_filename, job_name in transit_shell_file_content_list[0]:
             """
             Transit part of the calculations.
             """
+            old_job_name = "#SBATCH --job-name="
+            old_job_name += shell_filename_single.split(".")[0]  # Example: O20_usda
+            new_job_name = f"#SBATCH --job-name={job_name}"
+            job_commands_tmp = job_commands.replace(old_job_name, new_job_name)
+
             with open(shell_filename, "w") as outfile:
-                outfile.write(job_commands + content)
+                outfile.write(job_commands_tmp + content)
 
             if not is_mpi: os.chmod(shell_filename, 0o755)
     
