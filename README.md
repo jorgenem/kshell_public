@@ -1115,6 +1115,13 @@ Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 <details>
 <summary>Click here for pitfalls</summary>
 <p>
+  
+  #### Crashes on Betzy
+  ``` bash
+  srun: error: b5272: task 10: Broken pipe
+  [mpiexec@b1373.betzy.sigma2.no] wait_proxies_to_terminate (../../../../../src/pm/i_hydra/mpiexec/intel/i_mpiexec.c:527): downstream from host b1373 exited with status 141
+  ```
+  Try to increase or decrease `n_block`. This error occurred for me, crashing the job after just a few seconds, when calculating 200 1- states for 68Zn with gs8 (sdpf-sdg) with `n_block = 0`. Setting `n_block = 8` solved the problem.
 
   #### error [dcg]: invalid j or m
   KSHELL might raise this error, meaning that the projection `m` is larger than the angular momentum of the state, `j`. This error probably occurs in combination with using block Lanczos (`n_block = 8` for example). Setting `n_block = 0` should resolve this problem, though at an increase in computation time.
