@@ -812,6 +812,13 @@ def main_nuclide(
     
     list_jpn = [a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0]    # Remove invalid states as described a few lines above. TODO: Include this in the above loop.
 
+    if not list_jpn:
+        half_or_whole = "" if (sum(valence_p_n)%2 == 0) else "half "
+        invalid_spins_msg = f"This configuration only supports {half_or_whole}integer spins."
+        invalid_spins_msg += " All inputs are invalid spins for this configuration."
+        print(invalid_spins_msg)
+        sys.exit()
+
     parity_list = list( set( jpn[1] for jpn in list_jpn ) )   # Extract a list of only parities. Might at this point contain a parity not supported by the model space.
     fn_ptn_list = {-1:base_filename + "_n.ptn", 1:base_filename + "_p.ptn"}
     trc_list_prty = {-1:None, 1:None}
@@ -934,7 +941,7 @@ def main_nuclide(
     list_jpn = [ jpn for jpn in list_jpn if os.path.isfile( fn_ptn_list[ jpn[1] ]) ]    # Checks that the correct .ptn file exists. Unsure why this is needed...
     fn_save_dict = {}
     kshell_shell_file_content_list = [] # For running each spin, parity config as a separate shell file.
-    
+
     for kshell_filename_counter, (spin, parity, n_states, is_jproj) in enumerate(list_jpn):
         if is_jproj:
             """
@@ -1251,8 +1258,7 @@ def save_shell_script(
     
     if split_shell_files:
         """
-        Save separate shell files for each (spin, parity) pair in
-        separate directories.
+        Save separate shell files for each (spin, parity) pair.
         """
         if len(kshell_shell_file_content_list) != 1:
             msg = "Split shell files currently not supported with multiple nuclides input.\n"
