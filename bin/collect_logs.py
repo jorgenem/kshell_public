@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # ./collect_logs.py log_foo.txt log_bar.txt ...
-#
+# Author: Noritaka Shimizu (?). Modified by: Jon Dahl
 import sys
 from typing import List, Tuple
 from fractions import Fraction
