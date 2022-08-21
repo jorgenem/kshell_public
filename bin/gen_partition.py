@@ -4,19 +4,37 @@
 # usage: gen_partiton.py hoge.snt #proton #neutron parity
 #
 
-import sys, operator, random
+import sys, operator, random, os.path
 from functools import reduce
 
 output_ans = ""
 
-def raw_input_save(c=None):
-    if c is None: r = input()
-    else: r = input(c)
+def raw_input_save(comment: str = "") -> str:
+    """
+    Fetch user input from 'input' and append it to 'output_ans'.
+
+    Parameters
+    ----------
+    comment : str
+        Comment displayed on screen when user is prompted for input.
+
+    Returns
+    -------
+    ans : str
+        Input from user.
+    """
+    # if c is None: r = input()
+    # else: r = input(c)
+    ans = input(comment)
     global output_ans
-    output_ans += r + '\n'
-    return r
+    output_ans += ans + '\n'
+    return ans
 
 def read_comment_skip(fp):
+    """
+    NOTE: This can probably be replaced by 'read_comment_skip' in 
+    'kshell_ui'.
+    """
     while True:
         arr = fp.readline().split()
         if not arr: return None
@@ -34,8 +52,9 @@ def read_comment_skip(fp):
                 return arr
 
 def orb2char(n, l, j, tz):
-    lorb2c = ['s', 'p', 'd', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 
-              'm', 'n', 'o']
+    lorb2c = [
+        's', 'p', 'd', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o'
+    ]
     tz2c = { -1:'p', 1:'n' }
     return "%c_%d%c%d/2" % (tz2c[tz], n, lorb2c[l], j)
 
@@ -390,7 +409,7 @@ def main(
         sys.exit()
     
     n_jorb, n_core = [0,0], [0,0]
-    n_jorb[0], n_jorb[1], n_core[0], n_core[1]  = read_comment_skip(fp)
+    n_jorb[0], n_jorb[1], n_core[0], n_core[1] = read_comment_skip(fp)
     norb, lorb, jorb, itorb = [], [], [], []
     for i in range(sum(n_jorb)):
         arr = read_comment_skip(fp)
@@ -448,11 +467,11 @@ def main(
     ans = raw_input_save()
     ans = ans.rstrip()
     if not ans: ans = 0
-    tmod = int(ans)
+    truncation_mode = int(ans)
 
-    if not 0 <= tmod <= 4: raise 'input out of range'
+    if not 0 <= truncation_mode <= 4: raise 'input out of range'
 
-    if tmod == 2 or tmod == 3: 
+    if (truncation_mode == 2) or (truncation_mode == 3): 
         def ask_max_hw():
             ans = raw_input_save( " (min. and) max hw for excitation : " )
             ans = ans.replace(',', ' ').split()
@@ -464,12 +483,28 @@ def main(
         fpout.write("# hw trucnation,  min hw = "+str(ans[0]) 
                     +" ,   max hw = "+str(ans[1])+"\n")
 
-    if tmod == 1 or tmod == 3:
-        print("   #    n,  l,  j, tz,    spe ")
+    if (truncation_mode == 1) or (truncation_mode == 3):
+        print("   #    n   l   j   tz    spe ")
         for i in range(len(norb)):
+            """
+            Print the properties of the available valence orbitals.
+
+            Example:
+            #    n   l   j   tz    spe
+            1    0   2   3  -1     1.980     p_0d3/2
+            2    0   2   5  -1    -3.944     p_0d5/2
+            3    1   0   1  -1    -3.061     p_1s1/2
+            4    0   2   3   1     1.980     n_0d3/2
+            5    0   2   5   1    -3.944     n_0d5/2
+            6    1   0   1   1    -3.061     n_1s1/2
+            """
             n, l, j, tz = norb[i], lorb[i], jorb[i], itorb[i],
-            print(" %3d  %3d %3d %3d %3d %9.3f     %s" \
-                % ( i+1, n, l, j, tz, spe[i], orb2char(n, l, j, tz) ))
+            # print(" %3d  %3d %3d %3d %3d %9.3f     %s" \
+            #     % ( i+1, n, l, j, tz, spe[i], orb2char(n, l, j, tz) ))
+            msg = f" {i + 1:3d}  {n:3d} {l:3d} {j:3d} {tz:3d} {spe[i]:9.3f}"
+            msg += f"     {orb2char(n, l, j, tz)}"
+            print(msg)
+        
         print(' specify # of orbit(s) and min., max. occupation numbers ' \
             + 'for restriction')
         orb_list, t_list = [], []
@@ -487,18 +522,18 @@ def main(
             if len(ans) != 2: raise 'read error'
             t_list.append( [int(i) for i in ans] )
 
-        if tmod==1 and len(orb_list)>0:
+        if truncation_mode==1 and len(orb_list)>0:
             # class_ms.set_ph_truncation(orb_list[:], t_list[:])
             class_ms.set_hw_for_phtrunc(orb_list[0], t_list[0])
             if len(orb_list)>1:
                class_ms.set_ph_truncation(orb_list[1:], t_list[1:])
-        else: # tmod == 3
+        else: # truncation_mode == 3
             class_ms.set_ph_truncation(orb_list, t_list)
         fpout.write("# particle-hole truncation orbit(s) : min., max.\n")
         for orb,t in zip(orb_list, t_list):
             fpout.write("#      " + str([i+1 for i in orb]) + " :  " + \
                             str(t[0]) + " " + str(t[1]) + "\n")
-    if tmod == 4:
+    if truncation_mode == 4:
         ans = raw_input_save(
             " monopole trunc, threashold energy (relative to min): " )
         thd = float(ans)
@@ -548,7 +583,6 @@ if __name__ == "__main__":
             + 'output.ptn #proton #neutron parity')
         sys.exit(1)
 
-    import os.path
     if os.path.exists(sys.argv[2]): raise "partition file exists"
 
     model_space_filename, fn_out = sys.argv[1], sys.argv[2]
