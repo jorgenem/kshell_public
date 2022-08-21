@@ -39,6 +39,7 @@ def main():
     plt.legend()
     plt.xlabel("Time [s]")
     plt.ylabel("M-scheme dimension for lowest spin")
+    plt.grid()
     plt.show()
 
 if __name__ == "__main__":
