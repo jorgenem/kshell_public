@@ -813,6 +813,10 @@ def main_nuclide(
     list_jpn = [a for a in list_jpn if (a[0] + sum(valence_p_n))%2 == 0]    # Remove invalid states as described a few lines above. TODO: Include this in the above loop.
 
     if not list_jpn:
+        """
+        If list_jpn is empty, then no valid spin configurations were
+        given.
+        """
         half_or_whole = "" if (sum(valence_p_n)%2 == 0) else "half "
         invalid_spins_msg = f"This configuration only supports {half_or_whole}integer spins."
         invalid_spins_msg += " All inputs are invalid spins for this configuration."
