@@ -176,14 +176,14 @@ def create_base_filename(valence_p_n: tuple, model_space_filename: str) -> str:
     core_protons, core_neutrons = snt_parameters['ncore']
     Z = abs(core_protons)
     # Z +=  valence_p_n[0] if core_protons>0 else -valence_p_n[0]
-    if core_protons > 0:
+    if core_protons >= 0:
         Z +=  valence_p_n[0]
     else:
         Z += -valence_p_n[0]
     
     mass = Z + abs(core_neutrons)
     
-    if core_neutrons > 0:
+    if core_neutrons >= 0:
         mass +=  valence_p_n[1]
     else:
         mass += -valence_p_n[1]
@@ -221,9 +221,9 @@ def extract_valence_protons_and_neutrons(input_nuclide: str) -> tuple:
     z = elements.index(element_symbol)
     corep, coren = snt_parameters['ncore']
     
-    if corep > 0: nf1 =  z - corep
+    if corep >= 0: nf1 =  z - corep
     else:         nf1 = -z - corep
-    if coren > 0: nf2 =   mass - z  - coren
+    if coren >= 0: nf2 =   mass - z  - coren
     else:         nf2 = -(mass - z) - coren
         
     print('\n number of valence particles ', nf1, nf2)
@@ -524,7 +524,7 @@ def exec_string(mode: str, input_filename: str, log_filename: str) -> str:
     elif is_mpi in ('ofp-flat', ):
         return r'mpiexec.hydra  -n ${PJM_MPI_PROC} numactl --preferred=1 ' \
             + exec_command + input_filename + ' > ' + log_filename + '  \n\n'
-    elif is_mpi in ('ofp', ):
+    elif is_mpi in ('ofp', 'obcx'):
         return r'mpiexec.hydra  -n ${PJM_MPI_PROC} ' + exec_command + input_filename + ' > ' + log_filename + '  \n\n'
     elif is_mpi == 'fram': 
         return 'mpiexec' + exec_command + input_filename + ' > ' + log_filename + '  \n\n'
@@ -610,6 +610,8 @@ def output_transit(
         +  '  gs = ' + gs + '\n' 
     if 'is_obtd' in var_dict: 
         out += '  is_obtd = ' + str(var_dict['is_obtd']) + '\n'
+    if 'is_tbtd' in var_dict:
+        out += '  is_tbtd = ' + str(var_dict['is_tbtd']) + '\n'
     out += '&end\n' \
         +  'EOF\n'
 
@@ -845,7 +847,7 @@ def main_nuclide(
     list_param = [ k + " = " for k in var_dict.keys() ]
     list_param += [ # A few extra tab complete entries.
         'is_obtd = .true.', 'is_ry_sum = .true.', 'is_calc_tbme = .true.',
-        'sq = ', 'quench = '
+        'sq = ', 'quench = ', 'is_tbtd = .true.'
     ]
     parameter_info = "\nModify parameters?\n"
     parameter_info += "Example: maxiter = 300 for parameter change or <CR> for no more"
@@ -983,7 +985,7 @@ def main_nuclide(
             int(var_dict[ 'n_restart_vec' ])
         )
         var_dict[ "max_lanc_vec" ] = max(
-            var_dict[ 'max_lanc_vec' ],
+            int(var_dict[ 'max_lanc_vec' ]),
             int(var_dict[ 'n_restart_vec' ]) + 50
         )
         var_dict[ 'mtot' ] = spin
@@ -1000,7 +1002,7 @@ def main_nuclide(
         # shell_file_content_single += '&end\n' + 'EOF\n'
         tmp_kshell_content = f'echo "start running {log_filename} ..."\n'
         tmp_kshell_content += f'cat > {input_filename} <<EOF\n&input\n'
-        tmp_kshell_content += print_var_dict(var_dict, skip=('is_obtd', 'no_save'))
+        tmp_kshell_content += print_var_dict(var_dict, skip=('is_obtd', 'is_tbtd', 'no_save'))
         tmp_kshell_content += f'&end\nEOF\n'
         tmp_kshell_content +=  exec_string('kshell', input_filename, log_filename)
         
@@ -1750,8 +1752,16 @@ def main():
                   (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) )
                 for (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1) in states
                 for (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) in states
-                if nf1[0] == nf2[0] + 1 and sum(nf1)==sum(nf2) 
-                and p1 == p2 and abs(m1-m2)<=2 ]
+                if nf1[0] == nf2[0] + 1 and sum(nf1) == sum(nf2) 
+                and p1 == p2 and abs(m1 - m2) <= 2 ]
+
+    ff_pair = [ ( (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1),
+                (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) )
+                for (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1) in states
+                for (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) in states
+                if nf1[0] == nf2[0] + 1 and nf1[1] + 1 == nf2[1]
+                and p1 != p2 ]
+                # and p1 != p2 and abs(m1-m2)<=4 ]
 
     sfac_pair = [ ( (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1),  
                     (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) )
@@ -1760,17 +1770,41 @@ def main():
                   if (nf1[0] == nf2[0]+1 and nf1[1] == nf2[1])
                   or (nf1[0] == nf2[0]   and nf1[1] == nf2[1]+1) ]
 
+    tna_pair  = [ ( (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1),
+                    (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) )
+                    for (nf1, m1, p1, n1, isj1, fn_base1, fn_wp1) in states
+                    for (nf2, m2, p2, n2, isj2, fn_base2, fn_wp2) in states
+                    if (nf1[0]+nf1[1] == nf2[0]+nf2[1]+2) ]
+
     if gt_pair and ask_yn('Gamow-teller transition'):
         shell_file_content_total += '# ------ Gamow Teller transition ------ \n'
         shell_file_content_total += 'echo \n'
         shell_file_content_total += 'echo "Gamow Teller transition calc."\n'
         shell_file_content_total += output_transit_pair(gt_pair, fn_snt_base)
 
+    if ff_pair and ask_yn('First forbidden transition'):
+        shell_file_content_total += '# --- First forbidden transition beta-minus --- \n'
+        shell_file_content_total += 'echo \n'
+        shell_file_content_total += 'echo "First forbidden transition beta-minus calc."\n'
+        shell_file_content_total += output_transit_pair(ff_pair)
+        
+        ff_p_pair = [ (j,i) for i,j in ff_pair ]
+        shell_file_content_total += '# --- First forbidden transition beta-plus --- \n'
+        shell_file_content_total += 'echo \n'
+        shell_file_content_total += 'echo "First forbidden transition beta-plus calc."\n'
+        shell_file_content_total += output_transit_pair(ff_p_pair)
+
     if sfac_pair and ask_yn('one-particle spectroscopic factor'):
         shell_file_content_total += '# --------- spectroscocpic factor --------- \n'
         shell_file_content_total += 'echo \n'
         shell_file_content_total += 'echo "spectroscopic factor calc."\n'
         shell_file_content_total += output_transit_pair(sfac_pair, fn_snt_base)
+
+    if tna_pair and ask_yn('Two-nucleon transfer amplitude'):
+        shell_file_content_total += '# --------- two-nucleon transfer amplitude --------- \n'
+        shell_file_content_total += 'echo \n'
+        shell_file_content_total += 'echo "two-nucleon transfer amplitude"\n'
+        shell_file_content_total += output_transit_pair(tna_pair)
 
     shell_filename += ".sh"
     
