@@ -10,7 +10,7 @@ Japan Advanced Science Research Center, Japan Atomic Energy Agency, Tokai, Ibara
 
 https://doi.org/10.1016/j.cpc.2019.06.011
 
-Code downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
+Code downloaded from https://sites.google.com/alumni.tsukuba.ac.jp/kshell-nuclear/
 
 <details>
 <summary>Abstract</summary>
