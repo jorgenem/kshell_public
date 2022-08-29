@@ -561,38 +561,32 @@ Setup complete. Exiting...
   <!-- #### How to choose spin and parity states -->
 
   <details>
-  <summary>How to choose spin and parity states</summary>
+  <summary>How to choose spin and parity levels</summary>
   <p>
   
-  `kshell_ui.py` asks you to choose what spin and parity states you want to calculate:
+  `kshell_ui.py` asks you to choose what spin and parity levels you want to calculate:
   ```
   J, parity, number of lowest states
     (ex. 100          for 100 +parity, 100 -parity states w/o J-proj. (default)
         -5           for lowest five -parity states,
         0+3, 2+1     for lowest three 0+ states and one 2+ states,
-        1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :
+        1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states)
+        range        for a range of states) :
   ```
   * Entering an integer `N` will ask `KSHELL` to produce the `N` lowest lying energy levels, regardless of spin and parity. Example: Inputting `1337` will produce the 1337 lowest lying energy levels.
   * Prepending a plus sign (`+`) or a minus sign (`-`) to the integer will specify which parity you want to calculate the levels for. Note that your chosen nuclide and model space might only be able to produce either positive or negative parity states. Example: `+1337` will produce the 1337 lowest lying positive parity levels.
   * You can request the `N` lowest lying levels of a specific spin and parity. Example: `0+3` will produce the three lowest lying levels with spin 0 and positive parity.
-  * You can request several different specific spin and parity states. Example: `1.5-1, 3.5+3` will produce the lowest lying state of spin 3/2 and negative parity, as well as the three lowest lying states of spin 7/2 and positive parity.
-
-  It can be tedious to manually input a lot of specific requests to `kshell_ui.py`. You can use `kshell_utilities` to quickly generate the correct spin, parity and number of states input. To generate input for the 100 lowest lying levels for all spins from 0 including 3 for both parities:
-  ``` python
-  >>> import kshell_utilities as ksutil
-
-  >>> ksutil.generate_states(
-      start = 0,
-      stop = 3,
-      n_states = 100,
-      parity = "both"
-  )
+  * You can request several different specific spin and parity levels. Example: `1.5-1, 3.5+3` will produce the lowest lying level of spin 3/2 and negative parity, as well as the three lowest lying levels of spin 7/2 and positive parity.
+  * The `range` functionality lets you easily select `N` levels for a range of different angular momenta. Any invalid choice will be filtered away, like choosing integer angular momenta for a nucleus of half integer angular momenta, or choosing a parity which the interaction does not support. In the following example we select 10 positive parity levels for angular momenta 0, 1, 2, and 3:
+    
   ```
-  which outputs:
-  ``` python
-  0+100, 0.5+100, 1+100, 1.5+100, 2+100, 2.5+100, 3+100, 0-100, 0.5-100, 1-100, 1.5-100, 2-100, 2.5-100, 3-100
+range
+Start spin: 0
+End spin (included): 3
+Number of states per spin: 10
+Parity (+, -, both): +
+Chosen states: ['0+10', '1+10', '2+10', '3+10']
   ```
-  Note that the output has a spin step length of 1/2. `kshell_ui.py` will filter out the states which are not valid for the given model space and nuclide, so just paste the entire string into the `kshell_ui.py` prompt.
 
   </p>
   </details>
