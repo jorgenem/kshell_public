@@ -487,7 +487,8 @@ Code downloaded from https://sites.google.com/alumni.tsukuba.ac.jp/kshell-nuclea
     (ex. 10          for 10 +parity, 10 -parity states w/o J-proj. (default)
         -5           for lowest five -parity states,
         0+3, 2+1     for lowest three 0+ states and one 2+ states,
-        1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states) :
+        1.5-1, 3.5+3 for lowest one 3/2- states and three 7/2+ states
+        range        for a range of states) :
   ```
   We are now asked for truncation information. The model space is small and the number of nucleos is low, so we dont need to truncate this system. The default is no truncation. 20Ne in the `USD` model space only allows positive parity states, so we are only asked for truncation of the positive parity states. See a section later in this document for truncation details:
   ```
@@ -499,30 +500,39 @@ Code downloaded from https://sites.google.com/alumni.tsukuba.ac.jp/kshell-nuclea
         3 : Both (1) and (2)
 
   ```
-  At this point we are asked whether we want to edit any other parameters, like the proton and neutron effective charges, the gyroscopic spin factor and the number of Lanczos iterations. Leave this to the default values:
+  At this point we are asked whether we want to edit any other parameters, like the proton and neutron effective charges, the gyroscopic spin factor and the number of Lanczos iterations. Change these to your needs (tab complete is supported). In this demo, we'll leave them to the default values:
   ```
-  --- input parameter ---
-    beta_cm = 0.0
-    eff_charge = 1.5, 0.5,
-    gl = 1.0, 0.0,
-    gs = 5.585, -3.826,
-    hw_type = 2
-    max_lanc_vec = 200
-    maxiter = 300
-    mode_lv_hdd = 0
-    n_block = 0
-    n_restart_vec = 10
+Modify parameters?
+Example: maxiter = 300 for parameter change or <CR> for no more modification.
+Available paramters are:
+['max_lanc_vec', 'maxiter', 'n_restart_vec', 'hw_type', 'mode_lv_hdd', 'n_block', 'eff_charge', 'gl', 'gs', 'beta_cm', 'fn_int', 'is_obtd', 'is_ry_sum', 'is_calc_tbme', 'sq', 'quench', 'is_tbtd']
 
-  modify parameter?
-  (e.g.  maxiter = 300 for parameter change
-          <CR>          for no more modification ) :
+
+ --- set parameters ---
+  beta_cm = 0.0
+  eff_charge = 1.5, 0.5,
+  gl = 1.0, 0.0,
+  gs = 5.585, -3.826,
+  hw_type = 2
+  max_lanc_vec = 200
+  maxiter = 300
+  mode_lv_hdd = 0
+  n_block = 0
+  n_restart_vec = 10
+
+:
   ```
-  Then, the transition probabilities are calculated by default, but you can omit these calculations here. Choose the default value:
+  The transition probabilities are calculated by default, but they can be omitted. Choose the default value:
   ```
   compute transition probabilities (E2/M1/E1) for
       Ne20_usda ? Y/N (default: Y) :
   ```
-  Now you may repeat the process and input parameters for another nuclide. Press return to skip this step and to finish the script setup process. The directory should now include these files:
+  Now you may repeat the process and add parameters for another nuclide (per 2022-08-29 only one nuclide is supported at a time). Press return to skip this step. For the last step you are asked if you want to split the commands into separate shell scripts. This is handy for running very large calculations on supercomputers, but not for running smaller calculations on single PCs. We'll choose 'no': 
+  ```
+Split shell files? y/n (default: n): n
+Setup complete. Exiting...
+  ```
+  The directory should now include these files:
 
   ```
   Ne20_usda.sh
