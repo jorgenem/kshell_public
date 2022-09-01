@@ -41,7 +41,7 @@ Code downloaded from https://sites.google.com/alumni.tsukuba.ac.jp/kshell-nuclea
 <summary>Click here for prerequisites</summary>
 <p>
 
-  * ```Python 3.8``` or newer (kshell_ui.py uses syntax specific to 3.8 and above)
+  * ```Python 3.10``` or newer (kshell_ui.py uses syntax specific to 3.10 and above)
     * `numpy`
     * `matplotlib` (not required but recommended)
     * `kshell-utilities` (not required but recommended)
