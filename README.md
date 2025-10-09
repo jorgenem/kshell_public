@@ -1,3 +1,7 @@
+**This repository is no longer maintained, and new users should rather head to Jon Kristian Dahl's fork here:** https://github.com/GaffaSnobb/kshell
+
+---
+
 This repository contains N. Shimizu's code KSHELL ([arXiv:1310.5431 [nucl-th]](https://arxiv.org/abs/1310.5431)), downloaded from https://sites.google.com/a/cns.s.u-tokyo.ac.jp/kshell/
 
 ### Installation
